@@ -223,6 +223,7 @@ export default function AdminPage() {
       'nop_ho_so': 'Setup / GPKD',
       'setup': 'Setup / GPKD',
       'ra_soat': 'Rà soát',
+      'dau_tu': 'Đầu tư (IRC)',
       'ho_tro': 'Hỗ trợ',
       'khac': 'Khác'
     };
@@ -650,6 +651,9 @@ export default function AdminPage() {
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-sm text-indigo-900">
                       <input type="checkbox" checked={clientForm.services.includes('Rà soát')} onChange={()=>toggleClientService('Rà soát')}/> Rà soát sổ sách / BCTC
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-sm text-rose-900">
+                      <input type="checkbox" checked={clientForm.services.includes('Đầu tư')} onChange={()=>toggleClientService('Đầu tư')}/> Giấy chứng nhận đầu tư (IRC)
+                    </label>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
@@ -684,6 +688,8 @@ export default function AdminPage() {
                               className={`px-2 py-1 text-xs rounded-full font-medium ${
                                 s === 'Rà soát' 
                                   ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                                  : s === 'Đầu tư' 
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200' 
                                   : s === 'BHXH' 
                                   ? 'bg-emerald-50 text-emerald-700' 
                                   : 'bg-blue-50 text-blue-700'

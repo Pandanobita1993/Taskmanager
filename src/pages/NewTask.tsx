@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Plus, Upload, Camera, Check, Eye, 
-  Calculator, Shield, Settings2, FileText, Sparkles, AlertCircle, Building2, Search, FileSearch
+  Calculator, Shield, Settings2, FileText, Sparkles, AlertCircle, Building2, Search, FileSearch, Landmark
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from './Settings';
 
-type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup' | 'ra_soat';
+type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup' | 'ra_soat' | 'dau_tu';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -97,12 +97,22 @@ export default function NewTask() {
     'Kiểm tra rủi ro thuế & hoàn thiện chứng từ trước thanh kiểm tra'
   ];
 
+  const quickDauTuTasks = [
+    'Đăng ký cấp mới Giấy chứng nhận đăng ký đầu tư (IRC)',
+    'Điều chỉnh Giấy chứng nhận đăng ký đầu tư (Thay đổi vốn, tiến độ, địa điểm)',
+    'Gia hạn thời hạn hoạt động của dự án đầu tư',
+    'Thủ tục góp vốn, mua cổ phần, phần vốn góp của nhà đầu tư nước ngoài',
+    'Báo cáo định kỳ tình hình thực hiện dự án đầu tư trực tuyến',
+    'Chấm dứt hoạt động dự án đầu tư'
+  ];
+
   const quickAgencies = [
     'Sở KH&ĐT Cần Thơ',
     'Sở KH&ĐT TP.HCM',
     'Sở KH&ĐT Hậu Giang',
     'Sở KH&ĐT Vĩnh Long',
     'Sở KH&ĐT Tây Ninh',
+    'Ban Quản lý các Khu công nghiệp & Chế xuất (KCN)',
     'Chi cục Thuế khu vực / TP',
     'Cơ quan BHXH Cần Thơ'
   ];
@@ -201,10 +211,10 @@ export default function NewTask() {
   const supportedUser = users.find(u => u.id === supportedUserId || u.name === supportedUserId);
 
   // Lọc khách hàng:
-  // - Nếu là Setup hoặc kiêm nhiệm GPKD: Cho phép chọn từ toàn bộ danh sách công ty
+  // - Nếu là Setup, Đầu tư hoặc kiêm nhiệm GPKD/ĐT: Cho phép chọn từ toàn bộ danh sách công ty
   // - Nếu là Hỗ trợ: lấy danh sách của nhân viên được chọn hỗ trợ
   // - Nếu là Kế toán / BHXH thông thường: ưu tiên khách hàng được phân công cho mình (nhưng có nút bật tìm kiếm tất cả khách hàng)
-  const isSetupOrAll = businessDomain === 'setup' || profile?.additionalRoles?.includes('gpkd');
+  const isSetupOrAll = businessDomain === 'setup' || businessDomain === 'dau_tu' || profile?.additionalRoles?.includes('gpkd') || profile?.additionalRoles?.includes('dt');
 
   const baseClientList = isSetupOrAll 
     ? clients 
@@ -232,6 +242,7 @@ export default function NewTask() {
       let clientServices = ['Kế toán'];
       if (businessDomain === 'bhxh') clientServices = ['BHXH'];
       else if (businessDomain === 'ra_soat') clientServices = ['Rà soát'];
+      else if (businessDomain === 'dau_tu') clientServices = ['Đầu tư'];
       else if (businessDomain === 'setup') clientServices = ['Setup', 'Kế toán'];
 
       const newClient = {
@@ -306,6 +317,7 @@ export default function NewTask() {
       if (businessDomain === 'bhxh') resolvedActionType = 'bhxh';
       else if (businessDomain === 'setup') resolvedActionType = 'nop_ho_so';
       else if (businessDomain === 'ra_soat') resolvedActionType = 'ra_soat';
+      else if (businessDomain === 'dau_tu') resolvedActionType = 'dau_tu';
 
       // Xây dựng nội dung chi tiết
       let finalContent = content;
@@ -450,7 +462,7 @@ export default function NewTask() {
               <label className="block text-sm font-bold text-gray-800">
                 1. Chọn mảng nghiệp vụ tiếp nhận *
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <button
                   type="button"
                   onClick={() => setBusinessDomain('ke_toan')}
@@ -465,7 +477,7 @@ export default function NewTask() {
                   </div>
                   <div>
                     <div className="font-bold text-sm">Kế toán thuế</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Thuế, hóa đơn, sổ phụ, BCTC, MISA</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Thuế, hóa đơn, BCTC, MISA</div>
                   </div>
                 </button>
 
@@ -483,7 +495,7 @@ export default function NewTask() {
                   </div>
                   <div>
                     <div className="font-bold text-sm">Bảo hiểm xã hội</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Báo tăng, giảm, thai sản, mã hồ sơ</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Báo tăng, giảm, mã hồ sơ</div>
                   </div>
                 </button>
 
@@ -500,8 +512,8 @@ export default function NewTask() {
                     <Settings2 size={20} />
                   </div>
                   <div>
-                    <div className="font-bold text-sm">Setup & Pháp lý</div>
-                    <div className="text-xs text-gray-500 mt-0.5">GPKD, CKS, HĐĐT, Sở KH&ĐT</div>
+                    <div className="font-bold text-sm">Setup & GPKD</div>
+                    <div className="text-xs text-gray-500 mt-0.5">GPKD, CKS, HĐĐT, ĐKKD</div>
                   </div>
                 </button>
 
@@ -519,7 +531,25 @@ export default function NewTask() {
                   </div>
                   <div>
                     <div className="font-bold text-sm">Rà soát</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Kiểm tra sổ sách cũ, đối chiếu số liệu</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Sổ sách cũ, đối chiếu số liệu</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBusinessDomain('dau_tu')}
+                  className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                    businessDomain === 'dau_tu' 
+                      ? 'bg-rose-50/80 border-rose-500 ring-2 ring-rose-500/30 text-rose-900 shadow-xs' 
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-rose-200 hover:bg-rose-50/30'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${businessDomain === 'dau_tu' ? 'bg-rose-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <Landmark size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">Đăng ký đầu tư</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Dự án đầu tư, IRC, vốn ngoại</div>
                   </div>
                 </button>
               </div>
@@ -661,7 +691,9 @@ export default function NewTask() {
                     ? quickAccountingTasks 
                     : (businessDomain === 'bhxh' 
                         ? quickBhxhTasks 
-                        : (businessDomain === 'setup' ? quickSetupTasks : quickRaSoatTasks))
+                        : (businessDomain === 'setup' 
+                            ? quickSetupTasks 
+                            : (businessDomain === 'ra_soat' ? quickRaSoatTasks : quickDauTuTasks)))
                   ).map(taskText => (
                     <button
                       key={taskText}
@@ -726,10 +758,10 @@ export default function NewTask() {
 
               {/* Các trường chuyên biệt: Mã hồ sơ & Cơ quan sở tại & Chứng từ giấy */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(businessDomain === 'bhxh' || businessDomain === 'setup') && (
+                {(businessDomain === 'bhxh' || businessDomain === 'setup' || businessDomain === 'dau_tu') && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Mã hồ sơ điện tử {businessDomain === 'bhxh' ? '(BHXH)' : '(GPKD / Thuế)'}
+                      Mã hồ sơ điện tử {businessDomain === 'bhxh' ? '(BHXH)' : (businessDomain === 'dau_tu' ? '(Dự án đầu tư / IRC)' : '(GPKD / Thuế)')}
                     </label>
                     <input 
                       type="text" 
@@ -741,7 +773,7 @@ export default function NewTask() {
                   </div>
                 )}
 
-                {businessDomain === 'setup' && (
+                {(businessDomain === 'setup' || businessDomain === 'dau_tu') && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
                       Cơ quan sở tại xử lý
@@ -751,7 +783,7 @@ export default function NewTask() {
                         type="text" 
                         value={authorityAgency}
                         onChange={e => setAuthorityAgency(e.target.value)}
-                        placeholder="VD: Sở KH&ĐT Cần Thơ..." 
+                        placeholder="VD: Sở KH&ĐT Cần Thơ / BQL Khu công nghiệp..." 
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm" 
                       />
                       <select 

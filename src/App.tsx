@@ -318,6 +318,11 @@ function Dashboard() {
                         Rà soát
                       </span>
                     )}
+                    {task.action_type === 'dau_tu' && (
+                      <span className="bg-rose-100 text-rose-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        Đầu tư
+                      </span>
+                    )}
                     <span className="font-semibold text-gray-800 text-base">{task.clients?.name}</span>
                   </div>
                   <p className="text-sm text-gray-700 font-medium">{task.content}</p>
