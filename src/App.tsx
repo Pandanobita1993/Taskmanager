@@ -298,9 +298,19 @@ function Dashboard() {
                         Hỗ trợ: {task.supported_user_name || 'Đồng nghiệp'}
                       </span>
                     )}
-                    {task.action_type === 'nop_ho_so' && (
+                    {task.action_type === 'ke_toan' && (
                       <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Nộp hồ sơ
+                        Kế toán
+                      </span>
+                    )}
+                    {task.action_type === 'bhxh' && (
+                      <span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        BHXH
+                      </span>
+                    )}
+                    {(task.action_type === 'nop_ho_so' || task.action_type === 'setup') && (
+                      <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        Setup / GPKD
                       </span>
                     )}
                     <span className="font-semibold text-gray-800 text-base">{task.clients?.name}</span>

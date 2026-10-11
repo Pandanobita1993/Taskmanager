@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Upload, Camera, Scissors, Check, Eye } from 'lucide-react';
+import { 
+  ArrowLeft, Save, Plus, Upload, Camera, Check, Eye, 
+  Calculator, Shield, Settings2, FileText, Sparkles, AlertCircle, Building2, Search
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from './Settings';
 
-interface Client {
-  id: string;
-  name: string;
-  taxCode: string;
-  contactName: string;
-  contactPhone: string;
-  services: string[];
-}
+type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -20,19 +16,40 @@ export default function NewTask() {
   const [users, setUsers] = useState<any[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   
-  // State for the new task form
+  // State phân loại chính: Việc bình thường vs Thu phí
   const [taskType, setTaskType] = useState<'normal' | 'payment'>('normal');
   const [taskCategory, setTaskCategory] = useState<'main' | 'support'>('main');
   const [supportedUserId, setSupportedUserId] = useState('');
-  const [actionType, setActionType] = useState<'normal' | 'nop_ho_so'>('normal');
+  
+  // 3 Nghiệp vụ cốt lõi
+  const [businessDomain, setBusinessDomain] = useState<BusinessDomain>('ke_toan');
+
+  // Khách hàng & Tìm kiếm nhanh
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [content, setContent] = useState('');
   const [infoProvided, setInfoProvided] = useState('');
   const [infoPending, setInfoPending] = useState('');
   const [notes, setNotes] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
-  
+
+  // Trường chuyên biệt theo nghiệp vụ thực tế
+  const [dossierCode, setDossierCode] = useState(''); // Mã hồ sơ điện tử (BHXH hoặc Setup)
+  const [authorityAgency, setAuthorityAgency] = useState(''); // Cơ quan sở tại (Sở KH&ĐT / Thuế / BHXH các tỉnh)
+  const [paperDossier, setPaperDossier] = useState(''); // Hồ sơ / chứng từ bản giấy bàn giao
+
+  // Helper cho Kế toán (Gợi ý tiến độ MISA)
+  const [misaPurchases, setMisaPurchases] = useState(false);
+  const [misaSales, setMisaSales] = useState(false);
+  const [misaBank, setMisaBank] = useState(false);
+  const [misaSalary, setMisaSalary] = useState(false);
+
+  // Quick Add Client for GPKD / Setup
+  const [showQuickAddClient, setShowQuickAddClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientTax, setNewClientTax] = useState('');
+
   // Payment specific states
   const [paidMonths, setPaidMonths] = useState<string[]>([]);
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -41,9 +58,49 @@ export default function NewTask() {
   const [paymentReason, setPaymentReason] = useState<string>('Phí dịch vụ kế toán');
   const [customPaymentReason, setCustomPaymentReason] = useState<string>('');
 
-  // Hàm tạo tên file theo quy tắc: [Ngày tải lên]-[MST khách hàng]-[Tháng đóng phí]
+  // Danh sách các gợi ý công việc nhanh theo từng mảng
+  const quickAccountingTasks = [
+    'Khai thuế GTGT & TNCN quý',
+    'Nhập hóa đơn đầu vào / đầu ra',
+    'Nhập sổ phụ ngân hàng & đối chiếu',
+    'Lập bảng tính lương & trích nộp bảo hiểm',
+    'Lập Báo cáo tài chính & Quyết toán thuế TNDN, TNCN',
+    'In và đóng tập chứng từ kế toán',
+    'Giải trình kiểm tra thuế / hoàn thuế'
+  ];
+
+  const quickBhxhTasks = [
+    'Báo tăng lao động tham gia BHXH, BHYT, BHTN',
+    'Báo giảm lao động (chấm dứt hợp đồng lao động)',
+    'Điều chỉnh mức đóng BHXH / chức danh nghề',
+    'Giải quyết chế độ Ốm đau / Thai sản / Dưỡng sức',
+    'Cấp mới / Đổi thẻ BHYT / Chốt sổ BHXH',
+    'Cấp mã đơn vị BHXH mới thành lập'
+  ];
+
+  const quickSetupTasks = [
+    'Đăng ký thành lập Doanh nghiệp mới (GPKD)',
+    'Thay đổi nội dung Đăng ký kinh doanh (ĐKKD)',
+    'Thành lập Địa điểm kinh doanh / Chi nhánh / VPĐD',
+    'Mua mới / Gia hạn Chữ ký số (CKS)',
+    'Mua mới / Khởi tạo mẫu Hóa đơn điện tử (HĐĐT)',
+    'Đăng ký tài khoản Thuế điện tử (eTax) & Nộp thuế ban đầu',
+    'Đăng ký Hộ kinh doanh cá thể'
+  ];
+
+  const quickAgencies = [
+    'Sở KH&ĐT Cần Thơ',
+    'Sở KH&ĐT TP.HCM',
+    'Sở KH&ĐT Hậu Giang',
+    'Sở KH&ĐT Vĩnh Long',
+    'Sở KH&ĐT Tây Ninh',
+    'Chi cục Thuế khu vực / TP',
+    'Cơ quan BHXH Cần Thơ'
+  ];
+
+  // Hàm tạo tên file
   const generateFileName = (selectedTaxCode?: string, selectedMonths?: string[]) => {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     const tax = selectedTaxCode || 'MST';
     const monthsStr = (selectedMonths && selectedMonths.length > 0) 
       ? selectedMonths.map(m => m.replace(/\s+/g, '').replace(/\//g, '-')).join('_')
@@ -51,34 +108,7 @@ export default function NewTask() {
     return `${today}-${tax}-${monthsStr}.png`;
   };
 
-  // Tính năng chụp màn hình làm việc
-  const captureScreen = async (selectedClientTax?: string) => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: "always" } as any,
-        audio: false
-      });
-      const track = stream.getVideoTracks()[0];
-      const imageCapture = new (window as any).ImageCapture(track);
-      const bitmap = await imageCapture.grabFrame();
-      track.stop(); // Tắt stream chia sẻ
-
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const context = canvas.getContext('2d');
-      context?.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
-      const dataUrl = canvas.toDataURL('image/png');
-
-      const fileName = generateFileName(selectedClientTax, paidMonths);
-      setProofBase64(dataUrl);
-      setProofFileName(fileName);
-    } catch (err) {
-      console.warn("Người dùng hủy hoặc trình duyệt không hỗ trợ getDisplayMedia", err);
-    }
-  };
-
-  // Xử lý khi chọn file từ máy
+  // File change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, selectedClientTax?: string) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -91,11 +121,6 @@ export default function NewTask() {
       reader.readAsDataURL(file);
     }
   };
-
-  // Quick Add Client for GPKD
-  const [showQuickAddClient, setShowQuickAddClient] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientTax, setNewClientTax] = useState('');
 
   // Months generation for Payment
   const generateMonths = () => {
@@ -110,13 +135,21 @@ export default function NewTask() {
 
   useEffect(() => {
     const p = localStorage.getItem('task_manager_profile');
-    if (p) setProfile(JSON.parse(p));
+    if (p) {
+      const parsed = JSON.parse(p);
+      setProfile(parsed);
+      // Tự động chọn tab nghiệp vụ mặc định theo phòng ban người dùng
+      if (parsed.department === 'BHXH') {
+        setBusinessDomain('bhxh');
+      } else {
+        setBusinessDomain('ke_toan');
+      }
+    }
     fetchInitialData();
   }, []);
 
   useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
-      // Chỉ bắt sự kiện paste nếu có ảnh trong clipboard
       const items = e.clipboardData?.items;
       if (!items) return;
       for (let i = 0; i < items.length; i++) {
@@ -156,22 +189,31 @@ export default function NewTask() {
     }
   };
 
-  // Tìm thông tin người được hỗ trợ
   const supportedUser = users.find(u => u.id === supportedUserId || u.name === supportedUserId);
 
   // Lọc khách hàng:
-  // Nếu là nhiệm vụ chính: lọc theo người đang đăng nhập
-  // Nếu là hỗ trợ: lọc theo người được chọn để hỗ trợ
-  const filteredClients = clients.filter(c => {
-    if (taskCategory === 'support') {
-      if (!supportedUser) return false;
-      return c.accounting_person === supportedUser.name || c.insurance_person === supportedUser.name;
-    }
-    if (!profile) return false;
-    return c.accounting_person === profile.fullName || c.insurance_person === profile.fullName;
-  });
+  // - Nếu là Setup hoặc kiêm nhiệm GPKD: Cho phép chọn từ toàn bộ danh sách công ty
+  // - Nếu là Hỗ trợ: lấy danh sách của nhân viên được chọn hỗ trợ
+  // - Nếu là Kế toán / BHXH thông thường: ưu tiên khách hàng được phân công cho mình (nhưng có nút bật tìm kiếm tất cả khách hàng)
+  const isSetupOrAll = businessDomain === 'setup' || profile?.additionalRoles?.includes('gpkd');
 
-  const canAddClient = profile?.additionalRoles?.includes('gpkd');
+  const baseClientList = isSetupOrAll 
+    ? clients 
+    : (taskCategory === 'support' 
+        ? (supportedUser ? clients.filter(c => c.accounting_person === supportedUser.name || c.insurance_person === supportedUser.name) : [])
+        : clients.filter(c => {
+            if (!profile) return true;
+            if (businessDomain === 'bhxh') return c.insurance_person === profile.fullName;
+            return c.accounting_person === profile.fullName || c.insurance_person === profile.fullName;
+          })
+      );
+
+  // Tìm kiếm theo từ khóa tên hoặc MST
+  const filteredClients = baseClientList.filter(c => {
+    if (!clientSearch.trim()) return true;
+    const term = clientSearch.toLowerCase();
+    return c.name?.toLowerCase().includes(term) || c.tax_code?.toLowerCase().includes(term);
+  });
 
   const handleQuickAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,22 +223,23 @@ export default function NewTask() {
       const newClient = {
         name: newClientName,
         tax_code: newClientTax,
-        services: [profile?.department || 'Kế toán'],
-        accounting_person: profile?.department === 'Kế toán' ? profile?.fullName : null,
-        insurance_person: profile?.department === 'BHXH' ? profile?.fullName : null,
+        services: [businessDomain === 'bhxh' ? 'BHXH' : 'Kế toán'],
+        accounting_person: businessDomain === 'ke_toan' ? profile?.fullName : null,
+        insurance_person: businessDomain === 'bhxh' ? profile?.fullName : null,
       };
 
       const { data, error } = await supabase.from('clients').insert([newClient]).select();
       if (error) throw error;
       
       if (data && data[0]) {
-        setClients([...clients, data[0]]);
+        setClients(prev => [...prev, data[0]]);
         setSelectedClientId(data[0].id);
       }
       
       setShowQuickAddClient(false);
       setNewClientName('');
       setNewClientTax('');
+      alert("Đã tạo nhanh khách hàng thành công!");
     } catch(err) {
       console.error(err);
       alert('Lỗi tạo khách hàng nhanh');
@@ -209,6 +252,31 @@ export default function NewTask() {
     );
   };
 
+  // Helper chèn gợi ý vào ô nội dung
+  const handleSelectQuickTask = (taskText: string) => {
+    if (!content) {
+      setContent(taskText);
+    } else if (!content.includes(taskText)) {
+      setContent(prev => `${prev}\n• ${taskText}`);
+    }
+  };
+
+  // Helper ghép tiến độ MISA vào nội dung (dành cho Kế toán)
+  const appendMisaProgress = () => {
+    const misaParts: string[] = [];
+    if (misaPurchases) misaParts.push('Đã nhập HĐ Mua vào');
+    if (misaSales) misaParts.push('Đã xuất HĐ Bán ra');
+    if (misaBank) misaParts.push('Đã đối chiếu Sổ phụ NH');
+    if (misaSalary) misaParts.push('Đã hạch toán Bảng lương');
+
+    if (misaParts.length > 0) {
+      const misaString = `[Tiến độ MISA: ${misaParts.join('; ')}]`;
+      if (!content.includes('[Tiến độ MISA:')) {
+        setContent(prev => (prev ? `${prev}\n${misaString}` : misaString));
+      }
+    }
+  };
+
   const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId) {
@@ -219,6 +287,24 @@ export default function NewTask() {
     try {
       const actualPaymentReason = paymentReason === 'Khác' ? customPaymentReason : paymentReason;
       
+      // Ánh xạ action_type chuẩn hóa
+      let resolvedActionType = 'ke_toan';
+      if (businessDomain === 'bhxh') resolvedActionType = 'bhxh';
+      else if (businessDomain === 'setup') resolvedActionType = 'nop_ho_so';
+
+      // Xây dựng nội dung chi tiết
+      let finalContent = content;
+      if (taskType === 'payment') {
+        finalContent = `Thu phí: ${actualPaymentReason} (${paidMonths.join(', ')})`;
+      }
+
+      // Xây dựng phần ghi chú tổng hợp (kèm cơ quan sở tại, chứng từ giấy nếu có)
+      const noteParts: string[] = [];
+      if (notes.trim()) noteParts.push(notes.trim());
+      if (authorityAgency.trim()) noteParts.push(`Cơ quan sở tại: ${authorityAgency.trim()}`);
+      if (paperDossier.trim()) noteParts.push(`Chứng từ giấy: ${paperDossier.trim()}`);
+      const combinedNotes = noteParts.join(' | ');
+
       const newTask = {
         type: taskType,
         client_id: selectedClientId,
@@ -227,14 +313,15 @@ export default function NewTask() {
         task_category: taskCategory,
         supported_user_id: taskCategory === 'support' ? (supportedUser?.id || supportedUserId) : null,
         supported_user_name: taskCategory === 'support' ? (supportedUser?.name || supportedUserId) : null,
-        action_type: actionType,
+        action_type: resolvedActionType,
         
-        contact_person: contactPerson || 'Sếp giao',
-        content: taskType === 'payment' ? `Thu phí: ${actualPaymentReason} (${paidMonths.join(', ')})` : content,
+        contact_person: contactPerson.trim() || 'Sếp giao',
+        content: finalContent,
         info_provided: infoProvided,
         info_pending: infoPending,
-        notes,
+        notes: combinedNotes,
         is_urgent: isUrgent,
+        dossier_code: dossierCode.trim() || null,
 
         payment_reason: taskType === 'payment' ? actualPaymentReason : null,
         paid_months: taskType === 'payment' ? paidMonths : null,
@@ -255,72 +342,77 @@ export default function NewTask() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
         <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-100 rounded-full transition text-gray-600">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold text-gray-800">Tiếp nhận công việc mới</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Tiếp nhận công việc mới</h1>
+          <p className="text-sm text-gray-500">Chuẩn hóa theo 3 mảng nghiệp vụ: Kế toán, Bảo hiểm xã hội và Setup ban đầu</p>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         
+        {/* TAB 1: PHÂN LOẠI CÔNG VIỆC VS THANH TOÁN */}
         <div className="flex border-b border-gray-100">
           <button 
-            className={`flex-1 py-4 font-semibold text-center transition-colors ${taskType === 'normal' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`flex-1 py-4 font-semibold text-center transition-colors flex items-center justify-center gap-2 ${taskType === 'normal' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
             onClick={() => setTaskType('normal')}
           >
-            Việc bình thường
+            <FileText size={18} />
+            Tiếp nhận công việc chuyên môn
           </button>
           <button 
-            className={`flex-1 py-4 font-semibold text-center transition-colors ${taskType === 'payment' ? 'bg-green-50 text-green-700 border-b-2 border-green-600' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`flex-1 py-4 font-semibold text-center transition-colors flex items-center justify-center gap-2 ${taskType === 'payment' ? 'bg-green-50 text-green-700 border-b-2 border-green-600' : 'text-gray-500 hover:bg-gray-50'}`}
             onClick={() => setTaskType('payment')}
           >
-            Khách trả phí dịch vụ
+            <Check size={18} />
+            Khách trả phí dịch vụ (UNC / Chuyển khoản)
           </button>
         </div>
 
-        <form onSubmit={handleSaveTask} className="p-8 space-y-6">
+        <form onSubmit={handleSaveTask} className="p-6 sm:p-8 space-y-6">
           
-          {/* Lựa chọn loại nhiệm vụ: Chính vs Hỗ trợ */}
-          <div className="bg-gray-50/80 p-4 rounded-lg border border-gray-200 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Phân loại tính chất công việc:</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 text-sm font-medium hover:border-blue-500">
-                  <input 
-                    type="radio" 
-                    name="taskCategory" 
-                    value="main" 
-                    checked={taskCategory === 'main'} 
-                    onChange={() => { setTaskCategory('main'); setSelectedClientId(''); }} 
-                    className="text-blue-600"
-                  />
-                  <span>Nhiệm vụ chính / Kiêm nhiệm của tôi</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 text-sm font-medium hover:border-blue-500">
-                  <input 
-                    type="radio" 
-                    name="taskCategory" 
-                    value="support" 
-                    checked={taskCategory === 'support'} 
-                    onChange={() => { setTaskCategory('support'); setSelectedClientId(''); }} 
-                    className="text-blue-600"
-                  />
-                  <span>Hỗ trợ nhân viên khác</span>
-                </label>
-              </div>
+          {/* LỰA CHỌN: TÍNH CHẤT NHIỆM VỤ (CHÍNH VS HỖ TRỢ) */}
+          <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-200/80 space-y-3">
+            <label className="block text-sm font-semibold text-gray-700">Tính chất phân công:</label>
+            <div className="flex flex-wrap gap-3">
+              <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border text-sm font-medium transition ${taskCategory === 'main' ? 'bg-white border-blue-500 text-blue-700 shadow-xs ring-1 ring-blue-400' : 'bg-white/80 border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                <input 
+                  type="radio" 
+                  name="taskCategory" 
+                  value="main" 
+                  checked={taskCategory === 'main'} 
+                  onChange={() => { setTaskCategory('main'); setSelectedClientId(''); }} 
+                  className="text-blue-600"
+                />
+                <span>Nhiệm vụ chính / Kiêm nhiệm của tôi</span>
+              </label>
+
+              <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border text-sm font-medium transition ${taskCategory === 'support' ? 'bg-white border-purple-500 text-purple-700 shadow-xs ring-1 ring-purple-400' : 'bg-white/80 border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                <input 
+                  type="radio" 
+                  name="taskCategory" 
+                  value="support" 
+                  checked={taskCategory === 'support'} 
+                  onChange={() => { setTaskCategory('support'); setSelectedClientId(''); }} 
+                  className="text-purple-600"
+                />
+                <span>Hỗ trợ nhân sự khác trong văn phòng</span>
+              </label>
             </div>
 
             {/* Nếu là Hỗ trợ, chọn Người được hỗ trợ */}
             {taskCategory === 'support' && (
-              <div className="pt-2 border-t border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chọn người bạn đang hỗ trợ *</label>
+              <div className="pt-3 border-t border-gray-200/70">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chọn nhân sự bạn đang hỗ trợ *</label>
                 <select 
                   required={taskCategory === 'support'}
                   value={supportedUserId} 
                   onChange={e => { setSupportedUserId(e.target.value); setSelectedClientId(''); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500 bg-white"
+                  className="w-full px-3 py-2 border border-purple-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-400 bg-white text-sm"
                 >
                   <option value="">-- Chọn nhân viên được hỗ trợ --</option>
                   {users.filter(u => u.name !== profile?.fullName).map(u => (
@@ -328,168 +420,390 @@ export default function NewTask() {
                   ))}
                 </select>
                 {supportedUserId && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    Danh sách khách hàng bên dưới sẽ tự động lấy các công ty do <strong>{supportedUserId}</strong> phụ trách.
+                  <p className="text-xs text-purple-700 mt-1.5 flex items-center gap-1">
+                    <Sparkles size={13} />
+                    Danh sách khách hàng bên dưới đang được lọc theo các công ty do <strong>{supportedUserId}</strong> phụ trách.
                   </p>
                 )}
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-gray-800 border-b pb-2">1. Thông tin Khách hàng</h2>
-            <div className="flex gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chọn khách hàng {taskCategory === 'support' ? `(Của ${supportedUserId || 'người được hỗ trợ'})` : ''} *
-                </label>
-                {loadingClients ? (
-                  <div className="p-3 bg-gray-50 text-gray-600 border border-gray-200 rounded-md text-sm">
-                    Đang tải danh sách...
-                  </div>
-                ) : filteredClients.length === 0 ? (
-                  <div className="p-3 bg-orange-50 text-orange-700 border border-orange-200 rounded-md text-sm">
-                    {taskCategory === 'support' 
-                      ? (!supportedUserId ? 'Vui lòng chọn người được hỗ trợ ở phía trên trước.' : `${supportedUserId} chưa được phân công khách hàng nào.`)
-                      : 'Bạn chưa được phân công phụ trách khách hàng nào. Vui lòng nhờ Admin phân công trong trang Quản lý.'}
-                  </div>
-                ) : (
-                  <select 
-                    required 
-                    value={selectedClientId} 
-                    onChange={e => {
-                      const cId = e.target.value;
-                      setSelectedClientId(cId);
-                      const clientObj = clients.find(c => c.id === cId);
-                      if (clientObj) {
-                        const hasKetoan = clientObj.services?.includes('Kế toán');
-                        const hasBHXH = clientObj.services?.includes('BHXH');
-                        if (hasKetoan && hasBHXH) {
-                          setPaymentReason('Phí dịch vụ kế toán + BHXH');
-                        } else if (hasBHXH) {
-                          setPaymentReason('Phí dịch vụ bảo hiểm xã hội');
-                        } else if (hasKetoan) {
-                          setPaymentReason('Phí dịch vụ kế toán');
-                        }
-                      }
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500"
-                  >
-                    <option value="">-- Chọn khách hàng --</option>
-                    {filteredClients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} (MST: {c.tax_code})</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              {canAddClient && taskCategory === 'main' && (
-                <button 
-                  type="button" 
-                  onClick={() => setShowQuickAddClient(!showQuickAddClient)}
-                  className="px-4 py-2 border border-blue-300 text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 font-medium whitespace-nowrap"
-                >
-                  + Thêm nhanh (GPKD)
-                </button>
-              )}
-            </div>
-
-            {/* Khung thêm nhanh Cty */}
-            {showQuickAddClient && (
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-md space-y-3">
-                <h4 className="font-semibold text-blue-800 text-sm">Tạo nhanh khách hàng mới</h4>
-                <div className="flex gap-3">
-                  <input type="text" placeholder="Tên khách hàng mới..." value={newClientName} onChange={e => setNewClientName(e.target.value)} className="flex-1 px-3 py-1.5 border border-blue-200 rounded text-sm outline-none" />
-                  <input type="text" placeholder="Mã số thuế..." value={newClientTax} onChange={e => setNewClientTax(e.target.value)} className="w-1/3 px-3 py-1.5 border border-blue-200 rounded text-sm outline-none" />
-                  <button type="button" onClick={handleQuickAddClient} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium">Lưu nhanh</button>
-                </div>
-              </div>
-            )}
-          </div>
-
+          {/* 1. CHỌN 3 NGHIỆP VỤ CHUẨN HÓA (Kế toán | BHXH | Setup) */}
           {taskType === 'normal' && (
-            <div className="space-y-4 pt-4">
-              <h2 className="text-lg font-bold text-gray-800 border-b pb-2">2. Chi tiết công việc</h2>
-              
-              <div className="mb-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Hình thức công việc:</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-md border border-gray-200 text-sm hover:border-blue-500">
-                    <input 
-                      type="radio" 
-                      name="actionType" 
-                      value="normal" 
-                      checked={actionType === 'normal'} 
-                      onChange={() => setActionType('normal')} 
-                      className="text-blue-600"
-                    />
-                    <span>Xử lý thông thường</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-md border border-gray-200 text-sm hover:border-blue-500">
-                    <input 
-                      type="radio" 
-                      name="actionType" 
-                      value="nop_ho_so" 
-                      checked={actionType === 'nop_ho_so'} 
-                      onChange={() => setActionType('nop_ho_so')} 
-                      className="text-blue-600"
-                    />
-                    <span>Nộp hồ sơ (Sẽ yêu cầu nhập Mã hồ sơ khi hoàn thành)</span>
-                  </label>
-                </div>
-              </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-800">
+                1. Chọn mảng nghiệp vụ tiếp nhận *
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBusinessDomain('ke_toan')}
+                  className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                    businessDomain === 'ke_toan' 
+                      ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/30 text-blue-900 shadow-xs' 
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-blue-200 hover:bg-blue-50/30'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${businessDomain === 'ke_toan' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <Calculator size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">Kế toán thuế</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Thuế, hóa đơn, sổ phụ, BCTC, tiến độ MISA</div>
+                  </div>
+                </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Người liên hệ giao việc</label>
-                  <input 
-                    type="text" 
-                    value={contactPerson}
-                    onChange={e => setContactPerson(e.target.value)}
-                    placeholder="Để trống mặc định là Sếp giao" 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500" 
-                  />
-                </div>
-                <div className="flex items-center pt-6">
-                  <label className="flex items-center gap-2 cursor-pointer bg-red-50 text-red-700 px-4 py-2 rounded-md border border-red-200 w-full md:w-auto">
-                    <input 
-                      type="checkbox" 
-                      checked={isUrgent}
-                      onChange={e => setIsUrgent(e.target.checked)}
-                      className="w-5 h-5 text-red-600" 
-                    />
-                    <span className="font-bold">Đánh dấu việc GẤP!</span>
-                  </label>
-                </div>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => setBusinessDomain('bhxh')}
+                  className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                    businessDomain === 'bhxh' 
+                      ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/30 text-emerald-900 shadow-xs' 
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/30'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${businessDomain === 'bhxh' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <Shield size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">Bảo hiểm xã hội</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Báo tăng, giảm, thai sản, mã hồ sơ điện tử</div>
+                  </div>
+                </button>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung công việc *</label>
-                <textarea required value={content} onChange={e => setContent(e.target.value)} rows={3} className="w-full px-4 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500"></textarea>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thông tin được cung cấp</label>
-                  <textarea value={infoProvided} onChange={e => setInfoProvided(e.target.value)} rows={2} className="w-full px-4 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500"></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thông tin chờ cung cấp thêm</label>
-                  <textarea value={infoPending} onChange={e => setInfoPending(e.target.value)} rows={2} className="w-full px-4 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500"></textarea>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú thêm</label>
-                <input type="text" value={notes} onChange={e => setNotes(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md outline-none focus:border-blue-500" />
+                <button
+                  type="button"
+                  onClick={() => setBusinessDomain('setup')}
+                  className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                    businessDomain === 'setup' 
+                      ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/30 text-amber-900 shadow-xs' 
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200 hover:bg-amber-50/30'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${businessDomain === 'setup' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <Settings2 size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">Setup & Pháp lý</div>
+                    <div className="text-xs text-gray-500 mt-0.5">GPKD, CKS, HĐĐT, Sở KH&ĐT, ĐKKD</div>
+                  </div>
+                </button>
               </div>
             </div>
           )}
 
+          {/* 2. CHỌN KHÁCH HÀNG & TÌM KIẾM NHANH */}
+          <div className="space-y-3 pt-2">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <Building2 size={18} className="text-blue-600" />
+                2. Thông tin Doanh nghiệp / Khách hàng
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => setShowQuickAddClient(!showQuickAddClient)}
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+              >
+                <Plus size={14} /> Thêm nhanh Cty mới
+              </button>
+            </div>
+
+            {/* Khung thêm nhanh Cty */}
+            {showQuickAddClient && (
+              <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-3 animate-in fade-in">
+                <h4 className="font-bold text-blue-900 text-xs uppercase">Tạo nhanh khách hàng mới vào hệ thống</h4>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input 
+                    type="text" 
+                    placeholder="Tên doanh nghiệp đầy đủ..." 
+                    value={newClientName} 
+                    onChange={e => setNewClientName(e.target.value)} 
+                    className="flex-1 px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Mã số thuế..." 
+                    value={newClientTax} 
+                    onChange={e => setNewClientTax(e.target.value)} 
+                    className="sm:w-1/3 px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleQuickAddClient} 
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 whitespace-nowrap"
+                  >
+                    Lưu nhanh
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Ô tìm kiếm & Dropdown chọn */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                <input 
+                  type="text"
+                  placeholder="Gõ tìm kiếm nhanh tên công ty hoặc Mã số thuế..."
+                  value={clientSearch}
+                  onChange={e => setClientSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {loadingClients ? (
+                <div className="p-3 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-sm">
+                  Đang tải danh sách khách hàng...
+                </div>
+              ) : filteredClients.length === 0 ? (
+                <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-sm flex items-center justify-between">
+                  <span>Không tìm thấy khách hàng phù hợp với từ khóa & phân quyền của bạn.</span>
+                  <button 
+                    type="button" 
+                    onClick={() => { setClientSearch(''); }} 
+                    className="underline text-xs font-semibold"
+                  >
+                    Xem tất cả
+                  </button>
+                </div>
+              ) : (
+                <select 
+                  required 
+                  value={selectedClientId} 
+                  onChange={e => {
+                    const cId = e.target.value;
+                    setSelectedClientId(cId);
+                    const clientObj = clients.find(c => c.id === cId);
+                    if (clientObj) {
+                      const hasKetoan = clientObj.services?.includes('Kế toán');
+                      const hasBHXH = clientObj.services?.includes('BHXH');
+                      if (hasKetoan && hasBHXH) {
+                        setPaymentReason('Phí dịch vụ kế toán + BHXH');
+                      } else if (hasBHXH) {
+                        setPaymentReason('Phí dịch vụ bảo hiểm xã hội');
+                      } else if (hasKetoan) {
+                        setPaymentReason('Phí dịch vụ kế toán');
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm"
+                >
+                  <option value="">-- Chọn khách hàng ({filteredClients.length} công ty khả dụng) --</option>
+                  {filteredClients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} (MST: {c.tax_code})</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          {/* 3. CHI TIẾT CÔNG VIỆC CHUYÊN MÔN */}
+          {taskType === 'normal' && (
+            <div className="space-y-4 pt-2">
+              <div className="border-b pb-2 flex justify-between items-center">
+                <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <FileText size={18} className="text-blue-600" />
+                  3. Chi tiết công việc
+                </h2>
+                <label className="flex items-center gap-2 cursor-pointer bg-red-50 text-red-700 px-3 py-1 rounded-lg border border-red-200 text-xs font-bold hover:bg-red-100 transition">
+                  <input 
+                    type="checkbox" 
+                    checked={isUrgent}
+                    onChange={e => setIsUrgent(e.target.checked)}
+                    className="w-4 h-4 text-red-600 rounded" 
+                  />
+                  <span>Đánh dấu việc GẤP!</span>
+                </label>
+              </div>
+
+              {/* Gợi ý công việc nhanh theo Nghiệp vụ đang chọn */}
+              <div className="bg-gray-50/70 p-3 rounded-xl border border-gray-200/70 space-y-2">
+                <div className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                  <Sparkles size={14} className="text-amber-500" />
+                  Gợi ý công việc thực tế phổ biến (Nhấn để chèn nhanh):
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(businessDomain === 'ke_toan' 
+                    ? quickAccountingTasks 
+                    : (businessDomain === 'bhxh' ? quickBhxhTasks : quickSetupTasks)
+                  ).map(taskText => (
+                    <button
+                      key={taskText}
+                      type="button"
+                      onClick={() => handleSelectQuickTask(taskText)}
+                      className="px-2.5 py-1 bg-white hover:bg-blue-50 hover:text-blue-700 border border-gray-200 rounded-md text-xs font-medium text-gray-700 transition"
+                    >
+                      + {taskText}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Helper riêng cho Kế toán: Check tiến độ MISA */}
+              {businessDomain === 'ke_toan' && (
+                <div className="bg-blue-50/50 p-3.5 rounded-xl border border-blue-200/60 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-blue-900 uppercase">Tiến độ nhập liệu MISA (Tùy chọn):</span>
+                    <button
+                      type="button"
+                      onClick={appendMisaProgress}
+                      className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded-md font-semibold hover:bg-blue-700"
+                    >
+                      Ghép vào nội dung
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
+                      <input type="checkbox" checked={misaPurchases} onChange={e => setMisaPurchases(e.target.checked)} />
+                      <span>Hóa đơn mua vào</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
+                      <input type="checkbox" checked={misaSales} onChange={e => setMisaSales(e.target.checked)} />
+                      <span>Hóa đơn bán ra</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
+                      <input type="checkbox" checked={misaBank} onChange={e => setMisaBank(e.target.checked)} />
+                      <span>Sổ phụ ngân hàng</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
+                      <input type="checkbox" checked={misaSalary} onChange={e => setMisaSalary(e.target.checked)} />
+                      <span>Bảng lương</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Nội dung công việc chính */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Nội dung công việc thực tế *
+                </label>
+                <textarea 
+                  required 
+                  value={content} 
+                  onChange={e => setContent(e.target.value)} 
+                  rows={3} 
+                  placeholder="Ghi rõ nội dung việc tiếp nhận, yêu cầu của khách hàng..."
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+
+              {/* Các trường chuyên biệt: Mã hồ sơ & Cơ quan sở tại & Chứng từ giấy */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(businessDomain === 'bhxh' || businessDomain === 'setup') && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Mã hồ sơ điện tử {businessDomain === 'bhxh' ? '(BHXH)' : '(GPKD / Thuế)'}
+                    </label>
+                    <input 
+                      type="text" 
+                      value={dossierCode}
+                      onChange={e => setDossierCode(e.target.value)}
+                      placeholder="VD: 12345/2026/07101 (để tra cứu kết quả)" 
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm font-mono bg-blue-50/20" 
+                    />
+                  </div>
+                )}
+
+                {businessDomain === 'setup' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Cơ quan sở tại xử lý
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={authorityAgency}
+                        onChange={e => setAuthorityAgency(e.target.value)}
+                        placeholder="VD: Sở KH&ĐT Cần Thơ..." 
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm" 
+                      />
+                      <select 
+                        onChange={e => { if (e.target.value) setAuthorityAgency(e.target.value); }} 
+                        className="px-2 py-2 border border-gray-200 rounded-lg text-xs bg-gray-50 text-gray-700"
+                      >
+                        <option value="">Gợi ý</option>
+                        {quickAgencies.map(a => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Chứng từ bản giấy bàn giao (nếu có)
+                  </label>
+                  <input 
+                    type="text" 
+                    value={paperDossier}
+                    onChange={e => setPaperDossier(e.target.value)}
+                    placeholder="VD: Nhận 1 bộ tờ khai có đóng dấu, Sổ phụ giấy..." 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Người liên hệ giao việc
+                  </label>
+                  <input 
+                    type="text" 
+                    value={contactPerson}
+                    onChange={e => setContactPerson(e.target.value)}
+                    placeholder="Để trống mặc định là 'Sếp giao'" 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm" 
+                  />
+                </div>
+              </div>
+
+              {/* Thông tin được cấp & Chờ bổ sung */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Thông tin đã được khách cung cấp</label>
+                  <textarea 
+                    value={infoProvided} 
+                    onChange={e => setInfoProvided(e.target.value)} 
+                    rows={2} 
+                    placeholder="VD: Đã nhận CCCD, Hóa đơn mua vào quý 1..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Thông tin / chứng từ chờ bổ sung thêm</label>
+                  <textarea 
+                    value={infoPending} 
+                    onChange={e => setInfoPending(e.target.value)} 
+                    rows={2} 
+                    placeholder="VD: Đang chờ khách gửi sao kê tháng 3..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Ghi chú lưu ý thêm</label>
+                <input 
+                  type="text" 
+                  value={notes} 
+                  onChange={e => setNotes(e.target.value)} 
+                  placeholder="Ghi chú khác nếu có..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm" 
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 4. THANH TOÁN PHÍ DỊCH VỤ */}
           {taskType === 'payment' && (
-            <div className="space-y-6 pt-4">
-              <h2 className="text-lg font-bold text-gray-800 border-b pb-2">2. Thông tin Thanh toán</h2>
+            <div className="space-y-6 pt-2">
+              <h2 className="text-base font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
+                <Check size={18} className="text-green-600" />
+                3. Chi tiết khoản thanh toán của khách
+              </h2>
+              
               {/* Chọn nội dung thu phí */}
-              <div className="bg-green-50/60 p-4 rounded-lg border border-green-200 space-y-3">
+              <div className="bg-green-50/60 p-4 rounded-xl border border-green-200 space-y-3">
                 <label className="block text-sm font-semibold text-green-900 mb-1">
                   Nội dung thu phí dịch vụ *
                 </label>
@@ -522,7 +836,7 @@ export default function NewTask() {
                       required={paymentReason === 'Khác'}
                       type="text" 
                       value={customPaymentReason} 
-                      onChange={e => setCustomPaymentReason(e.target.value)}
+                      onChange={e => setCustomPaymentReason(e.target.value)} 
                       placeholder="VD: Phí làm lại sổ sách các năm trước..." 
                       className="w-full px-3 py-2 border rounded-md text-sm bg-white outline-none focus:ring-2 focus:ring-green-500"
                     />
@@ -531,10 +845,10 @@ export default function NewTask() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Thanh toán cho các tháng *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Thanh toán cho các tháng *</label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                   {availableMonths.map(month => (
-                    <label key={month} className={`flex items-center justify-center py-2 px-1 text-sm border rounded cursor-pointer transition-colors ${paidMonths.includes(month) ? 'bg-green-100 border-green-500 text-green-800 font-medium' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+                    <label key={month} className={`flex items-center justify-center py-2 px-1 text-xs border rounded-lg cursor-pointer transition-colors ${paidMonths.includes(month) ? 'bg-green-100 border-green-500 text-green-800 font-bold' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
                       <input 
                         type="checkbox" 
                         className="hidden"
@@ -548,7 +862,7 @@ export default function NewTask() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh bằng chứng (UNC, Tin nhắn Zalo...)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh bằng chứng (UNC, Tin nhắn Zalo...)</label>
                 <div 
                   onPaste={(e) => {
                     const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
@@ -566,35 +880,29 @@ export default function NewTask() {
                       }
                     }
                   }}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center justify-center bg-gray-50 focus:outline-none focus:border-green-500"
+                  className="border-2 border-dashed border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center bg-gray-50 focus:outline-none focus:border-green-500"
                   tabIndex={0}
                 >
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-14 h-14 bg-green-100 text-green-700 rounded-full flex items-center justify-center mb-1">
-                      <Upload size={28} />
+                    <div className="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mb-1">
+                      <Upload size={24} />
                     </div>
 
                     <div className="text-center">
-                      <p className="text-base font-bold text-gray-800">
-                        📋 Nhấn <kbd className="px-2 py-1 bg-gray-200 border border-gray-300 rounded font-mono text-sm text-gray-800">Ctrl + V</kbd> để dán ảnh trực tiếp
+                      <p className="text-sm font-bold text-gray-800">
+                        📋 Nhấn <kbd className="px-2 py-0.5 bg-gray-200 border border-gray-300 rounded font-mono text-xs text-gray-800">Ctrl + V</kbd> để dán ảnh trực tiếp
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        (Sau khi bạn chụp màn hình bằng <kbd className="px-1.5 py-0.5 bg-gray-100 border rounded text-[11px]">Win + Shift + S</kbd> hoặc Copy ảnh bất kỳ, chỉ cần bấm vào trang này rồi nhấn Ctrl + V)
+                        (Chụp màn hình bằng <kbd className="px-1 py-0.5 bg-gray-100 border rounded text-[10px]">Win + Shift + S</kbd> rồi nhấn Ctrl + V)
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 my-1">
-                      <span className="h-px w-16 bg-gray-300"></span>
-                      <span className="text-xs text-gray-400 font-medium">HOẶC</span>
-                      <span className="h-px w-16 bg-gray-300"></span>
-                    </div>
-
-                    <label className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer shadow-xs transition">
-                      <Upload size={16} />
-                      Chọn file ảnh từ máy tính
+                    <label className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition">
+                      <Upload size={14} />
+                      Chọn file ảnh từ máy
                       <input 
                         type="file" 
-                        accept="image/*"
+                        accept="image/*" 
                         onChange={e => {
                           const clientObj = clients.find(c => c.id === selectedClientId);
                           handleFileChange(e, clientObj?.tax_code);
@@ -606,7 +914,7 @@ export default function NewTask() {
 
                   {proofBase64 && (
                     <div className="mt-4 border border-green-300 rounded-lg p-2 bg-white flex flex-col items-center">
-                      <p className="text-xs font-mono font-bold text-green-700 mb-2">
+                      <p className="text-xs font-mono font-bold text-green-700 mb-1">
                         Tên file đã lưu: {proofFileName}
                       </p>
                       <img src={proofBase64} alt="Bằng chứng thanh toán" className="max-h-48 object-contain rounded border" />
@@ -615,20 +923,27 @@ export default function NewTask() {
                 </div>
               </div>
 
-              <div className="bg-green-50 text-green-700 p-4 rounded-md border border-green-200 text-sm flex items-center gap-2">
+              <div className="bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 text-xs flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                Hệ thống sẽ tự động đánh dấu <strong>Hoàn thành</strong> cho các khoản thanh toán này và ghi nhận vào công nợ.
+                Hệ thống sẽ tự động đánh dấu <strong>Hoàn thành</strong> cho khoản phí này và lưu vào công nợ.
               </div>
             </div>
           )}
 
-          <div className="pt-6 border-t border-gray-100 flex justify-end">
+          <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
+            <button 
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition"
+            >
+              Hủy
+            </button>
             <button 
               type="submit" 
-              className={`px-8 py-3 rounded-md font-bold text-white flex items-center gap-2 shadow-sm transition ${taskType === 'normal' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+              className={`px-8 py-2.5 rounded-lg font-bold text-white flex items-center gap-2 shadow-sm transition ${taskType === 'normal' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
             >
-              <Save size={20} />
-              Lưu & Xác nhận
+              <Save size={18} />
+              Lưu & Xác nhận tiếp nhận
             </button>
           </div>
         </form>
