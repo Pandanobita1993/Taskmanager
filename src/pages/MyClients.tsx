@@ -22,7 +22,10 @@ export default function MyClients() {
       if (error) throw error;
       
       const myClients = (data || []).filter(c => 
-        c.accounting_person === userProfile.fullName || c.insurance_person === userProfile.fullName
+        c.accounting_person === userProfile.fullName || 
+        c.insurance_person === userProfile.fullName ||
+        c.review_person === userProfile.fullName ||
+        c.investment_person === userProfile.fullName
       );
       setClients(myClients);
     } catch(err) {
@@ -273,6 +276,18 @@ export default function MyClients() {
                       <span className="font-medium text-gray-700">{c.ins_software || '-'}</span>
                     </div>
                   </>
+                )}
+                {profile?.fullName === c.review_person && (
+                  <div className="p-2 bg-indigo-50 border border-indigo-100 rounded text-xs text-indigo-800 font-semibold flex items-center justify-between">
+                    <span>Phụ trách: Rà soát sổ sách</span>
+                    <span className="text-[11px] bg-indigo-200/60 px-1.5 py-0.5 rounded">Rà soát</span>
+                  </div>
+                )}
+                {profile?.fullName === c.investment_person && (
+                  <div className="p-2 bg-rose-50 border border-rose-100 rounded text-xs text-rose-800 font-semibold flex items-center justify-between">
+                    <span>Phụ trách: Đăng ký đầu tư (IRC)</span>
+                    <span className="text-[11px] bg-rose-200/60 px-1.5 py-0.5 rounded">Đầu tư</span>
+                  </div>
                 )}
               </div>
             </div>

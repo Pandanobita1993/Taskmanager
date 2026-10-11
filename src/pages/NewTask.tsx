@@ -211,19 +211,26 @@ export default function NewTask() {
   const supportedUser = users.find(u => u.id === supportedUserId || u.name === supportedUserId);
 
   // Lọc khách hàng:
-  // - Nếu là Setup, Đầu tư hoặc kiêm nhiệm GPKD/ĐT: Cho phép chọn từ toàn bộ danh sách công ty
+  // - Nếu là Setup, hoặc kiêm nhiệm GPKD/ĐT: Cho phép chọn từ toàn bộ danh sách công ty
   // - Nếu là Hỗ trợ: lấy danh sách của nhân viên được chọn hỗ trợ
-  // - Nếu là Kế toán / BHXH thông thường: ưu tiên khách hàng được phân công cho mình (nhưng có nút bật tìm kiếm tất cả khách hàng)
-  const isSetupOrAll = businessDomain === 'setup' || businessDomain === 'dau_tu' || profile?.additionalRoles?.includes('gpkd') || profile?.additionalRoles?.includes('dt');
+  // - Nếu là Kế toán / BHXH / Rà soát / Đầu tư: lọc theo phân công phụ trách tương ứng
+  const isAllowAllClients = businessDomain === 'setup' || profile?.additionalRoles?.includes('gpkd') || profile?.additionalRoles?.includes('dt');
 
-  const baseClientList = isSetupOrAll 
+  const baseClientList = isAllowAllClients 
     ? clients 
     : (taskCategory === 'support' 
-        ? (supportedUser ? clients.filter(c => c.accounting_person === supportedUser.name || c.insurance_person === supportedUser.name) : [])
+        ? (supportedUser ? clients.filter(c => 
+            c.accounting_person === supportedUser.name || 
+            c.insurance_person === supportedUser.name ||
+            c.review_person === supportedUser.name ||
+            c.investment_person === supportedUser.name
+          ) : [])
         : clients.filter(c => {
             if (!profile) return true;
             if (businessDomain === 'bhxh') return c.insurance_person === profile.fullName;
-            return c.accounting_person === profile.fullName || c.insurance_person === profile.fullName;
+            if (businessDomain === 'ra_soat') return c.review_person === profile.fullName || c.accounting_person === profile.fullName;
+            if (businessDomain === 'dau_tu') return c.investment_person === profile.fullName;
+            return c.accounting_person === profile.fullName || c.insurance_person === profile.fullName || c.review_person === profile.fullName || c.investment_person === profile.fullName;
           })
       );
 
@@ -249,8 +256,10 @@ export default function NewTask() {
         name: newClientName,
         tax_code: newClientTax,
         services: clientServices,
-        accounting_person: businessDomain === 'bhxh' ? null : profile?.fullName,
+        accounting_person: (businessDomain === 'bhxh' || businessDomain === 'dau_tu') ? null : profile?.fullName,
         insurance_person: businessDomain === 'bhxh' ? profile?.fullName : null,
+        review_person: businessDomain === 'ra_soat' ? profile?.fullName : null,
+        investment_person: businessDomain === 'dau_tu' ? profile?.fullName : null,
       };
 
       const { data, error } = await supabase.from('clients').insert([newClient]).select();
