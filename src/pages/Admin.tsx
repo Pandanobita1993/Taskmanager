@@ -42,7 +42,7 @@ const defaultClientForm: Client = {
   accounting_person: '',
   insurance_person: '',
   services: ['Kế toán'],
-  intake_date: new Date().toISOString().split('T')[0],
+  intake_date: '',
   accounting_fee: 0,
   insurance_fee: 0,
   fee_effective_month: ''
@@ -328,22 +328,23 @@ export default function AdminPage() {
     if (!clientForm.name.trim() || !clientForm.tax_code.trim()) return;
     
     try {
+      const clientPayload = {
+        tax_code: clientForm.tax_code.trim(),
+        name: clientForm.name.trim(),
+        contact_name: clientForm.contact_name,
+        contact_phone: clientForm.contact_phone,
+        accounting_person: clientForm.accounting_person || null,
+        insurance_person: clientForm.insurance_person || null,
+        services: clientForm.services,
+        intake_date: clientForm.intake_date ? clientForm.intake_date : null
+      };
+
       if (clientForm.id) {
         // Edit
-        await supabase.from('clients').update({
-          tax_code: clientForm.tax_code,
-          name: clientForm.name,
-          contact_name: clientForm.contact_name,
-          contact_phone: clientForm.contact_phone,
-          accounting_person: clientForm.accounting_person,
-          insurance_person: clientForm.insurance_person,
-          services: clientForm.services,
-          intake_date: clientForm.intake_date
-        }).eq('id', clientForm.id);
+        await supabase.from('clients').update(clientPayload).eq('id', clientForm.id);
       } else {
         // Add
-        const { id, ...newClient } = clientForm;
-        await supabase.from('clients').insert([newClient]);
+        await supabase.from('clients').insert([clientPayload]);
       }
       setShowClientForm(false);
       setClientForm(defaultClientForm);
@@ -620,7 +621,7 @@ export default function AdminPage() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-sm mb-1 font-medium text-gray-700">Ngày tiếp nhận *</label>
+                    <label className="block text-sm mb-1 font-medium text-gray-700">Ngày tiếp nhận (Không bắt buộc)</label>
                     <input 
                       type="date" 
                       name="intake_date" 
@@ -628,7 +629,7 @@ export default function AdminPage() {
                       onChange={handleClientFormChange} 
                       className="w-full px-3 py-2 border rounded-md"
                     />
-                    <p className="text-xs text-blue-600 mt-1">Dùng để tính chính sách miễn phí 3 tháng đầu đối với khách hàng mới đăng ký GPKD.</p>
+                    <p className="text-xs text-gray-500 mt-1">Dùng để tính chính sách miễn phí 3 tháng đầu đối với khách hàng mới đăng ký GPKD (nếu có).</p>
                   </div>
                 </div>
 
