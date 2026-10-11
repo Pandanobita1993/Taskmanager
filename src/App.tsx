@@ -313,6 +313,11 @@ function Dashboard() {
                         Setup / GPKD
                       </span>
                     )}
+                    {task.action_type === 'ra_soat' && (
+                      <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        Rà soát
+                      </span>
+                    )}
                     <span className="font-semibold text-gray-800 text-base">{task.clients?.name}</span>
                   </div>
                   <p className="text-sm text-gray-700 font-medium">{task.content}</p>

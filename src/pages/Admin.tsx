@@ -220,7 +220,9 @@ export default function AdminPage() {
     const actionTypeLabels: { [key: string]: string } = {
       'ke_toan': 'Kế toán',
       'bhxh': 'BHXH',
-      'nop_ho_so': 'Hồ sơ GPKD',
+      'nop_ho_so': 'Setup / GPKD',
+      'setup': 'Setup / GPKD',
+      'ra_soat': 'Rà soát',
       'ho_tro': 'Hỗ trợ',
       'khac': 'Khác'
     };

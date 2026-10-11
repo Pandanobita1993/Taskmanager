@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Plus, Upload, Camera, Check, Eye, 
-  Calculator, Shield, Settings2, FileText, Sparkles, AlertCircle, Building2, Search
+  Calculator, Shield, Settings2, FileText, Sparkles, AlertCircle, Building2, Search, FileSearch
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from './Settings';
 
-type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup';
+type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup' | 'ra_soat';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -86,6 +86,15 @@ export default function NewTask() {
     'Mua mới / Khởi tạo mẫu Hóa đơn điện tử (HĐĐT)',
     'Đăng ký tài khoản Thuế điện tử (eTax) & Nộp thuế ban đầu',
     'Đăng ký Hộ kinh doanh cá thể'
+  ];
+
+  const quickRaSoatTasks = [
+    'Rà soát hồ sơ sổ sách kế toán các năm cũ',
+    'Rà soát đối chiếu hóa đơn GTGT đầu vào / đầu ra',
+    'Rà soát tờ khai thuế và BCTC các năm',
+    'Rà soát số liệu công nợ, ngân hàng và kho',
+    'Rà soát hồ sơ lao động, tiền lương và BHXH',
+    'Kiểm tra rủi ro thuế & hoàn thiện chứng từ trước thanh kiểm tra'
   ];
 
   const quickAgencies = [
@@ -291,6 +300,7 @@ export default function NewTask() {
       let resolvedActionType = 'ke_toan';
       if (businessDomain === 'bhxh') resolvedActionType = 'bhxh';
       else if (businessDomain === 'setup') resolvedActionType = 'nop_ho_so';
+      else if (businessDomain === 'ra_soat') resolvedActionType = 'ra_soat';
 
       // Xây dựng nội dung chi tiết
       let finalContent = content;
@@ -435,7 +445,7 @@ export default function NewTask() {
               <label className="block text-sm font-bold text-gray-800">
                 1. Chọn mảng nghiệp vụ tiếp nhận *
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <button
                   type="button"
                   onClick={() => setBusinessDomain('ke_toan')}
@@ -450,7 +460,7 @@ export default function NewTask() {
                   </div>
                   <div>
                     <div className="font-bold text-sm">Kế toán thuế</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Thuế, hóa đơn, sổ phụ, BCTC, tiến độ MISA</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Thuế, hóa đơn, sổ phụ, BCTC, MISA</div>
                   </div>
                 </button>
 
@@ -468,7 +478,7 @@ export default function NewTask() {
                   </div>
                   <div>
                     <div className="font-bold text-sm">Bảo hiểm xã hội</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Báo tăng, giảm, thai sản, mã hồ sơ điện tử</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Báo tăng, giảm, thai sản, mã hồ sơ</div>
                   </div>
                 </button>
 
@@ -486,7 +496,25 @@ export default function NewTask() {
                   </div>
                   <div>
                     <div className="font-bold text-sm">Setup & Pháp lý</div>
-                    <div className="text-xs text-gray-500 mt-0.5">GPKD, CKS, HĐĐT, Sở KH&ĐT, ĐKKD</div>
+                    <div className="text-xs text-gray-500 mt-0.5">GPKD, CKS, HĐĐT, Sở KH&ĐT</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBusinessDomain('ra_soat')}
+                  className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                    businessDomain === 'ra_soat' 
+                      ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-500/30 text-indigo-900 shadow-xs' 
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50/30'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${businessDomain === 'ra_soat' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <FileSearch size={20} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">Rà soát</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Kiểm tra sổ sách cũ, đối chiếu số liệu</div>
                   </div>
                 </button>
               </div>
@@ -626,7 +654,9 @@ export default function NewTask() {
                 <div className="flex flex-wrap gap-1.5">
                   {(businessDomain === 'ke_toan' 
                     ? quickAccountingTasks 
-                    : (businessDomain === 'bhxh' ? quickBhxhTasks : quickSetupTasks)
+                    : (businessDomain === 'bhxh' 
+                        ? quickBhxhTasks 
+                        : (businessDomain === 'setup' ? quickSetupTasks : quickRaSoatTasks))
                   ).map(taskText => (
                     <button
                       key={taskText}
