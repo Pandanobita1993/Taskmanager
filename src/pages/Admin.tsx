@@ -645,10 +645,15 @@ export default function AdminPage() {
                       <label className="block text-sm mb-1 text-rose-900 font-medium">Người làm Giấy chứng nhận đầu tư (IRC)</label>
                       <select name="investment_person" value={clientForm.investment_person || ''} onChange={handleClientFormChange} className="w-full px-3 py-2 border border-rose-200 rounded-md bg-rose-50/20">
                         <option value="">-- Trống --</option>
-                        {users.map(u => (
+                        {users.filter(u => u.roles?.includes('dt')).map(u => (
                           <option key={u.id} value={u.name}>{u.name} ({u.department})</option>
                         ))}
                       </select>
+                      {users.filter(u => u.roles?.includes('dt')).length === 0 && (
+                        <p className="text-xs text-rose-600 mt-1">
+                          * Chưa có nhân sự nào được tích quyền kiêm nhiệm "Chứng nhận đầu tư" trong tab Nhân sự.
+                        </p>
+                      )}
                     </div>
                   )}
                   <div>
