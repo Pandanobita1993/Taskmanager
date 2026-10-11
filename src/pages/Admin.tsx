@@ -636,16 +636,19 @@ export default function AdminPage() {
                 </div>
 
                 <div className="mb-4 p-3 bg-blue-50/70 border border-blue-200 rounded-lg">
-                  <label className="block text-sm font-semibold text-blue-900 mb-1">Mảng dịch vụ đang cung cấp:</label>
+                  <label className="block text-sm font-semibold text-blue-900 mb-1">Mảng nghiệp vụ / dịch vụ cung cấp:</label>
                   <p className="text-xs text-blue-700 mb-3">
-                    Lưu ý: Bạn có thể tích chọn thêm hoặc bỏ chọn BHXH bất kỳ lúc nào nếu khách hàng phát sinh dịch vụ BHXH sau này.
+                    Lưu ý: Bạn có thể tích chọn thêm hoặc bỏ chọn dịch vụ bất kỳ lúc nào nếu khách hàng phát sinh sau này.
                   </p>
-                  <div className="flex gap-6">
+                  <div className="flex gap-6 flex-wrap">
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-sm text-gray-800">
                       <input type="checkbox" checked={clientForm.services.includes('Kế toán')} onChange={()=>toggleClientService('Kế toán')}/> Kế toán dịch vụ
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-sm text-gray-800">
                       <input type="checkbox" checked={clientForm.services.includes('BHXH')} onChange={()=>toggleClientService('BHXH')}/> Bảo hiểm xã hội (BHXH)
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-sm text-indigo-900">
+                      <input type="checkbox" checked={clientForm.services.includes('Rà soát')} onChange={()=>toggleClientService('Rà soát')}/> Rà soát sổ sách / BCTC
                     </label>
                   </div>
                 </div>
@@ -675,7 +678,20 @@ export default function AdminPage() {
                       <td className="py-3 px-4">{c.contact_name} - {c.contact_phone}</td>
                       <td className="py-3 px-4">
                         <div className="flex gap-1 flex-wrap">
-                          {c.services?.map(s => <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">{s}</span>)}
+                          {c.services?.map(s => (
+                            <span 
+                              key={s} 
+                              className={`px-2 py-1 text-xs rounded-full font-medium ${
+                                s === 'Rà soát' 
+                                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                                  : s === 'BHXH' 
+                                  ? 'bg-emerald-50 text-emerald-700' 
+                                  : 'bg-blue-50 text-blue-700'
+                              }`}
+                            >
+                              {s}
+                            </span>
+                          ))}
                         </div>
                       </td>
                       <td className="py-3 px-4 flex gap-2">

@@ -229,11 +229,16 @@ export default function NewTask() {
     if (!newClientName || !newClientTax) return;
     
     try {
+      let clientServices = ['Kế toán'];
+      if (businessDomain === 'bhxh') clientServices = ['BHXH'];
+      else if (businessDomain === 'ra_soat') clientServices = ['Rà soát'];
+      else if (businessDomain === 'setup') clientServices = ['Setup', 'Kế toán'];
+
       const newClient = {
         name: newClientName,
         tax_code: newClientTax,
-        services: [businessDomain === 'bhxh' ? 'BHXH' : 'Kế toán'],
-        accounting_person: businessDomain === 'ke_toan' ? profile?.fullName : null,
+        services: clientServices,
+        accounting_person: businessDomain === 'bhxh' ? null : profile?.fullName,
         insurance_person: businessDomain === 'bhxh' ? profile?.fullName : null,
       };
 
