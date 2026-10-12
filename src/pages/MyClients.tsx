@@ -226,12 +226,28 @@ export default function MyClients() {
         ) : (
           clients.map(c => (
             <div key={c.id} className="bg-white/70 backdrop-blur-md p-5 rounded-xl shadow-sm border border-white/50 hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-4">
-                <div>
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1 pr-2">
                   <h3 className="font-bold text-gray-800 line-clamp-1" title={c.name}>{c.name}</h3>
                   <p className="text-sm text-gray-500">MST: {c.tax_code}</p>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {c.services?.map((s: string) => (
+                      <span 
+                        key={s} 
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                          s === 'Kế toán' ? 'bg-blue-100 text-blue-800' :
+                          s === 'BHXH' ? 'bg-emerald-100 text-emerald-800' :
+                          s === 'Rà soát' ? 'bg-indigo-100 text-indigo-800' :
+                          s === 'Đầu tư' ? 'bg-rose-100 text-rose-800' :
+                          'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <button onClick={() => openEdit(c)} className="text-blue-600 bg-blue-50 p-2 rounded-md hover:bg-blue-100 transition">
+                <button onClick={() => openEdit(c)} className="text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-md hover:bg-blue-100 transition text-xs font-semibold shrink-0">
                   Cập nhật
                 </button>
               </div>
@@ -289,6 +305,46 @@ export default function MyClients() {
                     <span className="text-[11px] bg-rose-200/60 px-1.5 py-0.5 rounded">Đầu tư</span>
                   </div>
                 )}
+
+                {/* Khối thông tin nhân sự phụ trách các mảng khác của khách hàng */}
+                <div className="mt-3 pt-2.5 border-t border-gray-100 text-xs space-y-1">
+                  <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    Nhân sự phụ trách các mảng:
+                  </div>
+                  <div className="grid grid-cols-1 gap-1 text-[12px] bg-gray-50/80 p-2 rounded-lg border border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">• Kế toán:</span>
+                      <span className={`font-medium ${c.accounting_person === profile?.fullName ? 'text-blue-700 font-bold' : c.accounting_person ? 'text-gray-800' : 'text-gray-400 italic'}`}>
+                        {c.accounting_person || 'Chưa gán'} {c.accounting_person === profile?.fullName ? '(Bạn)' : ''}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">• BHXH:</span>
+                      <span className={`font-medium ${c.insurance_person === profile?.fullName ? 'text-emerald-700 font-bold' : c.insurance_person ? 'text-gray-800' : 'text-gray-400 italic'}`}>
+                        {c.insurance_person || 'Chưa gán'} {c.insurance_person === profile?.fullName ? '(Bạn)' : ''}
+                      </span>
+                    </div>
+
+                    {c.services?.includes('Rà soát') && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-indigo-600">• Rà soát:</span>
+                        <span className={`font-medium ${c.review_person === profile?.fullName ? 'text-indigo-700 font-bold' : c.review_person ? 'text-gray-800' : 'text-gray-400 italic'}`}>
+                          {c.review_person || 'Chưa gán'} {c.review_person === profile?.fullName ? '(Bạn)' : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    {c.services?.includes('Đầu tư') && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-rose-600">• Đầu tư:</span>
+                        <span className={`font-medium ${c.investment_person === profile?.fullName ? 'text-rose-700 font-bold' : c.investment_person ? 'text-gray-800' : 'text-gray-400 italic'}`}>
+                          {c.investment_person || 'Chưa gán'} {c.investment_person === profile?.fullName ? '(Bạn)' : ''}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))
