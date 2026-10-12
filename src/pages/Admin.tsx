@@ -19,6 +19,8 @@ interface Client {
   contact_phone: string;
   accounting_person: string;
   insurance_person: string;
+  review_person?: string;
+  investment_person?: string;
   services: string[]; 
   intake_date?: string;
   accounting_fee?: number;
@@ -41,6 +43,8 @@ const defaultClientForm: Client = {
   contact_phone: '',
   accounting_person: '',
   insurance_person: '',
+  review_person: '',
+  investment_person: '',
   services: ['Kế toán'],
   intake_date: '',
   accounting_fee: 0,
@@ -338,6 +342,8 @@ export default function AdminPage() {
         contact_phone: clientForm.contact_phone,
         accounting_person: clientForm.accounting_person || null,
         insurance_person: clientForm.insurance_person || null,
+        review_person: clientForm.review_person || null,
+        investment_person: clientForm.investment_person || null,
         services: clientForm.services,
         intake_date: clientForm.intake_date ? clientForm.intake_date : null
       };
@@ -623,6 +629,33 @@ export default function AdminPage() {
                       </select>
                     </div>
                   )}
+                  {clientForm.services.includes('Rà soát') && (
+                    <div>
+                      <label className="block text-sm mb-1 text-indigo-900 font-medium">Người phụ trách Rà soát sổ sách</label>
+                      <select name="review_person" value={clientForm.review_person || ''} onChange={handleClientFormChange} className="w-full px-3 py-2 border border-indigo-200 rounded-md bg-indigo-50/20">
+                        <option value="">-- Trống --</option>
+                        {users.map(u => (
+                          <option key={u.id} value={u.name}>{u.name} ({u.department})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {clientForm.services.includes('Đầu tư') && (
+                    <div>
+                      <label className="block text-sm mb-1 text-rose-900 font-medium">Người làm Giấy chứng nhận đầu tư (IRC)</label>
+                      <select name="investment_person" value={clientForm.investment_person || ''} onChange={handleClientFormChange} className="w-full px-3 py-2 border border-rose-200 rounded-md bg-rose-50/20">
+                        <option value="">-- Trống --</option>
+                        {users.filter(u => u.roles?.includes('dt')).map(u => (
+                          <option key={u.id} value={u.name}>{u.name} ({u.department})</option>
+                        ))}
+                      </select>
+                      {users.filter(u => u.roles?.includes('dt')).length === 0 && (
+                        <p className="text-xs text-rose-600 mt-1">
+                          * Chưa có nhân sự nào được tích quyền kiêm nhiệm "Chứng nhận đầu tư" trong tab Nhân sự.
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm mb-1 font-medium text-gray-700">Ngày tiếp nhận (Không bắt buộc)</label>
                     <input 
@@ -670,7 +703,7 @@ export default function AdminPage() {
                     <th className="py-3 px-4 font-medium text-gray-600">MST</th>
                     <th className="py-3 px-4 font-medium text-gray-600">Khách hàng</th>
                     <th className="py-3 px-4 font-medium text-gray-600">Liên hệ</th>
-                    <th className="py-3 px-4 font-medium text-gray-600">Dịch vụ</th>
+                    <th className="py-3 px-4 font-medium text-gray-600">Dịch vụ & Phụ trách</th>
                     <th className="py-3 px-4 font-medium text-gray-600">Thao tác</th>
                   </tr>
                 </thead>
@@ -681,11 +714,11 @@ export default function AdminPage() {
                       <td className="py-3 px-4 font-medium">{c.name}</td>
                       <td className="py-3 px-4">{c.contact_name} - {c.contact_phone}</td>
                       <td className="py-3 px-4">
-                        <div className="flex gap-1 flex-wrap">
+                        <div className="flex gap-1.5 flex-wrap">
                           {c.services?.map(s => (
                             <span 
                               key={s} 
-                              className={`px-2 py-1 text-xs rounded-full font-medium ${
+                              className={`px-2 py-0.5 text-xs rounded-md font-medium ${
                                 s === 'Rà soát' 
                                   ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
                                   : s === 'Đầu tư' 
@@ -698,6 +731,12 @@ export default function AdminPage() {
                               {s}
                             </span>
                           ))}
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-1 space-y-0.5">
+                          {c.accounting_person && <div>• Kế toán: <strong className="text-blue-700">{c.accounting_person}</strong></div>}
+                          {c.insurance_person && <div>• BHXH: <strong className="text-emerald-700">{c.insurance_person}</strong></div>}
+                          {c.review_person && <div>• Rà soát: <strong className="text-indigo-700">{c.review_person}</strong></div>}
+                          {c.investment_person && <div>• Đầu tư (IRC): <strong className="text-rose-700">{c.investment_person}</strong></div>}
                         </div>
                       </td>
                       <td className="py-3 px-4 flex gap-2">
