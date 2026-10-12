@@ -210,16 +210,16 @@ export default function NewTask() {
   const supportedUser = users.find(u => u.id === supportedUserId || u.name === supportedUserId);
 
   // Lọc khách hàng:
-  // Chỉ hiển thị đúng khách hàng có sử dụng dịch vụ tương ứng với nghiệp vụ được chọn:
-  // - Kế toán: dịch vụ 'Kế toán', do nhân viên (hoặc người được hỗ trợ) phụ trách
-  // - BHXH: dịch vụ 'BHXH', do nhân viên (hoặc người được hỗ trợ) phụ trách
-  // - Rà soát: dịch vụ 'Rà soát' (hoặc 'Kế toán' nếu kiêm nhiệm), do người phụ trách Rà soát/Kế toán
-  // - Setup: dịch vụ 'Setup' (hoặc khách hàng thuộc văn phòng nếu kiêm nhiệm gpkd)
-  // - Đầu tư: dịch vụ 'Đầu tư', do nhân sự có quyền kiêm nhiệm đầu tư phụ trách
+  // CHỈ hiển thị đúng khách hàng có sử dụng dịch vụ tương ứng với nghiệp vụ được chọn:
+  // - Kế toán: bắt buộc có dịch vụ 'Kế toán'
+  // - BHXH: bắt buộc có dịch vụ 'BHXH'
+  // - Rà soát: bắt buộc có dịch vụ 'Rà soát' hoặc 'Kế toán'
+  // - Đầu tư: bắt buộc có dịch vụ 'Đầu tư'
+  // - Setup: bắt buộc có dịch vụ 'Setup' / 'GPKD' (hoặc nếu kiêm nhiệm gpkd thì cho chọn toàn bộ)
   const baseClientList = clients.filter(c => {
     const services: string[] = c.services || [];
 
-    // Kiểm tra dịch vụ của khách hàng theo nghiệp vụ đang chọn
+    // 1. Kiểm tra nghiệp vụ Kế toán
     if (businessDomain === 'ke_toan') {
       if (!services.includes('Kế toán')) return false;
       if (taskCategory === 'support') {
@@ -228,6 +228,7 @@ export default function NewTask() {
       return profile ? c.accounting_person === profile.fullName : true;
     }
 
+    // 2. Kiểm tra nghiệp vụ BHXH: Chỉ hiện khách hàng có dịch vụ BHXH
     if (businessDomain === 'bhxh') {
       if (!services.includes('BHXH')) return false;
       if (taskCategory === 'support') {
@@ -236,6 +237,7 @@ export default function NewTask() {
       return profile ? c.insurance_person === profile.fullName : true;
     }
 
+    // 3. Kiểm tra nghiệp vụ Rà soát
     if (businessDomain === 'ra_soat') {
       const hasReviewService = services.includes('Rà soát') || services.includes('Kế toán');
       if (!hasReviewService) return false;
@@ -245,6 +247,7 @@ export default function NewTask() {
       return profile ? (c.review_person === profile.fullName || c.accounting_person === profile.fullName) : true;
     }
 
+    // 4. Kiểm tra nghiệp vụ Đầu tư
     if (businessDomain === 'dau_tu') {
       if (!services.includes('Đầu tư')) return false;
       if (taskCategory === 'support') {
@@ -253,8 +256,8 @@ export default function NewTask() {
       return profile ? c.investment_person === profile.fullName : true;
     }
 
+    // 5. Kiểm tra nghiệp vụ Setup
     if (businessDomain === 'setup') {
-      // Đối với setup/GPKD thành lập mới, cho phép chọn các công ty có dịch vụ Setup hoặc toàn bộ nếu có quyền GPKD
       const isSetupClient = services.includes('Setup') || services.includes('GPKD');
       const hasGpkdRole = profile?.additionalRoles?.includes('gpkd');
       if (hasGpkdRole) return true;
