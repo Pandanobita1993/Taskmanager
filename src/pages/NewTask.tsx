@@ -39,11 +39,10 @@ export default function NewTask() {
   const [authorityAgency, setAuthorityAgency] = useState(''); // Cơ quan sở tại (Sở KH&ĐT / Thuế / BHXH các tỉnh)
   const [paperDossier, setPaperDossier] = useState(''); // Hồ sơ / chứng từ bản giấy bàn giao
 
-  // Helper cho Kế toán (Gợi ý tiến độ MISA)
-  const [misaPurchases, setMisaPurchases] = useState(false);
-  const [misaSales, setMisaSales] = useState(false);
-  const [misaBank, setMisaBank] = useState(false);
-  const [misaSalary, setMisaSalary] = useState(false);
+  // State chuyên biệt khi chọn công việc Nhập liệu (Kế toán & Rà soát)
+  const [selectedTaskCategory, setSelectedTaskCategory] = useState<string>('');
+  const [inputWhat, setInputWhat] = useState<string>(''); // Nhập gì (Hóa đơn mua vào, bán ra, sổ phụ...)
+  const [inputPeriod, setInputPeriod] = useState<string>(''); // Nhập đến đâu / Kỳ nhập liệu (Đến tháng 3/2026, hết quý 1...)
 
   // Quick Add Client for GPKD / Setup
   const [showQuickAddClient, setShowQuickAddClient] = useState(false);
@@ -211,21 +210,63 @@ export default function NewTask() {
   const supportedUser = users.find(u => u.id === supportedUserId || u.name === supportedUserId);
 
   // Lọc khách hàng:
-  // - Nếu là Setup, Đầu tư hoặc kiêm nhiệm GPKD/ĐT: Cho phép chọn từ toàn bộ danh sách công ty
-  // - Nếu là Hỗ trợ: lấy danh sách của nhân viên được chọn hỗ trợ
-  // - Nếu là Kế toán / BHXH thông thường: ưu tiên khách hàng được phân công cho mình (nhưng có nút bật tìm kiếm tất cả khách hàng)
-  const isSetupOrAll = businessDomain === 'setup' || businessDomain === 'dau_tu' || profile?.additionalRoles?.includes('gpkd') || profile?.additionalRoles?.includes('dt');
+  // Chỉ hiển thị đúng khách hàng có sử dụng dịch vụ tương ứng với nghiệp vụ được chọn:
+  // - Kế toán: dịch vụ 'Kế toán', do nhân viên (hoặc người được hỗ trợ) phụ trách
+  // - BHXH: dịch vụ 'BHXH', do nhân viên (hoặc người được hỗ trợ) phụ trách
+  // - Rà soát: dịch vụ 'Rà soát' (hoặc 'Kế toán' nếu kiêm nhiệm), do người phụ trách Rà soát/Kế toán
+  // - Setup: dịch vụ 'Setup' (hoặc khách hàng thuộc văn phòng nếu kiêm nhiệm gpkd)
+  // - Đầu tư: dịch vụ 'Đầu tư', do nhân sự có quyền kiêm nhiệm đầu tư phụ trách
+  const baseClientList = clients.filter(c => {
+    const services: string[] = c.services || [];
 
-  const baseClientList = isSetupOrAll 
-    ? clients 
-    : (taskCategory === 'support' 
-        ? (supportedUser ? clients.filter(c => c.accounting_person === supportedUser.name || c.insurance_person === supportedUser.name) : [])
-        : clients.filter(c => {
-            if (!profile) return true;
-            if (businessDomain === 'bhxh') return c.insurance_person === profile.fullName;
-            return c.accounting_person === profile.fullName || c.insurance_person === profile.fullName;
-          })
-      );
+    // Kiểm tra dịch vụ của khách hàng theo nghiệp vụ đang chọn
+    if (businessDomain === 'ke_toan') {
+      if (!services.includes('Kế toán')) return false;
+      if (taskCategory === 'support') {
+        return supportedUser ? c.accounting_person === supportedUser.name : false;
+      }
+      return profile ? c.accounting_person === profile.fullName : true;
+    }
+
+    if (businessDomain === 'bhxh') {
+      if (!services.includes('BHXH')) return false;
+      if (taskCategory === 'support') {
+        return supportedUser ? c.insurance_person === supportedUser.name : false;
+      }
+      return profile ? c.insurance_person === profile.fullName : true;
+    }
+
+    if (businessDomain === 'ra_soat') {
+      const hasReviewService = services.includes('Rà soát') || services.includes('Kế toán');
+      if (!hasReviewService) return false;
+      if (taskCategory === 'support') {
+        return supportedUser ? (c.review_person === supportedUser.name || c.accounting_person === supportedUser.name) : false;
+      }
+      return profile ? (c.review_person === profile.fullName || c.accounting_person === profile.fullName) : true;
+    }
+
+    if (businessDomain === 'dau_tu') {
+      if (!services.includes('Đầu tư')) return false;
+      if (taskCategory === 'support') {
+        return supportedUser ? c.investment_person === supportedUser.name : false;
+      }
+      return profile ? c.investment_person === profile.fullName : true;
+    }
+
+    if (businessDomain === 'setup') {
+      // Đối với setup/GPKD thành lập mới, cho phép chọn các công ty có dịch vụ Setup hoặc toàn bộ nếu có quyền GPKD
+      const isSetupClient = services.includes('Setup') || services.includes('GPKD');
+      const hasGpkdRole = profile?.additionalRoles?.includes('gpkd');
+      if (hasGpkdRole) return true;
+      if (isSetupClient) return true;
+      if (taskCategory === 'support') {
+        return supportedUser ? (c.accounting_person === supportedUser.name || c.insurance_person === supportedUser.name) : false;
+      }
+      return profile ? (c.accounting_person === profile.fullName || c.insurance_person === profile.fullName) : true;
+    }
+
+    return true;
+  });
 
   // Tìm kiếm theo từ khóa tên hoặc MST
   const filteredClients = baseClientList.filter(c => {
@@ -249,8 +290,10 @@ export default function NewTask() {
         name: newClientName,
         tax_code: newClientTax,
         services: clientServices,
-        accounting_person: businessDomain === 'bhxh' ? null : profile?.fullName,
+        accounting_person: (businessDomain === 'bhxh' || businessDomain === 'dau_tu') ? null : profile?.fullName,
         insurance_person: businessDomain === 'bhxh' ? profile?.fullName : null,
+        review_person: businessDomain === 'ra_soat' ? profile?.fullName : null,
+        investment_person: businessDomain === 'dau_tu' ? profile?.fullName : null,
       };
 
       const { data, error } = await supabase.from('clients').insert([newClient]).select();
@@ -286,22 +329,6 @@ export default function NewTask() {
     }
   };
 
-  // Helper ghép tiến độ MISA vào nội dung (dành cho Kế toán)
-  const appendMisaProgress = () => {
-    const misaParts: string[] = [];
-    if (misaPurchases) misaParts.push('Đã nhập HĐ Mua vào');
-    if (misaSales) misaParts.push('Đã xuất HĐ Bán ra');
-    if (misaBank) misaParts.push('Đã đối chiếu Sổ phụ NH');
-    if (misaSalary) misaParts.push('Đã hạch toán Bảng lương');
-
-    if (misaParts.length > 0) {
-      const misaString = `[Tiến độ MISA: ${misaParts.join('; ')}]`;
-      if (!content.includes('[Tiến độ MISA:')) {
-        setContent(prev => (prev ? `${prev}\n${misaString}` : misaString));
-      }
-    }
-  };
-
   const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId) {
@@ -323,6 +350,8 @@ export default function NewTask() {
       let finalContent = content;
       if (taskType === 'payment') {
         finalContent = `Thu phí: ${actualPaymentReason} (${paidMonths.join(', ')})`;
+      } else if ((businessDomain === 'ke_toan' || businessDomain === 'ra_soat') && selectedTaskCategory === 'nhap_lieu') {
+        finalContent = `Nhập liệu: ${inputWhat.trim()} - Đến: ${inputPeriod.trim()}`;
       }
 
       // Xây dựng phần ghi chú tổng hợp (kèm cơ quan sở tại, chứng từ giấy nếu có)
@@ -465,7 +494,7 @@ export default function NewTask() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <button
                   type="button"
-                  onClick={() => setBusinessDomain('ke_toan')}
+                  onClick={() => { setBusinessDomain('ke_toan'); setSelectedClientId(''); }}
                   className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
                     businessDomain === 'ke_toan' 
                       ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/30 text-blue-900 shadow-xs' 
@@ -483,7 +512,7 @@ export default function NewTask() {
 
                 <button
                   type="button"
-                  onClick={() => setBusinessDomain('bhxh')}
+                  onClick={() => { setBusinessDomain('bhxh'); setSelectedClientId(''); }}
                   className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
                     businessDomain === 'bhxh' 
                       ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/30 text-emerald-900 shadow-xs' 
@@ -501,7 +530,7 @@ export default function NewTask() {
 
                 <button
                   type="button"
-                  onClick={() => setBusinessDomain('setup')}
+                  onClick={() => { setBusinessDomain('setup'); setSelectedClientId(''); }}
                   className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
                     businessDomain === 'setup' 
                       ? 'bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/30 text-amber-900 shadow-xs' 
@@ -519,7 +548,7 @@ export default function NewTask() {
 
                 <button
                   type="button"
-                  onClick={() => setBusinessDomain('ra_soat')}
+                  onClick={() => { setBusinessDomain('ra_soat'); setSelectedClientId(''); }}
                   className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
                     businessDomain === 'ra_soat' 
                       ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-500/30 text-indigo-900 shadow-xs' 
@@ -537,7 +566,7 @@ export default function NewTask() {
 
                 <button
                   type="button"
-                  onClick={() => setBusinessDomain('dau_tu')}
+                  onClick={() => { setBusinessDomain('dau_tu'); setSelectedClientId(''); }}
                   className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
                     businessDomain === 'dau_tu' 
                       ? 'bg-rose-50/80 border-rose-500 ring-2 ring-rose-500/30 text-rose-900 shadow-xs' 
@@ -621,13 +650,13 @@ export default function NewTask() {
                 </div>
               ) : filteredClients.length === 0 ? (
                 <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-sm flex items-center justify-between">
-                  <span>Không tìm thấy khách hàng phù hợp với từ khóa & phân quyền của bạn.</span>
+                  <span>Không tìm thấy khách hàng có dịch vụ này theo phân quyền của bạn.</span>
                   <button 
                     type="button" 
                     onClick={() => { setClientSearch(''); }} 
                     className="underline text-xs font-semibold"
                   >
-                    Xem tất cả
+                    Xóa tìm kiếm
                   </button>
                 </div>
               ) : (
@@ -680,81 +709,157 @@ export default function NewTask() {
                 </label>
               </div>
 
-              {/* Gợi ý công việc nhanh theo Nghiệp vụ đang chọn */}
-              <div className="bg-gray-50/70 p-3 rounded-xl border border-gray-200/70 space-y-2">
-                <div className="text-xs font-semibold text-gray-600 flex items-center gap-1">
-                  <Sparkles size={14} className="text-amber-500" />
-                  Gợi ý công việc thực tế phổ biến (Nhấn để chèn nhanh):
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(businessDomain === 'ke_toan' 
-                    ? quickAccountingTasks 
-                    : (businessDomain === 'bhxh' 
-                        ? quickBhxhTasks 
-                        : (businessDomain === 'setup' 
-                            ? quickSetupTasks 
-                            : (businessDomain === 'ra_soat' ? quickRaSoatTasks : quickDauTuTasks)))
-                  ).map(taskText => (
-                    <button
-                      key={taskText}
-                      type="button"
-                      onClick={() => handleSelectQuickTask(taskText)}
-                      className="px-2.5 py-1 bg-white hover:bg-blue-50 hover:text-blue-700 border border-gray-200 rounded-md text-xs font-medium text-gray-700 transition"
-                    >
-                      + {taskText}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Helper riêng cho Kế toán: Check tiến độ MISA */}
-              {businessDomain === 'ke_toan' && (
-                <div className="bg-blue-50/50 p-3.5 rounded-xl border border-blue-200/60 space-y-2.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-blue-900 uppercase">Tiến độ nhập liệu MISA (Tùy chọn):</span>
-                    <button
-                      type="button"
-                      onClick={appendMisaProgress}
-                      className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded-md font-semibold hover:bg-blue-700"
-                    >
-                      Ghép vào nội dung
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
-                      <input type="checkbox" checked={misaPurchases} onChange={e => setMisaPurchases(e.target.checked)} />
-                      <span>Hóa đơn mua vào</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
-                      <input type="checkbox" checked={misaSales} onChange={e => setMisaSales(e.target.checked)} />
-                      <span>Hóa đơn bán ra</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
-                      <input type="checkbox" checked={misaBank} onChange={e => setMisaBank(e.target.checked)} />
-                      <span>Sổ phụ ngân hàng</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer bg-white p-2 rounded border border-blue-100 hover:border-blue-300">
-                      <input type="checkbox" checked={misaSalary} onChange={e => setMisaSalary(e.target.checked)} />
-                      <span>Bảng lương</span>
-                    </label>
-                  </div>
+              {/* Lựa chọn loại công việc (Đặc biệt cho Kế toán & Rà soát: có lựa chọn Nhập liệu) */}
+              {(businessDomain === 'ke_toan' || businessDomain === 'ra_soat') && (
+                <div className="flex gap-2 p-1.5 bg-gray-100 rounded-xl max-w-md">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTaskCategory('');
+                    }}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition ${
+                      selectedTaskCategory !== 'nhap_lieu'
+                        ? 'bg-white text-gray-800 shadow-xs'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    Công việc thông thường
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTaskCategory('nhap_lieu');
+                    }}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+                      selectedTaskCategory === 'nhap_lieu'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <span>⚡ Nhập liệu</span>
+                  </button>
                 </div>
               )}
 
-              {/* Nội dung công việc chính */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Nội dung công việc thực tế *
-                </label>
-                <textarea 
-                  required 
-                  value={content} 
-                  onChange={e => setContent(e.target.value)} 
-                  rows={3} 
-                  placeholder="Ghi rõ nội dung việc tiếp nhận, yêu cầu của khách hàng..."
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
+              {/* Giao diện khi chọn Nhập liệu (Kế toán & Rà soát) */}
+              {(businessDomain === 'ke_toan' || businessDomain === 'ra_soat') && selectedTaskCategory === 'nhap_lieu' ? (
+                <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl space-y-4 animate-in fade-in">
+                  <div className="font-semibold text-sm text-blue-900 flex items-center gap-2">
+                    <Calculator size={16} className="text-blue-600" />
+                    Chi tiết công việc Nhập liệu:
+                  </div>
+
+                  {/* Nhập gì */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-gray-700">
+                      1. Nhập gì? (chọn nhanh hoặc nhập cụ thể) *
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Hóa đơn mua vào', 'Hóa đơn bán ra', 'Sổ phụ ngân hàng', 'Bảng lương', 'Toàn bộ chứng từ phát sinh'].map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            if (!inputWhat) {
+                              setInputWhat(tag);
+                            } else if (!inputWhat.includes(tag)) {
+                              setInputWhat(prev => `${prev}, ${tag}`);
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-md text-xs font-medium transition"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: Hóa đơn mua vào, Sổ phụ ngân hàng Vietcombank..."
+                      value={inputWhat}
+                      onChange={e => setInputWhat(e.target.value)}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Nhập đến đâu */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-gray-700">
+                      2. Nhập đến đâu? (Kỳ / mốc thời gian hoàn thành) *
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Hết tháng 1/2026', 'Hết tháng 2/2026', 'Hết tháng 3/2026', 'Hết Quý 1/2026', 'Hết Quý 2/2026', 'Đến hết năm trước'].map(period => (
+                        <button
+                          key={period}
+                          type="button"
+                          onClick={() => setInputPeriod(period)}
+                          className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-md text-xs font-medium transition"
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: Hết tháng 2/2026, Quý 1/2026, Đến ngày 15/04..."
+                      value={inputPeriod}
+                      onChange={e => setInputPeriod(e.target.value)}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Gợi ý công việc nhanh theo Nghiệp vụ đang chọn */}
+                  <div className="bg-gray-50/70 p-3 rounded-xl border border-gray-200/70 space-y-2">
+                    <div className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                      <Sparkles size={14} className="text-amber-500" />
+                      Gợi ý công việc thực tế phổ biến (Nhấn để chèn nhanh):
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(businessDomain === 'ke_toan' 
+                        ? ['Nhập liệu chứng từ hóa đơn', ...quickAccountingTasks]
+                        : (businessDomain === 'bhxh' 
+                            ? quickBhxhTasks 
+                            : (businessDomain === 'setup' 
+                                ? quickSetupTasks 
+                                : (businessDomain === 'ra_soat' ? ['Nhập liệu rà soát sổ sách', ...quickRaSoatTasks] : quickDauTuTasks)))
+                      ).map(taskText => (
+                        <button
+                          key={taskText}
+                          type="button"
+                          onClick={() => {
+                            if (taskText.includes('Nhập liệu')) {
+                              setSelectedTaskCategory('nhap_lieu');
+                            } else {
+                              handleSelectQuickTask(taskText);
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-blue-50 hover:text-blue-700 border border-gray-200 rounded-md text-xs font-medium text-gray-700 transition"
+                        >
+                          + {taskText}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Nội dung công việc chính */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Nội dung công việc thực tế *
+                    </label>
+                    <textarea 
+                      required 
+                      value={content} 
+                      onChange={e => setContent(e.target.value)} 
+                      rows={3} 
+                      placeholder="Ghi rõ nội dung việc tiếp nhận, yêu cầu của khách hàng..."
+                      className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Các trường chuyên biệt: Mã hồ sơ & Cơ quan sở tại & Chứng từ giấy */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
