@@ -21,7 +21,32 @@ export default function MyClients() {
       const { data, error } = await supabase.from('clients').select('*').order('name');
       if (error) throw error;
       
-      const myClients = (data || []).filter(c => 
+      const formattedClients = (data || []).map((c: any) => {
+        let review_person = c.review_person || '';
+        let investment_person = c.investment_person || '';
+        const cleanedServices: string[] = [];
+
+        (c.services || []).forEach((s: string) => {
+          if (s.startsWith('Rà soát:')) {
+            review_person = s.replace('Rà soát:', '');
+            cleanedServices.push('Rà soát');
+          } else if (s.startsWith('Đầu tư:')) {
+            investment_person = s.replace('Đầu tư:', '');
+            cleanedServices.push('Đầu tư');
+          } else {
+            cleanedServices.push(s);
+          }
+        });
+
+        return {
+          ...c,
+          services: Array.from(new Set(cleanedServices)),
+          review_person,
+          investment_person
+        };
+      });
+
+      const myClients = formattedClients.filter(c => 
         c.accounting_person === userProfile.fullName || 
         c.insurance_person === userProfile.fullName ||
         c.review_person === userProfile.fullName ||

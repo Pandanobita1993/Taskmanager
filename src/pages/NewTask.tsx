@@ -198,7 +198,33 @@ export default function NewTask() {
         supabase.from('clients').select('*').order('name'),
         supabase.from('app_users').select('*').order('name')
       ]);
-      if (clientsRes.data) setClients(clientsRes.data);
+      if (clientsRes.data) {
+        const formattedClients = clientsRes.data.map((c: any) => {
+          let review_person = c.review_person || '';
+          let investment_person = c.investment_person || '';
+          const cleanedServices: string[] = [];
+
+          (c.services || []).forEach((s: string) => {
+            if (s.startsWith('Rà soát:')) {
+              review_person = s.replace('Rà soát:', '');
+              cleanedServices.push('Rà soát');
+            } else if (s.startsWith('Đầu tư:')) {
+              investment_person = s.replace('Đầu tư:', '');
+              cleanedServices.push('Đầu tư');
+            } else {
+              cleanedServices.push(s);
+            }
+          });
+
+          return {
+            ...c,
+            services: Array.from(new Set(cleanedServices)),
+            review_person,
+            investment_person
+          };
+        });
+        setClients(formattedClients);
+      }
       if (usersRes.data) setUsers(usersRes.data);
     } catch(err) {
       console.error(err);
@@ -285,25 +311,23 @@ export default function NewTask() {
     try {
       let clientServices = ['Kế toán'];
       if (businessDomain === 'bhxh') clientServices = ['BHXH'];
-      else if (businessDomain === 'ra_soat') clientServices = ['Rà soát'];
-      else if (businessDomain === 'dau_tu') clientServices = ['Đầu tư'];
+      else if (businessDomain === 'ra_soat') clientServices = [profile?.fullName ? `Rà soát:${profile.fullName}` : 'Rà soát'];
+      else if (businessDomain === 'dau_tu') clientServices = [profile?.fullName ? `Đầu tư:${profile.fullName}` : 'Đầu tư'];
       else if (businessDomain === 'setup') clientServices = ['Setup', 'Kế toán'];
 
       const newClient = {
-        name: newClientName,
-        tax_code: newClientTax,
+        name: newClientName.trim(),
+        tax_code: newClientTax.trim(),
         services: clientServices,
         accounting_person: (businessDomain === 'bhxh' || businessDomain === 'dau_tu') ? null : profile?.fullName,
         insurance_person: businessDomain === 'bhxh' ? profile?.fullName : null,
-        review_person: businessDomain === 'ra_soat' ? profile?.fullName : null,
-        investment_person: businessDomain === 'dau_tu' ? profile?.fullName : null,
       };
 
       const { data, error } = await supabase.from('clients').insert([newClient]).select();
       if (error) throw error;
       
       if (data && data[0]) {
-        setClients(prev => [...prev, data[0]]);
+        fetchInitialData();
         setSelectedClientId(data[0].id);
       }
       
@@ -311,9 +335,9 @@ export default function NewTask() {
       setNewClientName('');
       setNewClientTax('');
       alert("Đã tạo nhanh khách hàng thành công!");
-    } catch(err) {
+    } catch(err: any) {
       console.error(err);
-      alert('Lỗi tạo khách hàng nhanh');
+      alert('Lỗi tạo khách hàng nhanh: ' + (err?.message || JSON.stringify(err)));
     }
   };
 

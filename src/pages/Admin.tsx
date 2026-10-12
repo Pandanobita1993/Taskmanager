@@ -93,7 +93,34 @@ export default function AdminPage() {
       ]);
       
       if (usersRes.data) setUsers(usersRes.data);
-      if (clientsRes.data) setClients(clientsRes.data);
+      if (clientsRes.data) {
+        // Parse người phụ trách Rà soát và Đầu tư được mã hóa trong services (VD: 'Rà soát:Tên người')
+        const formattedClients = clientsRes.data.map((c: any) => {
+          let review_person = c.review_person || '';
+          let investment_person = c.investment_person || '';
+          const cleanedServices: string[] = [];
+
+          (c.services || []).forEach((s: string) => {
+            if (s.startsWith('Rà soát:')) {
+              review_person = s.replace('Rà soát:', '');
+              cleanedServices.push('Rà soát');
+            } else if (s.startsWith('Đầu tư:')) {
+              investment_person = s.replace('Đầu tư:', '');
+              cleanedServices.push('Đầu tư');
+            } else {
+              cleanedServices.push(s);
+            }
+          });
+
+          return {
+            ...c,
+            services: Array.from(new Set(cleanedServices)),
+            review_person,
+            investment_person
+          };
+        });
+        setClients(formattedClients);
+      }
       if (reportRes.data && reportRes.data.length > 0) {
         setReportSettings(reportRes.data[0]);
       }
@@ -335,32 +362,46 @@ export default function AdminPage() {
     if (!clientForm.name.trim() || !clientForm.tax_code.trim()) return;
     
     try {
-      const clientPayload = {
+      // Chuẩn hóa mảng services kèm theo người phụ trách tương ứng
+      const finalServices: string[] = [];
+      (clientForm.services || []).forEach(s => {
+        if (s === 'Rà soát') {
+          finalServices.push(clientForm.review_person ? `Rà soát:${clientForm.review_person}` : 'Rà soát');
+        } else if (s === 'Đầu tư') {
+          finalServices.push(clientForm.investment_person ? `Đầu tư:${clientForm.investment_person}` : 'Đầu tư');
+        } else {
+          finalServices.push(s);
+        }
+      });
+
+      // Chỉ gửi các cột thực sự tồn tại trong cơ sở dữ liệu Supabase
+      const clientPayload: any = {
         tax_code: clientForm.tax_code.trim(),
         name: clientForm.name.trim(),
-        contact_name: clientForm.contact_name,
-        contact_phone: clientForm.contact_phone,
+        contact_name: clientForm.contact_name || null,
+        contact_phone: clientForm.contact_phone || null,
         accounting_person: clientForm.accounting_person || null,
         insurance_person: clientForm.insurance_person || null,
-        review_person: clientForm.review_person || null,
-        investment_person: clientForm.investment_person || null,
-        services: clientForm.services,
+        services: finalServices,
         intake_date: clientForm.intake_date ? clientForm.intake_date : null
       };
 
       if (clientForm.id) {
         // Edit
-        await supabase.from('clients').update(clientPayload).eq('id', clientForm.id);
+        const { error } = await supabase.from('clients').update(clientPayload).eq('id', clientForm.id);
+        if (error) throw error;
       } else {
         // Add
-        await supabase.from('clients').insert([clientPayload]);
+        const { error } = await supabase.from('clients').insert([clientPayload]);
+        if (error) throw error;
       }
       setShowClientForm(false);
       setClientForm(defaultClientForm);
       fetchData();
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi lưu khách hàng');
+      alert("Đã lưu thông tin khách hàng thành công!");
+    } catch (err: any) {
+      console.error("Chi tiết lỗi lưu khách hàng:", err);
+      alert('Lỗi lưu khách hàng: ' + (err?.message || err?.error_description || JSON.stringify(err)));
     }
   };
 
