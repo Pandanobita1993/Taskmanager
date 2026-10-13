@@ -10,6 +10,9 @@ import { ClientSelectorSection } from '../components/newTask/ClientSelectorSecti
 import { TaskDetailsForm } from '../components/newTask/TaskDetailsForm';
 import { PaymentDetailsForm } from '../components/newTask/PaymentDetailsForm';
 import { TaskCategorySelector } from '../components/newTask/TaskCategorySelector';
+import { loadCurrentProfile } from '../lib/profile';
+import { localDateKey } from '../lib/date';
+import { uploadTaskProof } from '../lib/proofStorage';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -61,7 +64,7 @@ export default function NewTask() {
 
   // Hàm tạo tên file
   const generateFileName = (selectedTaxCode?: string, selectedMonths?: string[]) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateKey();
     const tax = selectedTaxCode || 'MST';
     const monthsStr = (selectedMonths && selectedMonths.length > 0) 
       ? selectedMonths.map(m => m.replace(/\s+/g, '').replace(/\//g, '-')).join('_')
@@ -98,9 +101,7 @@ export default function NewTask() {
   const location = useLocation();
 
   useEffect(() => {
-    const p = localStorage.getItem('task_manager_profile');
-    if (p) {
-      const parsed = JSON.parse(p);
+    loadCurrentProfile().then((parsed) => {
       setProfile(parsed);
       // Tự động chọn tab nghiệp vụ mặc định theo phòng ban người dùng
       if (parsed.department === 'BHXH') {
@@ -108,7 +109,7 @@ export default function NewTask() {
       } else {
         setBusinessDomain('ke_toan');
       }
-    }
+    }).catch(console.error);
 
     // Nếu chuyển từ chức năng làm lại hồ sơ thất bại
     const retryData = (location.state as any)?.retryTask;
@@ -165,8 +166,8 @@ export default function NewTask() {
   const fetchInitialData = async () => {
     try {
       const [clientsRes, usersRes] = await Promise.all([
-        supabase.from('clients').select('*').order('name'),
-        supabase.from('app_users').select('*').order('name')
+        supabase.from('clients').select('*').is('archived_at', null).order('name'),
+        supabase.from('app_users').select('*').eq('is_active', true).order('name')
       ]);
       if (clientsRes.data) {
         const formattedClients = clientsRes.data.map((c: any) => {
@@ -356,6 +357,7 @@ export default function NewTask() {
         || (selectedClientObj?.contact_phone ? `Liên hệ (${selectedClientObj.contact_phone})` : '')
         || 'Người liên hệ cty';
       const resolvedContactPerson = contactPerson.trim() || fallbackContact;
+      const proofPath = proofFile ? await uploadTaskProof(proofFile) : null;
 
       const newTask = {
         type: taskType,
@@ -377,8 +379,8 @@ export default function NewTask() {
 
         payment_reason: taskType === 'payment' ? actualPaymentReason : null,
         paid_months: taskType === 'payment' ? paidMonths : null,
-        proof_file: proofFileName || (proofFile ? proofFile.name : null),
-        proof_image: proofBase64 || null,
+        proof_file: proofPath,
+        proof_image: null,
         completed_at: taskType === 'payment' ? new Date().toISOString() : null
       };
 

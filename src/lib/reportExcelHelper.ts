@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx-js-style';
+import { localDateKey } from './date';
 
 export interface ReportSettingsType {
   header_text?: string;
@@ -78,7 +79,7 @@ export const buildProfessionalReportSheet = (
   const companyAddress = rawAddress.startsWith('Địa chỉ') ? rawAddress : `Địa chỉ: ${rawAddress}`;
   const rawOffice = settings?.office_name || 'Văn phòng: Cần Thơ';
   const officeName = rawOffice.startsWith('Văn phòng') ? rawOffice : `Văn phòng: ${rawOffice}`;
-  const todayStr = formatDateVN(new Date().toISOString().split('T')[0]);
+  const todayStr = formatDateVN(localDateKey());
   const displayPeriod = periodText || '(Kỳ báo cáo: Báo cáo tổng hợp quản lý)';
 
   const rows: any[][] = [];

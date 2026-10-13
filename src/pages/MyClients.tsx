@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from './Settings';
+import { loadCurrentProfile } from '../lib/profile';
 
 export default function MyClients() {
   const [clients, setClients] = useState<any[]>([]);
@@ -10,15 +11,18 @@ export default function MyClients() {
   const [editingClient, setEditingClient] = useState<any | null>(null);
 
   useEffect(() => {
-    const p = localStorage.getItem('task_manager_profile');
-    if (p) setProfile(JSON.parse(p));
-    fetchClients(p ? JSON.parse(p) : null);
+    loadCurrentProfile()
+      .then((current) => {
+        setProfile(current);
+        return fetchClients(current);
+      })
+      .catch(console.error);
   }, []);
 
   const fetchClients = async (userProfile: UserProfile | null) => {
     if (!userProfile) return;
     try {
-      const { data, error } = await supabase.from('clients').select('*').order('name');
+      const { data, error } = await supabase.from('clients').select('*').is('archived_at', null).order('name');
       if (error) throw error;
       
       const formattedClients = (data || []).map((c: any) => {

@@ -1,11 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send } from 'lucide-react';
-import SettingsPage, { defaultProfile } from './pages/Settings';
-import type { UserProfile } from './pages/Settings';
-import AdminPage from './pages/Admin';
-
+import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, LogOut } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { defaultProfile, loadCurrentProfile } from './lib/profile';
+import type { UserProfile } from './lib/profile';
+import { createProofUrl, dataUrlToFile, uploadTaskProof } from './lib/proofStorage';
+import { useAuth } from './contexts/AuthContext';
+import { localDateKey } from './lib/date';
+
+const NewTask = lazy(() => import('./pages/NewTask'));
+const Reports = lazy(() => import('./pages/Reports'));
+const MyClients = lazy(() => import('./pages/MyClients'));
+const SettingsPage = lazy(() => import('./pages/Settings'));
+const AdminPage = lazy(() => import('./pages/Admin'));
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -19,6 +26,7 @@ function Dashboard() {
   const [resolutionNote, setResolutionNote] = useState('');
   const [dossierCode, setDossierCode] = useState('');
   const [proofImage, setProofImage] = useState<string>('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
 
   // Modal hỏi làm lại hồ sơ thất bại
   const [failedRetryTask, setFailedRetryTask] = useState<any | null>(null);
@@ -34,17 +42,15 @@ function Dashboard() {
   const [filterDate, setFilterDate] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('task_manager_profile');
-    let p: UserProfile | null = null;
-    if (saved) {
-      try {
-        p = JSON.parse(saved);
-        setProfile(p);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    fetchTasks(p);
+    loadCurrentProfile()
+      .then((current) => {
+        setProfile(current);
+        return fetchTasks(current);
+      })
+      .catch((error) => {
+        console.error(error);
+        setLoading(false);
+      });
   }, []);
 
   const fetchTasks = async (currentProfile?: UserProfile | null) => {
@@ -88,12 +94,32 @@ function Dashboard() {
     setResolutionNote('');
     setDossierCode(task.dossier_code || '');
     setProofImage(task.proof_image || '');
+    setProofFile(null);
   };
 
   const [proofFileName, setProofFileName] = useState<string>('');
 
+  const openProof = async (task: any) => {
+    try {
+      const source = task.proof_image || (task.proof_file?.includes('/') ? await createProofUrl(task.proof_file) : '');
+      if (!source) return alert('Không tìm thấy ảnh bằng chứng.');
+      const popup = window.open('', '_blank', 'noopener,noreferrer');
+      if (!popup) return alert('Trình duyệt đang chặn cửa sổ xem ảnh.');
+      popup.document.title = 'Ảnh chứng minh';
+      popup.document.body.style.cssText = 'margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;';
+      const image = popup.document.createElement('img');
+      image.src = source;
+      image.alt = 'Ảnh chứng minh hoàn thành công việc';
+      image.style.cssText = 'max-width:95%;max-height:95%;box-shadow:0 0 20px rgba(0,0,0,.5);border-radius:8px;';
+      popup.document.body.appendChild(image);
+    } catch (error) {
+      console.error(error);
+      alert('Không thể mở ảnh bằng chứng.');
+    }
+  };
+
   const generateProofFileName = (task: any) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateKey();
     const tax = task?.clients?.tax_code || 'MST';
     const month = task?.action_type === 'nop_ho_so' ? (task.dossier_code || 'HS') : 'ChungTu';
     return `${today}-${tax}-${month}.png`;
@@ -120,6 +146,7 @@ function Dashboard() {
       const fileName = generateProofFileName(task);
       setProofImage(dataUrl);
       setProofFileName(fileName);
+      setProofFile(dataUrlToFile(dataUrl, fileName));
     } catch (err) {
       console.warn("Hủy chụp màn hình", err);
     }
@@ -133,6 +160,7 @@ function Dashboard() {
         setProofImage(reader.result as string);
         const fileName = generateProofFileName(task);
         setProofFileName(fileName);
+        setProofFile(file);
       };
       reader.readAsDataURL(file);
     }
@@ -154,7 +182,7 @@ function Dashboard() {
         alert("Công việc này thuộc loại 'Hồ sơ', bạn bắt buộc phải nhập Mã hồ sơ!");
         return;
       }
-      if (!proofImage) {
+      if (!proofImage && !activeTask.proof_file) {
         alert("Chỉ khi hồ sơ hoàn toàn hoàn thành thì mới được đánh dấu vào và bắt buộc phải chụp kèm hình ảnh chứng minh!");
         return;
       }
@@ -171,11 +199,11 @@ function Dashboard() {
         updates.dossier_code = dossierCode;
       }
 
-      if (proofImage) {
+      if (proofFile) {
+        updates.proof_file = await uploadTaskProof(proofFile);
+        updates.proof_image = null;
+      } else if (proofImage && proofImage === activeTask.proof_image) {
         updates.proof_image = proofImage;
-        if (proofFileName) {
-          updates.proof_file = proofFileName;
-        }
       }
 
       const { error } = await supabase.from('tasks').update(updates).eq('id', activeTask.id);
@@ -483,12 +511,9 @@ function Dashboard() {
                     {t.dossier_code || '-'}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
-                    {t.proof_image ? (
+                    {(t.proof_image || t.proof_file?.includes('/')) ? (
                       <button 
-                        onClick={() => {
-                          const w = window.open("");
-                          w?.document.write(`<title>Ảnh chứng minh</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${t.proof_image}" style="max-width:95%;max-height:95%;box-shadow:0 0 20px rgba(0,0,0,0.5);border-radius:8px;"/></body>`);
-                        }}
+                        onClick={() => openProof(t)}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium"
                       >
                         <Eye size={12} /> Xem ảnh
@@ -577,6 +602,7 @@ function Dashboard() {
                             setProofImage(reader.result as string);
                             const fileName = generateProofFileName(activeTask);
                             setProofFileName(fileName);
+                             setProofFile(new File([file], fileName, { type: file.type }));
                           };
                           reader.readAsDataURL(file);
                         }
@@ -866,32 +892,19 @@ function Dashboard() {
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
+  const { signOut } = useAuth();
 
-  const loadProfile = () => {
-    const saved = localStorage.getItem('task_manager_profile');
-    const isExempt = location.pathname === '/settings' || location.pathname === '/admin';
-    if (saved) {
-      try {
-        const p = JSON.parse(saved);
-        setProfile(p);
-        if (!p.isSetupComplete && !isExempt) {
-          navigate('/settings');
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    } else if (!isExempt) {
-      navigate('/settings');
-    }
-  };
+  const loadProfile = () => loadCurrentProfile().then(setProfile).catch(console.error);
 
   useEffect(() => {
     loadProfile();
-    window.addEventListener('storage', loadProfile);
-    return () => window.removeEventListener('storage', loadProfile);
+    window.addEventListener('taskflow-profile-changed', loadProfile);
+    return () => window.removeEventListener('taskflow-profile-changed', loadProfile);
   }, [location.pathname]);
+
+  useEffect(() => setMobileMenuOpen(false), [location.pathname]);
 
   const navLinkClass = (path: string) => 
     `flex items-center gap-2 px-3 py-2 rounded-md font-medium transition ${
@@ -906,7 +919,8 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`flex h-screen font-sans transition-colors ${bgClass}`} style={bgStyle}>
-      <aside className="w-[140px] bg-white/65 backdrop-blur-md border-r border-gray-200/50 flex flex-col hidden md:flex shadow-xl">
+      {mobileMenuOpen && <button aria-label="Đóng menu" className="fixed inset-0 z-40 bg-black/35 md:hidden" onClick={() => setMobileMenuOpen(false)} />}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-md border-r border-gray-200/50 flex flex-col shadow-xl transition-transform md:static md:w-[170px] md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-2 border-b border-gray-200/50">
           <h2 className="text-base font-bold text-blue-600 flex items-center gap-1 justify-center">
             <BarChart3 size={16} />
@@ -914,35 +928,40 @@ function Layout({ children }: { children: React.ReactNode }) {
           </h2>
         </div>
         <nav className="flex-1 p-2 flex flex-col gap-1 text-[13px]">
-          <Link to="/" className={navLinkClass('/')}>
+          <Link to="/" className={navLinkClass('/')} onClick={() => setMobileMenuOpen(false)}>
             <Clock size={16} />
             Bảng điều khiển
           </Link>
-          <Link to="/reports" className={navLinkClass('/reports')}>
+          <Link to="/reports" className={navLinkClass('/reports')} onClick={() => setMobileMenuOpen(false)}>
             <BarChart3 size={16} />
             Xuất báo cáo
           </Link>
-          <Link to="/my-clients" className={navLinkClass('/my-clients')}>
+          <Link to="/my-clients" className={navLinkClass('/my-clients')} onClick={() => setMobileMenuOpen(false)}>
             <Building2 size={16} />
             Khách hàng
           </Link>
           
           <div className="mt-auto flex flex-col gap-1 border-t border-gray-100/50 pt-2">
-            <Link to="/admin" className={navLinkClass('/admin')}>
-              <Shield size={16} />
-              Quản lý
-            </Link>
-            <Link to="/settings" className={navLinkClass('/settings')}>
+            {profile.isAdmin && (
+              <Link to="/admin" className={navLinkClass('/admin')} onClick={() => setMobileMenuOpen(false)}>
+                <Shield size={16} />
+                Quản lý
+              </Link>
+            )}
+            <Link to="/settings" className={navLinkClass('/settings')} onClick={() => setMobileMenuOpen(false)}>
               <SettingsIcon size={16} />
               Cài đặt
             </Link>
+            <button type="button" onClick={signOut} className="flex items-center gap-2 px-3 py-2 rounded-md font-medium text-gray-600 hover:bg-red-50 hover:text-red-700 transition">
+              <LogOut size={16} /> Đăng xuất
+            </button>
           </div>
         </nav>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden bg-white/15">
         <header className="bg-white/55 backdrop-blur-md border-b border-gray-200/50 py-2 px-4 flex items-center justify-between md:justify-end shadow-sm">
-          <button className="md:hidden text-gray-600">
+          <button type="button" aria-label="Mở menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)} className="md:hidden text-gray-600 p-2 -ml-2">
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-3">
@@ -950,8 +969,8 @@ function Layout({ children }: { children: React.ReactNode }) {
               <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-white/70 border border-gray-200/80 rounded-md text-[11px] text-gray-600 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <span className="font-medium text-gray-500">Lưu trữ:</span>
-                <span className="font-mono font-medium text-blue-700 max-w-[150px] truncate" title={profile.storagePath || 'D:\\Taskmanager'}>
-                  {profile.storagePath || 'D:\\Taskmanager'}
+                <span className="font-medium text-blue-700 max-w-[150px] truncate" title={profile.storagePath || 'Downloads'}>
+                  {profile.storagePath || 'Downloads'}
                 </span>
               </div>
             )}
@@ -974,22 +993,20 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-import NewTask from './pages/NewTask';
-import Reports from './pages/Reports';
-import MyClients from './pages/MyClients';
-
 function App() {
   return (
     <Router>
       <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/new-task" element={<NewTask />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/my-clients" element={<MyClients />} />
-        </Routes>
+        <Suspense fallback={<div className="p-10 text-center text-gray-500">Đang tải trang...</div>}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/new-task" element={<NewTask />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/my-clients" element={<MyClients />} />
+          </Routes>
+        </Suspense>
       </Layout>
     </Router>
   );

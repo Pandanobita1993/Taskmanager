@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx-js-style';
 import type { UserProfile } from './Settings';
 import { buildProfessionalReportSheet, formatDateVN } from '../lib/reportExcelHelper';
+import { loadCurrentProfile } from '../lib/profile';
+import { localDateKey } from '../lib/date';
+import { saveFileToPreferredDirectory } from '../lib/fileStorage';
 
 export default function Reports() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -15,15 +18,14 @@ export default function Reports() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(1); // Ngày đầu tháng hiện tại
-    return d.toISOString().split('T')[0];
+    return localDateKey(d);
   });
   const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    return localDateKey();
   });
 
   useEffect(() => {
-    const p = localStorage.getItem('task_manager_profile');
-    if (p) setProfile(JSON.parse(p));
+    loadCurrentProfile().then(setProfile).catch(console.error);
     fetchData();
   }, []);
 
@@ -43,7 +45,7 @@ export default function Reports() {
     }
   };
 
-  const exportPersonal = () => {
+  const exportPersonal = async () => {
     if (!profile) return alert('Chưa thiết lập hồ sơ cá nhân');
     
     // Lọc công việc của người này
@@ -75,8 +77,10 @@ export default function Reports() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCongViec");
     
-    const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${localDateKey()}.xlsx`;
+    const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const saved = await saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').catch(() => false);
+    if (!saved) XLSX.writeFile(wb, fileName);
   };
 
   if (loading) return <div className="p-10 text-center text-gray-500">Đang tải dữ liệu...</div>;

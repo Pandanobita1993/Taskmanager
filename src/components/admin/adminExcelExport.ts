@@ -1,6 +1,8 @@
 import * as XLSX from 'xlsx-js-style';
 import type { ReportSettings } from './adminTypes';
 import { buildProfessionalReportSheet, formatDateVN } from '../../lib/reportExcelHelper';
+import { localDateKey } from '../../lib/date';
+import { saveFileToPreferredDirectory } from '../../lib/fileStorage';
 
 export { formatDateVN };
 
@@ -41,5 +43,9 @@ export const exportManagerExcel = (
     return;
   }
   
-  XLSX.writeFile(wb, `BaoCao_QuanLy_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const fileName = `BaoCao_QuanLy_${localDateKey()}.xlsx`;
+  const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  void saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    .then((saved) => { if (!saved) XLSX.writeFile(wb, fileName); })
+    .catch(() => XLSX.writeFile(wb, fileName));
 };

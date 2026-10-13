@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileSpreadsheet, Building2 } from 'lucide-react';
+import { Users, FileSpreadsheet, Building2, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { ReportSettings, Client, UserFormData } from '../components/admin/adminTypes';
 import { defaultReportSettings, defaultClientForm } from '../components/admin/adminTypes';
-import { AdminAuth } from '../components/admin/AdminAuth';
 import { AdminOverviewTab } from '../components/admin/AdminOverviewTab';
 import { AdminReportsTab } from '../components/admin/AdminReportsTab';
 import { AdminClientsTab } from '../components/admin/AdminClientsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { exportManagerExcel } from '../components/admin/adminExcelExport';
+import { loadCurrentProfile } from '../lib/profile';
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('admin_auth') === 'true';
-  });
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'clients' | 'reports'>('overview');
   const [loading, setLoading] = useState(false);
 
@@ -35,17 +31,20 @@ export default function AdminPage() {
   const [userForm, setUserForm] = useState<UserFormData>({ id: '', name: '', department: 'Kế toán', roles: [] });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchData();
-    }
-  }, [isAuthenticated]);
+    loadCurrentProfile()
+      .then((profile) => {
+        setIsAuthorized(Boolean(profile.isAdmin));
+        if (profile.isAdmin) return fetchData();
+      })
+      .catch(() => setIsAuthorized(false));
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [usersRes, clientsRes, reportRes, tasksRes] = await Promise.all([
-        supabase.from('app_users').select('*').order('name'),
-        supabase.from('clients').select('*').order('created_at', { ascending: false }),
+        supabase.from('app_users').select('*').eq('is_active', true).order('name'),
+        supabase.from('clients').select('*').is('archived_at', null).order('created_at', { ascending: false }),
         supabase.from('report_settings').select('*').limit(1),
         supabase.from('tasks').select(`*, clients(name, contact_name, contact_phone)`).order('created_at', { ascending: false })
       ]);
@@ -87,17 +86,6 @@ export default function AdminPage() {
       console.error("Lỗi tải dữ liệu admin:", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'admin123') {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('admin_auth', 'true');
-      setError('');
-    } else {
-      setError('Mật khẩu không chính xác!');
     }
   };
 
@@ -194,8 +182,9 @@ export default function AdminPage() {
   };
 
   const deleteClient = async (id: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa khách hàng này?")) {
-      await supabase.from('clients').delete().eq('id', id);
+    if (window.confirm("Lưu trữ khách hàng này? Lịch sử công việc vẫn được giữ nguyên.")) {
+      const { error } = await supabase.from('clients').update({ archived_at: new Date().toISOString() }).eq('id', id);
+      if (error) return alert(`Không thể lưu trữ khách hàng: ${error.message}`);
       fetchData();
     }
   };
@@ -237,20 +226,24 @@ export default function AdminPage() {
   };
 
   const deleteUser = async (id: string) => {
-    if (window.confirm("Bạn có chắc chắn xóa nhân viên này?")) {
-      await supabase.from('app_users').delete().eq('id', id);
+    if (window.confirm("Vô hiệu hóa nhân viên này? Lịch sử công việc vẫn được giữ nguyên.")) {
+      const { error } = await supabase.from('app_users').update({ is_active: false }).eq('id', id);
+      if (error) return alert(`Không thể vô hiệu hóa nhân viên: ${error.message}`);
       fetchData();
     }
   };
 
-  if (!isAuthenticated) {
+  if (isAuthorized === null) {
+    return <div className="p-10 text-center text-gray-500">Đang kiểm tra quyền quản trị...</div>;
+  }
+
+  if (!isAuthorized) {
     return (
-      <AdminAuth
-        password={password}
-        setPassword={setPassword}
-        error={error}
-        onLogin={handleLogin}
-      />
+      <div className="p-10 max-w-lg mx-auto text-center">
+        <ShieldAlert size={44} className="mx-auto text-amber-600 mb-3" />
+        <h1 className="text-xl font-bold text-gray-900">Không có quyền quản trị</h1>
+        <p className="text-gray-500 mt-2">Tài khoản hiện tại không được phép truy cập dữ liệu quản lý.</p>
+      </div>
     );
   }
 
@@ -261,12 +254,6 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold text-gray-800">Quản trị hệ thống</h1>
           <p className="text-gray-500 mt-1">Quản lý nhân sự, danh sách khách hàng và thiết lập báo cáo</p>
         </div>
-        <button 
-          onClick={() => { setIsAuthenticated(false); sessionStorage.removeItem('admin_auth'); }} 
-          className="text-gray-500 hover:text-red-500 px-4 py-2 border rounded-md"
-        >
-          Đăng xuất
-        </button>
       </div>
 
       <div className="flex gap-4 border-b border-gray-200 mb-6">

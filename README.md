@@ -1,32 +1,26 @@
-# React + TypeScript + Vite
+# TaskFlow
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Ứng dụng nội bộ quản lý công việc, hồ sơ và báo cáo cho doanh nghiệp dịch vụ kế toán.
 
-Currently, two official plugins are available:
+## Chức năng chính
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Tiếp nhận và theo dõi công việc theo khách hàng, nghiệp vụ và nhân viên.
+- Quản lý hồ sơ cần kiểm tra, mã hồ sơ, tiến độ và bằng chứng hoàn thành.
+- Quản lý khách hàng, nhân sự và phân công nghiệp vụ.
+- Xuất báo cáo Excel cá nhân và báo cáo quản lý.
+- Xác thực bằng Supabase Auth, phân quyền bằng Row Level Security.
 
-## React Compiler
+## Chạy tại máy
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Sao chép `.env.example` thành `.env` và điền cấu hình Supabase.
+2. Chạy `npm install`.
+3. Chạy `npm run dev`.
 
-## Expanding the Oxlint configuration
+## Triển khai
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+1. Áp dụng `supabase-security-migration.sql` trong Supabase SQL Editor.
+2. Bật Email authentication trong Supabase Auth.
+3. Khai báo `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY` trên Vercel.
+4. Chạy `npm run build` hoặc kết nối repository với Vercel.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Tài khoản đăng ký phải dùng họ tên trùng với một nhân sự hiện có. Tài khoản hợp lệ đầu tiên sau khi migration được áp dụng sẽ nhận quyền quản trị để hoàn tất thiết lập ban đầu.
