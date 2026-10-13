@@ -49,8 +49,8 @@ CREATE TABLE public.report_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Thiết lập RLS. Không tạo policy công khai ở schema nền.
--- Chạy supabase-security-migration.sql để tạo policy theo người dùng và vai trò.
+-- Thiết lập RLS. Chạy supabase-no-login-migration.sql để bật chế độ hồ sơ theo thiết bị
+-- và tạo hàm kiểm tra mật khẩu quản trị ở phía cơ sở dữ liệu.
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;

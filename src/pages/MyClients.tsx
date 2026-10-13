@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { UserProfile } from './Settings';
-import { loadCurrentProfile } from '../lib/profile';
+import type { UserProfile } from '../lib/profile';
+import { readCachedProfile } from '../lib/profile';
 
 export default function MyClients() {
   const [clients, setClients] = useState<any[]>([]);
@@ -11,12 +11,9 @@ export default function MyClients() {
   const [editingClient, setEditingClient] = useState<any | null>(null);
 
   useEffect(() => {
-    loadCurrentProfile()
-      .then((current) => {
-        setProfile(current);
-        return fetchClients(current);
-      })
-      .catch(console.error);
+    const current = readCachedProfile();
+    setProfile(current);
+    fetchClients(current);
   }, []);
 
   const fetchClients = async (userProfile: UserProfile | null) => {

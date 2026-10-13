@@ -10,10 +10,7 @@ export async function uploadTaskProof(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Bằng chứng phải là file ảnh');
   if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh bằng chứng không được vượt quá 5 MB');
 
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) throw authError || new Error('Chưa đăng nhập');
-
-  const path = `${authData.user.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+  const path = `public/${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     cacheControl: '3600',
     contentType: file.type,

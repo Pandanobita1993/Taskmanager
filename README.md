@@ -8,7 +8,8 @@
 - Quản lý hồ sơ cần kiểm tra, mã hồ sơ, tiến độ và bằng chứng hoàn thành.
 - Quản lý khách hàng, nhân sự và phân công nghiệp vụ.
 - Xuất báo cáo Excel cá nhân và báo cáo quản lý.
-- Xác thực bằng Supabase Auth, phân quyền bằng Row Level Security.
+- Thiết lập hồ sơ nhân viên trực tiếp trên từng thiết bị, không cần đăng nhập email.
+- Khu vực quản trị được khóa bằng mật khẩu kiểm tra ở Supabase.
 
 ## Chạy tại máy
 
@@ -18,9 +19,8 @@
 
 ## Triển khai
 
-1. Áp dụng `supabase-security-migration.sql` trong Supabase SQL Editor.
-2. Bật Email authentication trong Supabase Auth.
-3. Khai báo `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY` trên Vercel.
-4. Chạy `npm run build` hoặc kết nối repository với Vercel.
+1. Nếu dự án đã áp dụng cơ chế đăng nhập trước đây, chạy `supabase-no-login-migration.sql` trong Supabase SQL Editor để khôi phục chế độ hồ sơ theo thiết bị.
+2. Khai báo `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY` trên Vercel.
+3. Chạy `npm run build` hoặc kết nối repository với Vercel.
 
-Tài khoản đăng ký phải dùng họ tên trùng với một nhân sự hiện có. Tài khoản hợp lệ đầu tiên sau khi migration được áp dụng sẽ nhận quyền quản trị để hoàn tất thiết lập ban đầu.
+Khi mở ứng dụng lần đầu trên một thiết bị, người dùng chọn tên nhân viên để hoàn tất thiết lập. Mật khẩu quản trị chỉ được kiểm tra qua hàm Supabase và không nằm trong mã nguồn giao diện.

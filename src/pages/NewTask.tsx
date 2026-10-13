@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save, Check, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { UserProfile } from './Settings';
+import type { UserProfile } from '../lib/profile';
 import type { BusinessDomain } from '../components/newTask/newTaskConstants';
 import { INTERNAL_COMPANY_CLIENT } from '../components/newTask/newTaskConstants';
 import { BusinessDomainSelector } from '../components/newTask/BusinessDomainSelector';
@@ -10,7 +10,7 @@ import { ClientSelectorSection } from '../components/newTask/ClientSelectorSecti
 import { TaskDetailsForm } from '../components/newTask/TaskDetailsForm';
 import { PaymentDetailsForm } from '../components/newTask/PaymentDetailsForm';
 import { TaskCategorySelector } from '../components/newTask/TaskCategorySelector';
-import { loadCurrentProfile } from '../lib/profile';
+import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
 import { uploadTaskProof } from '../lib/proofStorage';
 
@@ -101,15 +101,14 @@ export default function NewTask() {
   const location = useLocation();
 
   useEffect(() => {
-    loadCurrentProfile().then((parsed) => {
-      setProfile(parsed);
-      // Tự động chọn tab nghiệp vụ mặc định theo phòng ban người dùng
-      if (parsed.department === 'BHXH') {
-        setBusinessDomain('bhxh');
-      } else {
-        setBusinessDomain('ke_toan');
-      }
-    }).catch(console.error);
+    const parsed = readCachedProfile();
+    setProfile(parsed);
+    // Tự động chọn tab nghiệp vụ mặc định theo phòng ban người dùng
+    if (parsed.department === 'BHXH') {
+      setBusinessDomain('bhxh');
+    } else {
+      setBusinessDomain('ke_toan');
+    }
 
     // Nếu chuyển từ chức năng làm lại hồ sơ thất bại
     const retryData = (location.state as any)?.retryTask;

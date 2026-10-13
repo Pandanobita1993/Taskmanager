@@ -1,11 +1,10 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, LogOut } from 'lucide-react';
+import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { defaultProfile, loadCurrentProfile } from './lib/profile';
+import { defaultProfile, readCachedProfile } from './lib/profile';
 import type { UserProfile } from './lib/profile';
 import { createProofUrl, dataUrlToFile, uploadTaskProof } from './lib/proofStorage';
-import { useAuth } from './contexts/AuthContext';
 import { localDateKey } from './lib/date';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
@@ -42,18 +41,12 @@ function Dashboard() {
   const [filterDate, setFilterDate] = useState('');
 
   useEffect(() => {
-    loadCurrentProfile()
-      .then((current) => {
-        setProfile(current);
-        return fetchTasks(current);
-      })
-      .catch((error) => {
-        console.error(error);
-        setLoading(false);
-      });
+    const current = readCachedProfile();
+    setProfile(current.fullName ? current : null);
+    fetchTasks();
   }, []);
 
-  const fetchTasks = async (currentProfile?: UserProfile | null) => {
+  const fetchTasks = async () => {
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -894,14 +887,23 @@ function Layout({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { signOut } = useAuth();
+  const navigate = useNavigate();
 
-  const loadProfile = () => loadCurrentProfile().then(setProfile).catch(console.error);
+  const loadProfile = () => {
+    const current = readCachedProfile();
+    const isExempt = location.pathname === '/settings' || location.pathname === '/admin';
+    setProfile(current);
+    if (!current.isSetupComplete && !isExempt) navigate('/settings');
+  };
 
   useEffect(() => {
     loadProfile();
+    window.addEventListener('storage', loadProfile);
     window.addEventListener('taskflow-profile-changed', loadProfile);
-    return () => window.removeEventListener('taskflow-profile-changed', loadProfile);
+    return () => {
+      window.removeEventListener('storage', loadProfile);
+      window.removeEventListener('taskflow-profile-changed', loadProfile);
+    };
   }, [location.pathname]);
 
   useEffect(() => setMobileMenuOpen(false), [location.pathname]);
@@ -942,19 +944,14 @@ function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           
           <div className="mt-auto flex flex-col gap-1 border-t border-gray-100/50 pt-2">
-            {profile.isAdmin && (
-              <Link to="/admin" className={navLinkClass('/admin')} onClick={() => setMobileMenuOpen(false)}>
-                <Shield size={16} />
-                Quản lý
-              </Link>
-            )}
+            <Link to="/admin" className={navLinkClass('/admin')} onClick={() => setMobileMenuOpen(false)}>
+              <Shield size={16} />
+              Quản lý
+            </Link>
             <Link to="/settings" className={navLinkClass('/settings')} onClick={() => setMobileMenuOpen(false)}>
               <SettingsIcon size={16} />
               Cài đặt
             </Link>
-            <button type="button" onClick={signOut} className="flex items-center gap-2 px-3 py-2 rounded-md font-medium text-gray-600 hover:bg-red-50 hover:text-red-700 transition">
-              <LogOut size={16} /> Đăng xuất
-            </button>
           </div>
         </nav>
       </aside>

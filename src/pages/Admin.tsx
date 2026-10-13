@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileSpreadsheet, Building2, ShieldAlert } from 'lucide-react';
+import { Users, FileSpreadsheet, Building2, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { ReportSettings, Client, UserFormData } from '../components/admin/adminTypes';
 import { defaultReportSettings, defaultClientForm } from '../components/admin/adminTypes';
@@ -7,11 +7,15 @@ import { AdminOverviewTab } from '../components/admin/AdminOverviewTab';
 import { AdminReportsTab } from '../components/admin/AdminReportsTab';
 import { AdminClientsTab } from '../components/admin/AdminClientsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
+import { AdminAuth } from '../components/admin/AdminAuth';
 import { exportManagerExcel } from '../components/admin/adminExcelExport';
-import { loadCurrentProfile } from '../lib/profile';
 
 export default function AdminPage() {
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => sessionStorage.getItem('admin_auth') === 'true'
+  );
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'clients' | 'reports'>('overview');
   const [loading, setLoading] = useState(false);
 
@@ -31,13 +35,37 @@ export default function AdminPage() {
   const [userForm, setUserForm] = useState<UserFormData>({ id: '', name: '', department: 'Kế toán', roles: [] });
 
   useEffect(() => {
-    loadCurrentProfile()
-      .then((profile) => {
-        setIsAuthorized(Boolean(profile.isAdmin));
-        if (profile.isAdmin) return fetchData();
-      })
-      .catch(() => setIsAuthorized(false));
-  }, []);
+    if (isAuthenticated) fetchData();
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+
+    const { data, error } = await supabase.rpc('verify_admin_password', {
+      candidate: password,
+    });
+
+    if (error) {
+      console.error('Lỗi xác thực quản trị:', error);
+      setAuthError('Không thể kiểm tra mật khẩu. Vui lòng thử lại.');
+      return;
+    }
+
+    if (!data) {
+      setAuthError('Mật khẩu không đúng.');
+      return;
+    }
+
+    sessionStorage.setItem('admin_auth', 'true');
+    setPassword('');
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('admin_auth');
+    setIsAuthenticated(false);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -233,17 +261,14 @@ export default function AdminPage() {
     }
   };
 
-  if (isAuthorized === null) {
-    return <div className="p-10 text-center text-gray-500">Đang kiểm tra quyền quản trị...</div>;
-  }
-
-  if (!isAuthorized) {
+  if (!isAuthenticated) {
     return (
-      <div className="p-10 max-w-lg mx-auto text-center">
-        <ShieldAlert size={44} className="mx-auto text-amber-600 mb-3" />
-        <h1 className="text-xl font-bold text-gray-900">Không có quyền quản trị</h1>
-        <p className="text-gray-500 mt-2">Tài khoản hiện tại không được phép truy cập dữ liệu quản lý.</p>
-      </div>
+      <AdminAuth
+        password={password}
+        setPassword={setPassword}
+        error={authError}
+        onLogin={handleLogin}
+      />
     );
   }
 
@@ -254,6 +279,14 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold text-gray-800">Quản trị hệ thống</h1>
           <p className="text-gray-500 mt-1">Quản lý nhân sự, danh sách khách hàng và thiết lập báo cáo</p>
         </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <LogOut size={16} />
+          Khóa quản trị
+        </button>
       </div>
 
       <div className="flex gap-4 border-b border-gray-200 mb-6">

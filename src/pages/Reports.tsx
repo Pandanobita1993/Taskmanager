@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet, Calendar, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx-js-style';
-import type { UserProfile } from './Settings';
+import type { UserProfile } from '../lib/profile';
 import { buildProfessionalReportSheet, formatDateVN } from '../lib/reportExcelHelper';
-import { loadCurrentProfile } from '../lib/profile';
+import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
 import { saveFileToPreferredDirectory } from '../lib/fileStorage';
 
@@ -25,7 +25,7 @@ export default function Reports() {
   });
 
   useEffect(() => {
-    loadCurrentProfile().then(setProfile).catch(console.error);
+    setProfile(readCachedProfile());
     fetchData();
   }, []);
 
