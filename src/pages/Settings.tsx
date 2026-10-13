@@ -362,7 +362,7 @@ export default function Settings() {
 
             <form onSubmit={handleUnlock} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu quản trị (Mặc định: admin123)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu quản trị</label>
                 <input
                   type="password"
                   required

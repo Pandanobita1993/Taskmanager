@@ -9,5 +9,11 @@ export default defineConfig({
   ],
   server: {
     host: true, // Listen on all local IPs
-  }
+  },
+  resolve: {
+    alias: {
+      // Force all imports of 'xlsx' to use xlsx-js-style (which supports cell styling)
+      'xlsx': 'xlsx-js-style',
+    },
+  },
 })

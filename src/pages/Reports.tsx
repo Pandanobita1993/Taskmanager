@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet, Calendar, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import type { UserProfile } from './Settings';
+import { buildProfessionalReportSheet, formatDateVN } from '../lib/reportExcelHelper';
 
 export default function Reports() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -42,168 +43,6 @@ export default function Reports() {
     }
   };
 
-  const formatDateVN = (dateStr?: string) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}/${month}/${year}`;
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const generateReportSheet = (userTasks: any[], userName: string) => {
-    // Nhóm theo Khách hàng
-    const grouped: { [clientName: string]: any[] } = {};
-    userTasks.forEach(t => {
-      const cName = t.clients?.name || 'Khác';
-      if (!grouped[cName]) grouped[cName] = [];
-      grouped[cName].push(t);
-    });
-
-    const companyName = settings?.company_name || 'CÔNG TY TNHH DỊCH VỤ KẾ TOÁN AN AN';
-    const companyAddress = settings?.address ? `Địa chỉ : ${settings.address}` : 'Địa chỉ : 319, Ấp Mới 2, Xã Mỹ Hạnh, Tỉnh Tây Ninh';
-    const officeName = settings?.office_name || 'Văn phòng: Cần Thơ';
-    const todayStr = formatDateVN(new Date().toISOString().split('T')[0]);
-    const periodStr = startDate && endDate 
-      ? `(Kỳ báo cáo: ${formatDateVN(startDate)} - ${formatDateVN(endDate)})`
-      : '(Kỳ báo cáo: Toàn bộ thời gian)';
-
-    const rows: any[][] = [];
-    const merges: any[] = [];
-
-    // Row 1 (Index 0): Tên công ty bên trái, Quốc hiệu bên phải
-    rows.push([companyName, null, null, 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', null, null, null, null, null, null]);
-    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } });
-    merges.push({ s: { r: 0, c: 3 }, e: { r: 0, c: 9 } });
-
-    // Row 2 (Index 1): Địa chỉ bên trái, Tiêu ngữ bên phải
-    rows.push([companyAddress, null, null, 'Độc lập - Tự do - Hạnh phúc', null, null, null, null, null, null]);
-    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 2 } });
-    merges.push({ s: { r: 1, c: 3 }, e: { r: 1, c: 9 } });
-
-    // Row 3 (Index 2): Dấu gạch tiêu ngữ
-    rows.push([null, null, null, '---***---', null, null, null, null, null, null]);
-    merges.push({ s: { r: 2, c: 3 }, e: { r: 2, c: 9 } });
-
-    // Row 4 (Index 3): TIÊU ĐỀ BÁO CÁO
-    rows.push(['BÁO CÁO KẾT QUẢ CÔNG VIỆC', null, null, null, null, null, null, null, null, null]);
-    merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: 9 } });
-
-    // Row 5 (Index 4): KỲ BÁO CÁO
-    rows.push([periodStr, null, null, null, null, null, null, null, null, null]);
-    merges.push({ s: { r: 4, c: 0 }, e: { r: 4, c: 9 } });
-
-    // Row 6 (Index 5): Trống
-    rows.push([]);
-
-    // Row 7 (Index 6): Nhân sự phụ trách & Văn phòng
-    rows.push([`Nhân sự phụ trách: ${userName.toUpperCase()}`, null, null, null, null, null, null, null, officeName, null]);
-    merges.push({ s: { r: 6, c: 0 }, e: { r: 6, c: 2 } });
-    merges.push({ s: { r: 6, c: 8 }, e: { r: 6, c: 9 } });
-
-    // Row 8 (Index 7): Ngày xuất báo cáo
-    rows.push([`Ngày xuất báo cáo: ${todayStr}`, null, null, null, null, null, null, null, null, null]);
-    merges.push({ s: { r: 7, c: 0 }, e: { r: 7, c: 2 } });
-
-    // Row 9 (Index 8): Trống
-    rows.push([]);
-
-    // Row 10 (Index 9): HEADER BẢNG DỮ LIỆU CHUẨN THEO FILE CỦA BẠN
-    rows.push([
-      'STT',
-      'Tên khách hàng',
-      'Người liên hệ',
-      'Nội dung công việc',
-      'Nghiệp vụ',
-      'Ngày tiếp nhận',
-      'Ngày hoàn thành',
-      'Tiến độ / Trạng thái',
-      'Mã hồ sơ (nếu có)',
-      'Ghi chú / Lưu ý'
-    ]);
-
-    // Data rows bắt đầu từ index 10 (Row 11)
-    let stt = 1;
-    let currentRow = 10;
-
-    const actionTypeLabels: { [key: string]: string } = {
-      'ke_toan': 'Kế toán',
-      'bhxh': 'BHXH',
-      'nop_ho_so': 'Hồ sơ GPKD',
-      'ho_tro': 'Hỗ trợ',
-      'khac': 'Khác'
-    };
-
-    const statusLabels: { [key: string]: string } = {
-      'completed': 'Đã hoàn thành',
-      'in_progress': 'Đang xử lý',
-      'received': 'Tiếp nhận',
-      'failed': 'Thất bại'
-    };
-
-    Object.keys(grouped).sort().forEach(clientName => {
-      const clientTasks = grouped[clientName];
-      const startClientRow = currentRow;
-
-      clientTasks.forEach((task) => {
-        const contact = task.contact_person || task.clients?.contact_name || (task.clients?.contact_phone ? `(${task.clients.contact_phone})` : '');
-        const role = actionTypeLabels[task.action_type] || task.action_type || 'Kế toán';
-        const intakeDate = formatDateVN(task.intake_date || task.created_at?.split('T')[0]);
-        const completeDate = task.status === 'completed' ? formatDateVN(task.completed_at?.split('T')[0]) : (formatDateVN(task.deadline) || '');
-        const statusText = statusLabels[task.status] || (task.info_pending ? `Đang chờ: ${task.info_pending}` : 'Đang xử lý');
-        const dossierCode = task.dossier_code || '';
-        const notes = task.resolution_note || task.notes || '';
-
-        rows.push([
-          stt,
-          clientName,
-          contact,
-          task.content,
-          role,
-          intakeDate,
-          completeDate,
-          statusText,
-          dossierCode,
-          notes
-        ]);
-
-        currentRow++;
-      });
-
-      // Nếu khách hàng có nhiều công việc -> Merge ô STT và Tên khách hàng theo nhóm
-      if (clientTasks.length > 1) {
-        merges.push({ s: { r: startClientRow, c: 0 }, e: { r: currentRow - 1, c: 0 } });
-        merges.push({ s: { r: startClientRow, c: 1 }, e: { r: currentRow - 1, c: 1 } });
-      }
-
-      stt++;
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!merges'] = merges;
-
-    // Chiều rộng các cột chuẩn
-    ws['!cols'] = [
-      { wch: 6 },  // STT
-      { wch: 42 }, // Tên khách hàng
-      { wch: 22 }, // Người liên hệ
-      { wch: 45 }, // Nội dung công việc
-      { wch: 16 }, // Nghiệp vụ
-      { wch: 15 }, // Ngày tiếp nhận
-      { wch: 16 }, // Ngày hoàn thành
-      { wch: 22 }, // Tiến độ / Trạng thái
-      { wch: 18 }, // Mã hồ sơ (nếu có)
-      { wch: 40 }, // Ghi chú / Lưu ý
-    ];
-
-    return ws;
-  };
-
   const exportPersonal = () => {
     if (!profile) return alert('Chưa thiết lập hồ sơ cá nhân');
     
@@ -228,9 +67,13 @@ export default function Reports() {
       return alert('Không có công việc nào trong khoảng thời gian đã chọn!');
     }
 
-    const ws = generateReportSheet(myTasks, profile.fullName);
+    const periodStr = startDate && endDate 
+      ? `(Kỳ báo cáo: Từ ${formatDateVN(startDate)} Đến ${formatDateVN(endDate)})`
+      : '(Kỳ báo cáo: Toàn bộ thời gian)';
+
+    const { ws } = buildProfessionalReportSheet(myTasks, profile.fullName, settings, periodStr);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "BaoCaoTienDo");
+    XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCongViec");
     
     const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
