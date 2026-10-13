@@ -1,11 +1,13 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send } from 'lucide-react';
+import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, Pencil } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { defaultProfile, readCachedProfile } from './lib/profile';
 import type { UserProfile } from './lib/profile';
 import { createProofUrl, dataUrlToFile, uploadTaskProof } from './lib/proofStorage';
 import { localDateKey } from './lib/date';
+import { updateTaskWithLog } from './lib/taskUpdates';
+import { TaskEditModal } from './components/tasks/TaskEditModal';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -34,6 +36,7 @@ function Dashboard() {
   const [dossierModalTask, setDossierModalTask] = useState<any | null>(null);
   const [progressInput, setProgressInput] = useState('');
   const [showDossierDrawer, setShowDossierDrawer] = useState(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
 
   // Bộ lọc lịch sử
   const [historyTab, setHistoryTab] = useState<'all' | 'by_client' | 'by_date'>('all');
@@ -67,9 +70,9 @@ function Dashboard() {
     return t.user_id === profile.id || t.user_id === profile.fullName;
   });
 
-  // Kiểm tra công việc có phải là hồ sơ theo dõi tiến độ (có mã hồ sơ hoặc thuộc nộp hồ sơ GPKD/BHXH)
+  // Chỉ công việc đã có mã hồ sơ điện tử mới được theo dõi phê duyệt.
   const isDossierTask = (t: any) => {
-    return Boolean(t.dossier_code && t.dossier_code.trim()) || t.action_type === 'nop_ho_so' || t.action_type === 'bhxh';
+    return Boolean(t.dossier_code && t.dossier_code.trim());
   };
 
   // Công việc thông thường đang xử lý của cá nhân (không phải hồ sơ đang theo dõi mã)
@@ -199,8 +202,12 @@ function Dashboard() {
         updates.proof_image = proofImage;
       }
 
-      const { error } = await supabase.from('tasks').update(updates).eq('id', activeTask.id);
-      if (error) throw error;
+      await updateTaskWithLog(
+        activeTask.id,
+        updates,
+        profile,
+        resolveStatus === 'completed' ? 'Xác nhận hoàn thành công việc' : 'Xác nhận công việc thất bại',
+      );
 
       const finishedTask = { ...activeTask, resolution_note: resolutionNote };
 
@@ -222,10 +229,12 @@ function Dashboard() {
     e.preventDefault();
     if (!dossierModalTask) return;
     try {
-      const { error } = await supabase.from('tasks').update({
-        dossier_progress: progressInput
-      }).eq('id', dossierModalTask.id);
-      if (error) throw error;
+      await updateTaskWithLog(
+        dossierModalTask.id,
+        { dossier_progress: progressInput },
+        profile,
+        'Cập nhật tiến độ hồ sơ',
+      );
       alert("Đã cập nhật tiến độ hồ sơ!");
       setDossierModalTask(null);
       fetchTasks();
@@ -380,8 +389,13 @@ function Dashboard() {
                   </p>
                 </div>
                 
-                {/* 2 Nút lựa chọn: Hoàn thành hoặc Thất bại */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setEditingTask(task)}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
+                  >
+                    <Pencil size={13} /> Sửa / bổ sung
+                  </button>
                   <button 
                     onClick={() => openResolveModal(task, 'completed')}
                     className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition shadow-sm"
@@ -464,6 +478,7 @@ function Dashboard() {
                 <th className="py-3 px-4">Mã hồ sơ</th>
                 <th className="py-3 px-4">Ảnh kết quả</th>
                 <th className="py-3 px-4">Lý do / Ghi chú</th>
+                <th className="py-3 px-4">Cập nhật</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100/70">
@@ -518,11 +533,16 @@ function Dashboard() {
                   <td className="py-3 px-4 text-xs text-gray-600 max-w-xs truncate" title={t.resolution_note || ''}>
                     {t.resolution_note || '-'}
                   </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <button onClick={() => setEditingTask(t)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium">
+                      <Pencil size={12} /> Sửa / xem log
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filteredHistory.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-400 text-sm">
+                  <td colSpan={9} className="py-8 text-center text-gray-400 text-sm">
                     {historyTasks.length === 0 ? 'Chưa có công việc nào được hoàn thành hoặc thất bại.' : 'Không tìm thấy công việc phù hợp với bộ lọc.'}
                   </td>
                 </tr>
@@ -531,6 +551,15 @@ function Dashboard() {
           </table>
         </div>
       </div>
+
+      {editingTask && (
+        <TaskEditModal
+          task={editingTask}
+          profile={profile}
+          onClose={() => setEditingTask(null)}
+          onSaved={fetchTasks}
+        />
+      )}
 
       {/* POPUP MODAL HOÀN THÀNH / THẤT BÀI */}
       {activeTask && (
@@ -699,7 +728,7 @@ function Dashboard() {
                   <div className="flex justify-between items-start gap-2">
                     <div>
                       <span className="text-xs font-mono font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                        Mã HS: {d.dossier_code || 'Chưa gắn mã'}
+                        Mã HS: {d.dossier_code}
                       </span>
                       <h4 className="font-bold text-gray-800 mt-1">{d.clients?.name}</h4>
                       <p className="text-xs text-gray-600">{d.content}</p>
@@ -724,7 +753,13 @@ function Dashboard() {
                   </div>
 
                   {/* Nút hành động hoàn thành/thất bại */}
-                  <div className="flex justify-end gap-2 pt-1 border-t border-amber-100/60">
+                  <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-amber-100/60">
+                    <button
+                      onClick={() => setEditingTask(d)}
+                      className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-xs font-medium hover:bg-blue-100 flex items-center gap-1"
+                    >
+                      <Pencil size={13} /> Sửa / bổ sung
+                    </button>
                     <button 
                       onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'failed'); }}
                       className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-xs font-medium hover:bg-rose-100 flex items-center gap-1"
