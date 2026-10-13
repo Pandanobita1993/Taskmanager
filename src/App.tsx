@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload } from 'lucide-react';
+import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send } from 'lucide-react';
 import SettingsPage, { defaultProfile } from './pages/Settings';
 import type { UserProfile } from './pages/Settings';
 import AdminPage from './pages/Admin';
@@ -70,7 +70,7 @@ function Dashboard() {
 
   // Kiểm tra công việc có phải là hồ sơ theo dõi tiến độ (có mã hồ sơ hoặc thuộc nộp hồ sơ GPKD/BHXH)
   const isDossierTask = (t: any) => {
-    return Boolean(t.dossier_code && t.dossier_code.trim()) || t.action_type === 'nop_ho_so';
+    return Boolean(t.dossier_code && t.dossier_code.trim()) || t.action_type === 'nop_ho_so' || t.action_type === 'bhxh';
   };
 
   // Công việc thông thường đang xử lý của cá nhân (không phải hồ sơ đang theo dõi mã)
