@@ -8,6 +8,7 @@ import AdminPage from './pages/Admin';
 import { supabase } from './lib/supabase';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -18,6 +19,9 @@ function Dashboard() {
   const [resolutionNote, setResolutionNote] = useState('');
   const [dossierCode, setDossierCode] = useState('');
   const [proofImage, setProofImage] = useState<string>('');
+
+  // Modal hỏi làm lại hồ sơ thất bại
+  const [failedRetryTask, setFailedRetryTask] = useState<any | null>(null);
 
   // Modal cập nhật tiến độ hồ sơ cần kiểm tra
   const [dossierModalTask, setDossierModalTask] = useState<any | null>(null);
@@ -64,10 +68,15 @@ function Dashboard() {
     return t.user_id === profile.id || t.user_id === profile.fullName;
   });
 
-  // Công việc thông thường đang xử lý của cá nhân
-  const pendingTasks = myTasks.filter(t => (t.status === 'received' || t.status === 'in_progress') && t.action_type !== 'nop_ho_so');
-  // Hồ sơ đã nộp cần kiểm tra / theo dõi tiến độ của cá nhân
-  const pendingDossiers = myTasks.filter(t => (t.status === 'received' || t.status === 'in_progress') && t.action_type === 'nop_ho_so');
+  // Kiểm tra công việc có phải là hồ sơ theo dõi tiến độ (có mã hồ sơ hoặc thuộc nộp hồ sơ GPKD/BHXH)
+  const isDossierTask = (t: any) => {
+    return Boolean(t.dossier_code && t.dossier_code.trim()) || t.action_type === 'nop_ho_so';
+  };
+
+  // Công việc thông thường đang xử lý của cá nhân (không phải hồ sơ đang theo dõi mã)
+  const pendingTasks = myTasks.filter(t => (t.status === 'received' || t.status === 'in_progress') && !isDossierTask(t));
+  // Hồ sơ đã nộp cần kiểm tra / theo dõi tiến độ của cá nhân (có mã hồ sơ hoặc thuộc nop_ho_so)
+  const pendingDossiers = myTasks.filter(t => (t.status === 'received' || t.status === 'in_progress') && isDossierTask(t));
 
   const urgentTasks = myTasks.filter(t => t.is_urgent && (t.status === 'received' || t.status === 'in_progress'));
   const completedTasks = myTasks.filter(t => t.status === 'completed');
@@ -138,9 +147,11 @@ function Dashboard() {
       return;
     }
 
-    if (resolveStatus === 'completed' && activeTask.action_type === 'nop_ho_so') {
+    const isDossier = isDossierTask(activeTask);
+
+    if (resolveStatus === 'completed' && isDossier) {
       if (!dossierCode.trim()) {
-        alert("Công việc này thuộc loại 'Nộp hồ sơ', bạn bắt buộc phải nhập Mã hồ sơ!");
+        alert("Công việc này thuộc loại 'Hồ sơ', bạn bắt buộc phải nhập Mã hồ sơ!");
         return;
       }
       if (!proofImage) {
@@ -170,9 +181,16 @@ function Dashboard() {
       const { error } = await supabase.from('tasks').update(updates).eq('id', activeTask.id);
       if (error) throw error;
 
+      const finishedTask = { ...activeTask, resolution_note: resolutionNote };
+
       setActiveTask(null);
       setDossierModalTask(null);
       fetchTasks();
+
+      // Nếu hồ sơ thất bại, hiển thị hộp thoại hỏi người dùng có muốn tiếp nhận lại để bổ sung/nộp lại không
+      if (resolveStatus === 'failed' && isDossier) {
+        setFailedRetryTask(finishedTask);
+      }
     } catch (err) {
       console.error(err);
       alert('Lỗi cập nhật trạng thái công việc');
@@ -225,13 +243,21 @@ function Dashboard() {
           {/* Nút Hồ sơ cần kiểm tra ở góc trên bên phải */}
           <button 
             onClick={() => setShowDossierDrawer(true)}
-            className="relative px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-sm font-semibold flex items-center gap-2 transition shadow-xs"
+            className={`relative px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition shadow-sm ${
+              pendingDossiers.length > 0
+                ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-2 border-amber-500 shadow-amber-200 ring-2 ring-amber-400/40'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
+            }`}
           >
-            <FileCheck size={18} className="text-amber-600" />
+            <FileCheck size={18} className={pendingDossiers.length > 0 ? 'text-amber-700 animate-bounce' : 'text-gray-500'} />
             <span>Hồ sơ cần kiểm tra</span>
-            {pendingDossiers.length > 0 && (
-              <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-bold animate-pulse">
+            {pendingDossiers.length > 0 ? (
+              <span className="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-xs animate-pulse">
                 {pendingDossiers.length}
+              </span>
+            ) : (
+              <span className="bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded-full font-medium">
+                0
               </span>
             )}
           </button>
@@ -506,17 +532,17 @@ function Dashboard() {
             <div className="bg-gray-50 p-3 rounded-lg text-xs space-y-1 text-gray-600 border border-gray-200">
               <p>Khách hàng: <strong className="text-gray-800">{activeTask.clients?.name}</strong></p>
               <p>Nội dung: <strong className="text-gray-800">{activeTask.content}</strong></p>
-              {activeTask.action_type === 'nop_ho_so' && (
-                <p className="text-blue-700 font-semibold">★ Công việc này là: Nộp hồ sơ</p>
+              {isDossierTask(activeTask) && (
+                <p className="text-amber-800 font-semibold">★ Đây là Hồ sơ theo dõi tiến độ {activeTask.dossier_code ? `(Mã HS: ${activeTask.dossier_code})` : ''}</p>
               )}
             </div>
 
             <form onSubmit={handleResolveTask} className="space-y-4">
-              {/* Nếu là Nộp hồ sơ và Hoàn thành thì bắt buộc nhập mã hồ sơ */}
-              {resolveStatus === 'completed' && activeTask.action_type === 'nop_ho_so' && (
+              {/* Nếu là Hồ sơ và Hoàn thành thì hiển thị / cập nhật mã hồ sơ */}
+              {resolveStatus === 'completed' && isDossierTask(activeTask) && (
                 <div>
                   <label className="block text-sm font-semibold text-blue-800 mb-1">
-                    Mã hồ sơ đã nộp *
+                    Mã hồ sơ điện tử *
                   </label>
                   <input 
                     required 
@@ -529,12 +555,12 @@ function Dashboard() {
                 </div>
               )}
 
-              {/* Chụp kèm hình ảnh chứng minh nếu là Nộp hồ sơ và Hoàn thành */}
-              {resolveStatus === 'completed' && activeTask.action_type === 'nop_ho_so' && (
+              {/* Chụp kèm hình ảnh chứng minh nếu là Hồ sơ và Hoàn thành */}
+              {resolveStatus === 'completed' && isDossierTask(activeTask) && (
                 <div className="bg-amber-50/70 p-3.5 rounded-lg border border-amber-200 space-y-2">
                   <label className="block text-sm font-semibold text-amber-900 flex items-center gap-1.5">
                     <Camera size={16} className="text-amber-700" />
-                    Chụp / Tải ảnh chứng minh hoàn thành hồ sơ *
+                    Chụp / Tải ảnh chứng minh kết quả hồ sơ *
                   </label>
                   <p className="text-xs text-amber-700">
                     Chỉ khi hồ sơ hoàn toàn hoàn thành thì mới được đánh dấu vào và bắt buộc chụp kèm hình ảnh kết quả/biên lai thành công.
@@ -593,14 +619,20 @@ function Dashboard() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  {resolveStatus === 'completed' ? 'Ghi chú kết quả hoàn thành *' : 'Lý do công việc thất bại *'}
+                  {resolveStatus === 'completed' 
+                    ? 'Ghi chú kết quả hoàn thành *' 
+                    : (isDossierTask(activeTask) ? 'Lý do hồ sơ thất bại / Cần bổ sung chỉnh sửa *' : 'Lý do công việc thất bại *')}
                 </label>
                 <textarea 
                   required 
                   rows={3} 
                   value={resolutionNote} 
                   onChange={e => setResolutionNote(e.target.value)} 
-                  placeholder={resolveStatus === 'completed' ? 'Ghi rõ chi tiết kết quả đã hoàn thành...' : 'Ghi rõ nguyên nhân thất bại / bị từ chối / trục trặc...'}
+                  placeholder={resolveStatus === 'completed' 
+                    ? 'Ghi rõ chi tiết kết quả đã hoàn thành...' 
+                    : (isDossierTask(activeTask) 
+                        ? 'Ghi rõ nguyên nhân bị từ chối / lý do cần bổ sung chỉnh sửa hồ sơ...' 
+                        : 'Ghi rõ nguyên nhân thất bại / bị từ chối / trục trặc...')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
@@ -755,6 +787,76 @@ function Dashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HỎI TIẾP NHẬN LẠI KHI HỒ SƠ THẤT BẠI */}
+      {failedRetryTask && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 border border-rose-200">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-100 text-rose-600 rounded-full">
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Hồ sơ chưa đạt / Thất bại</h3>
+                <p className="text-xs text-gray-500">Đã ghi nhận lý do vào lịch sử hồ sơ</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/70 p-3.5 rounded-xl border border-rose-200 text-xs space-y-1.5 text-gray-700">
+              <p>Khách hàng: <strong className="text-gray-900">{failedRetryTask.clients?.name}</strong></p>
+              <p>Mã HS cũ: <span className="font-mono text-blue-700 font-bold">{failedRetryTask.dossier_code || 'Không có'}</span></p>
+              <p className="text-rose-800 font-medium pt-1 border-t border-rose-200/60">
+                Lý do thất bại / Cần bổ sung:
+              </p>
+              <p className="italic text-rose-900 bg-white p-2 rounded border border-rose-200">
+                "{failedRetryTask.resolution_note}"
+              </p>
+            </div>
+
+            <div className="text-sm text-gray-800 font-semibold">
+              Bạn có muốn thực hiện lại hồ sơ này không?
+            </div>
+            <p className="text-xs text-gray-500">
+              Nếu chọn <strong>Có</strong>, hệ thống sẽ tự động mở giao diện tiếp nhận công việc mới, giữ nguyên các thông tin cũ của khách hàng và tự động điền lý do thất bại vào ô Ghi chú để dễ dàng theo dõi bổ sung.
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setFailedRetryTask(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition"
+              >
+                Không, đóng lại
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const retryObj = {
+                    client_id: failedRetryTask.client_id,
+                    content: failedRetryTask.content,
+                    contact_person: failedRetryTask.contact_person,
+                    task_category: failedRetryTask.task_category || 'main',
+                    supported_user_id: failedRetryTask.supported_user_id,
+                    action_type: failedRetryTask.action_type,
+                    info_provided: failedRetryTask.info_provided || '',
+                    info_pending: failedRetryTask.info_pending || '',
+                    is_urgent: failedRetryTask.is_urgent || false,
+                    dossier_code: '', // Mã hồ sơ mới sẽ được cấp sau khi nộp lại
+                    notes: failedRetryTask.resolution_note 
+                      ? `Lý do nộp/thực hiện lại: ${failedRetryTask.resolution_note}`
+                      : 'Thực hiện nộp lại hồ sơ'
+                  };
+                  setFailedRetryTask(null);
+                  navigate('/new-task', { state: { retryTask: retryObj } });
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm transition flex items-center gap-1.5"
+              >
+                <Check size={16} /> Có, tiếp nhận lại ngay
+              </button>
+            </div>
           </div>
         </div>
       )}

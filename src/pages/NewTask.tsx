@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save, Check, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from './Settings';
@@ -95,6 +95,8 @@ export default function NewTask() {
   };
   const availableMonths = generateMonths();
 
+  const location = useLocation();
+
   useEffect(() => {
     const p = localStorage.getItem('task_manager_profile');
     if (p) {
@@ -107,8 +109,31 @@ export default function NewTask() {
         setBusinessDomain('ke_toan');
       }
     }
+
+    // Nếu chuyển từ chức năng làm lại hồ sơ thất bại
+    const retryData = (location.state as any)?.retryTask;
+    if (retryData) {
+      if (retryData.client_id) setSelectedClientId(retryData.client_id);
+      if (retryData.content) setContent(retryData.content);
+      if (retryData.contact_person) setContactPerson(retryData.contact_person);
+      if (retryData.task_category) setTaskCategory(retryData.task_category);
+      if (retryData.supported_user_id) setSupportedUserId(retryData.supported_user_id);
+      if (retryData.info_provided) setInfoProvided(retryData.info_provided);
+      if (retryData.info_pending) setInfoPending(retryData.info_pending);
+      if (retryData.is_urgent !== undefined) setIsUrgent(retryData.is_urgent);
+      if (retryData.dossier_code) setDossierCode(retryData.dossier_code);
+      if (retryData.notes) setNotes(retryData.notes);
+
+      // Phục hồi businessDomain từ action_type
+      if (retryData.action_type === 'bhxh') setBusinessDomain('bhxh');
+      else if (retryData.action_type === 'nop_ho_so' || retryData.action_type === 'setup') setBusinessDomain('setup');
+      else if (retryData.action_type === 'ra_soat') setBusinessDomain('ra_soat');
+      else if (retryData.action_type === 'dau_tu') setBusinessDomain('dau_tu');
+      else if (retryData.action_type === 'ke_toan') setBusinessDomain('ke_toan');
+    }
+
     fetchInitialData();
-  }, []);
+  }, [location.state]);
 
   useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
