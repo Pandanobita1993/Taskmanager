@@ -24,6 +24,7 @@ interface TaskEditForm {
   dossier_code: string;
   dossier_progress: string;
   is_urgent: boolean;
+  status: string;
 }
 
 const formFromTask = (task: any): TaskEditForm => ({
@@ -35,6 +36,7 @@ const formFromTask = (task: any): TaskEditForm => ({
   dossier_code: task.dossier_code || '',
   dossier_progress: task.dossier_progress || '',
   is_urgent: Boolean(task.is_urgent),
+  status: task.status || 'received',
 });
 
 const statusLabels: Record<string, string> = {
@@ -141,14 +143,27 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
               <textarea rows={3} value={form.content} onChange={(event) => updateField('content', event.target.value)} className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500" required />
             </label>
 
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-3 gap-3">
               <label className="block text-sm font-semibold text-gray-700">
                 Người liên hệ
-                <input value={form.contact_person} onChange={(event) => updateField('contact_person', event.target.value)} className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500" />
+                <input value={form.contact_person} onChange={(event) => updateField('contact_person', event.target.value)} className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               </label>
               <label className="block text-sm font-semibold text-gray-700">
                 Mã hồ sơ điện tử
-                <input value={form.dossier_code} onChange={(event) => updateField('dossier_code', event.target.value)} placeholder="Để trống nếu chưa có mã" className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500" />
+                <input value={form.dossier_code} onChange={(event) => updateField('dossier_code', event.target.value)} placeholder="Để trống nếu chưa có" className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" />
+              </label>
+              <label className="block text-sm font-semibold text-gray-700">
+                Trạng thái
+                <select 
+                  value={form.status} 
+                  onChange={(event) => updateField('status', event.target.value)} 
+                  className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                >
+                  <option value="received">Đã tiếp nhận</option>
+                  <option value="in_progress">Đang xử lý</option>
+                  <option value="completed">Hoàn thành</option>
+                  <option value="failed">Thất bại</option>
+                </select>
               </label>
             </div>
 

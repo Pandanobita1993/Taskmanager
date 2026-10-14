@@ -4,7 +4,7 @@ import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, M
 import { supabase } from './lib/supabase';
 import { defaultProfile, readCachedProfile } from './lib/profile';
 import type { UserProfile } from './lib/profile';
-import { createProofUrl, dataUrlToFile, uploadTaskProof } from './lib/proofStorage';
+import { createProofUrl, dataUrlToFile, uploadTaskProofSafe, fileToDataUrl } from './lib/proofStorage';
 import { localDateKey } from './lib/date';
 import { updateTaskWithLog } from './lib/taskUpdates';
 import { TaskEditModal } from './components/tasks/TaskEditModal';
@@ -25,6 +25,7 @@ function Dashboard() {
   // Modal xử lý công việc (Hoàn thành / Thất bại)
   const [activeTask, setActiveTask] = useState<any | null>(null);
   const [resolveStatus, setResolveStatus] = useState<'completed' | 'failed'>('completed');
+  const [resolveOrigin, setResolveOrigin] = useState<'normal_task' | 'dossier_drawer'>('normal_task');
   const [resolutionNote, setResolutionNote] = useState('');
   const [dossierCode, setDossierCode] = useState('');
   const [proofImage, setProofImage] = useState<string>('');
@@ -71,6 +72,16 @@ function Dashboard() {
     return t.user_id === profile.id || t.user_id === profile.fullName;
   });
 
+  // Kiểm tra công việc có phải loại hồ sơ pháp lý / bảo hiểm / điện tử
+  const isFilingTask = (t: any) => {
+    if (!t) return false;
+    return Boolean(t.dossier_code && t.dossier_code.trim())
+      || t.action_type === 'bhxh'
+      || t.action_type === 'nop_ho_so'
+      || t.action_type === 'setup'
+      || t.action_type === 'dau_tu';
+  };
+
   // Chỉ công việc đã có mã hồ sơ điện tử mới được theo dõi phê duyệt.
   const isDossierTask = (t: any) => {
     return Boolean(t.dossier_code && t.dossier_code.trim());
@@ -85,9 +96,10 @@ function Dashboard() {
   const completedTasks = myTasks.filter(t => t.status === 'completed');
   const failedTasks = myTasks.filter(t => t.status === 'failed');
 
-  const openResolveModal = (task: any, status: 'completed' | 'failed') => {
+  const openResolveModal = (task: any, status: 'completed' | 'failed', origin: 'normal_task' | 'dossier_drawer' = 'normal_task') => {
     setActiveTask(task);
     setResolveStatus(status);
+    setResolveOrigin(origin);
     setResolutionNote('');
     setDossierCode(task.dossier_code || '');
     setProofImage(task.proof_image || '');
@@ -173,32 +185,53 @@ function Dashboard() {
     }
 
     const isDossier = isDossierTask(activeTask);
+    const isFromDrawer = resolveOrigin === 'dossier_drawer';
+    const enteredDossierCode = dossierCode.trim();
 
-    if (resolveStatus === 'completed' && isDossier) {
-      if (!dossierCode.trim()) {
-        alert("Công việc này thuộc loại 'Hồ sơ', bạn bắt buộc phải nhập Mã hồ sơ!");
-        return;
-      }
-      if (!proofImage && !activeTask.proof_file) {
+    // Nếu bấm Hoàn thành từ trong Drawer Hồ sơ cần kiểm tra:
+    // Bắt buộc phải có ảnh chứng minh kết quả chính thức từ cơ quan
+    if (isFromDrawer && resolveStatus === 'completed') {
+      if (!proofImage && !activeTask.proof_file && !proofFile) {
         alert("Chỉ khi hồ sơ hoàn toàn hoàn thành thì mới được đánh dấu vào và bắt buộc phải chụp kèm hình ảnh chứng minh!");
         return;
       }
     }
 
     try {
+      // Nếu thao tác từ danh sách công việc thông thường đang làm (pendingTasks) và CÓ nhập mã hồ sơ:
+      // Đây là hành động "GHI NHẬN NỘP HỒ SƠ" -> chuyển sang theo dõi tiến độ (status giữ 'received')
+      let newStatus: string = resolveStatus;
+      let actionLog = resolveStatus === 'completed' ? 'Xác nhận hoàn thành công việc' : 'Xác nhận công việc thất bại';
+      let isTransferringToDossier = false;
+
+      if (!isFromDrawer && resolveStatus === 'completed' && enteredDossierCode) {
+        newStatus = 'received';
+        isTransferringToDossier = true;
+        actionLog = `Ghi nhận nộp hồ sơ (Mã HS: ${enteredDossierCode}) - Chuyển sang theo dõi tiến độ`;
+      }
+
       const updates: any = {
-        status: resolveStatus,
+        status: newStatus,
         resolution_note: resolutionNote,
-        completed_at: new Date().toISOString()
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : null
       };
 
-      if (dossierCode.trim()) {
-        updates.dossier_code = dossierCode;
+      if (enteredDossierCode) {
+        updates.dossier_code = enteredDossierCode;
+        if (isTransferringToDossier) {
+          updates.dossier_progress = `Đã nộp hồ sơ (Mã: ${enteredDossierCode}) - ${resolutionNote}`;
+        }
       }
 
       if (proofFile) {
-        updates.proof_file = await uploadTaskProof(proofFile);
-        updates.proof_image = null;
+        const uploadedPath = await uploadTaskProofSafe(proofFile);
+        if (uploadedPath) {
+          updates.proof_file = uploadedPath;
+          updates.proof_image = null;
+        } else {
+          updates.proof_file = null;
+          updates.proof_image = proofImage || await fileToDataUrl(proofFile);
+        }
       } else if (proofImage && proofImage === activeTask.proof_image) {
         updates.proof_image = proofImage;
       }
@@ -207,22 +240,26 @@ function Dashboard() {
         activeTask.id,
         updates,
         profile,
-        resolveStatus === 'completed' ? 'Xác nhận hoàn thành công việc' : 'Xác nhận công việc thất bại',
+        actionLog,
       );
 
-      const finishedTask = { ...activeTask, resolution_note: resolutionNote };
+      const finishedTask = { ...activeTask, resolution_note: resolutionNote, dossier_code: enteredDossierCode };
 
       setActiveTask(null);
       setDossierModalTask(null);
       fetchTasks();
 
+      if (isTransferringToDossier) {
+        alert(`Đã ghi nhận nộp hồ sơ (${enteredDossierCode}) thành công!\nHồ sơ đã được chuyển sang mục "Hồ sơ cần kiểm tra" để tiếp tục theo dõi tiến độ.`);
+      }
+
       // Nếu hồ sơ thất bại, hiển thị hộp thoại hỏi người dùng có muốn tiếp nhận lại để bổ sung/nộp lại không
-      if (resolveStatus === 'failed' && isDossier) {
+      if (resolveStatus === 'failed' && (isDossier || isFromDrawer)) {
         setFailedRetryTask(finishedTask);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Lỗi cập nhật trạng thái công việc');
+      alert('Lỗi cập nhật công việc: ' + (err?.message || JSON.stringify(err)));
     }
   };
 
@@ -398,13 +435,13 @@ function Dashboard() {
                     <Pencil size={13} /> Sửa / bổ sung
                   </button>
                   <button 
-                    onClick={() => openResolveModal(task, 'completed')}
+                    onClick={() => openResolveModal(task, 'completed', 'normal_task')}
                     className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition shadow-sm"
                   >
                     <Check size={14} /> Hoàn thành
                   </button>
                   <button 
-                    onClick={() => openResolveModal(task, 'failed')}
+                    onClick={() => openResolveModal(task, 'failed', 'normal_task')}
                     className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
                   >
                     <X size={14} /> Thất bại
@@ -596,7 +633,11 @@ function Dashboard() {
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
                 {resolveStatus === 'completed' ? (
-                  <><CheckCircle2 size={20} className="text-emerald-600" /> Xác nhận Hoàn thành</>
+                  resolveOrigin === 'normal_task' && isFilingTask(activeTask) ? (
+                    <><CheckCircle2 size={20} className="text-blue-600" /> Ghi nhận nộp hồ sơ / Hoàn thành</>
+                  ) : (
+                    <><CheckCircle2 size={20} className="text-emerald-600" /> Xác nhận Hoàn thành</>
+                  )
                 ) : (
                   <><XCircle size={20} className="text-rose-600" /> Xác nhận Thất bại</>
                 )}
@@ -607,31 +648,36 @@ function Dashboard() {
             <div className="bg-gray-50 p-3 rounded-lg text-xs space-y-1 text-gray-600 border border-gray-200">
               <p>Khách hàng: <strong className="text-gray-800">{activeTask.clients?.name}</strong></p>
               <p>Nội dung: <strong className="text-gray-800">{activeTask.content}</strong></p>
-              {isDossierTask(activeTask) && (
-                <p className="text-amber-800 font-semibold">★ Đây là Hồ sơ theo dõi tiến độ {activeTask.dossier_code ? `(Mã HS: ${activeTask.dossier_code})` : ''}</p>
+              {(isDossierTask(activeTask) || isFilingTask(activeTask)) && (
+                <p className="text-amber-800 font-semibold">★ Thuộc nghiệp vụ hồ sơ {activeTask.dossier_code ? `(Mã HS: ${activeTask.dossier_code})` : '(Chưa có mã hồ sơ)'}</p>
               )}
             </div>
 
             <form onSubmit={handleResolveTask} className="space-y-4">
-              {/* Nếu là Hồ sơ và Hoàn thành thì hiển thị / cập nhật mã hồ sơ */}
-              {resolveStatus === 'completed' && isDossierTask(activeTask) && (
-                <div>
-                  <label className="block text-sm font-semibold text-blue-800 mb-1">
-                    Mã hồ sơ điện tử *
+              {/* Nếu là hoàn thành và thuộc loại hồ sơ thì hiển thị ô nhập mã hồ sơ */}
+              {resolveStatus === 'completed' && (isFilingTask(activeTask) || isDossierTask(activeTask)) && (
+                <div className="bg-blue-50/70 p-3.5 rounded-lg border border-blue-200 space-y-1.5">
+                  <label className="block text-sm font-semibold text-blue-900 mb-1">
+                    Mã hồ sơ điện tử {resolveOrigin === 'dossier_drawer' ? '*' : '(Nhập để chuyển vào theo dõi)'}
                   </label>
                   <input 
-                    required 
+                    required={resolveOrigin === 'dossier_drawer'}
                     type="text" 
                     value={dossierCode} 
                     onChange={e => setDossierCode(e.target.value)} 
-                    placeholder="Nhập mã biên nhận / mã hồ sơ điện tử..." 
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="VD: 12345/2026/08009 (Mã biên nhận cổng DVC/BHXH)" 
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono bg-white"
                   />
+                  {resolveOrigin === 'normal_task' && (
+                    <p className="text-[11px] text-blue-700 leading-relaxed">
+                      💡 <strong>Lưu ý:</strong> Khi điền mã hồ sơ, hệ thống sẽ hiểu là bạn <strong>vừa nộp hồ sơ xong</strong> và sẽ tự động chuyển hồ sơ này sang mục <strong>"Hồ sơ cần kiểm tra"</strong> để tiếp tục theo dõi tiến độ xử lý, không bị đóng hoàn thành ngay.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Chụp kèm hình ảnh chứng minh nếu là Hồ sơ và Hoàn thành */}
-              {resolveStatus === 'completed' && isDossierTask(activeTask) && (
+              {/* Chụp kèm hình ảnh chứng minh: Bắt buộc khi hoàn thành từ Drawer Hồ sơ cần kiểm tra */}
+              {resolveStatus === 'completed' && resolveOrigin === 'dossier_drawer' && (
                 <div className="bg-amber-50/70 p-3.5 rounded-lg border border-amber-200 space-y-2">
                   <label className="block text-sm font-semibold text-amber-900 flex items-center gap-1.5">
                     <Camera size={16} className="text-amber-700" />
@@ -723,11 +769,15 @@ function Dashboard() {
                 </button>
                 <button 
                   type="submit" 
-                  className={`px-4 py-2 text-white rounded-lg text-sm font-medium shadow-sm ${
-                    resolveStatus === 'completed' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                  className={`px-4 py-2 text-white rounded-lg text-sm font-semibold shadow-sm transition ${
+                    resolveStatus === 'completed' 
+                      ? (resolveOrigin === 'normal_task' && dossierCode.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700')
+                      : 'bg-rose-600 hover:bg-rose-700'
                   }`}
                 >
-                  Xác nhận lưu
+                  {resolveStatus === 'completed' && resolveOrigin === 'normal_task' && dossierCode.trim()
+                    ? 'Ghi nhận nộp & Chuyển vào theo dõi'
+                    : 'Xác nhận lưu'}
                 </button>
               </div>
             </form>
@@ -789,13 +839,13 @@ function Dashboard() {
                       <Pencil size={13} /> Sửa / bổ sung
                     </button>
                     <button 
-                      onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'failed'); }}
+                      onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'failed', 'dossier_drawer'); }}
                       className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-xs font-medium hover:bg-rose-100 flex items-center gap-1"
                     >
                       <X size={13} /> Thất bại
                     </button>
                     <button 
-                      onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'completed'); }}
+                      onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'completed', 'dossier_drawer'); }}
                       className="px-3 py-1 bg-emerald-600 text-white rounded-md text-xs font-medium hover:bg-emerald-700 flex items-center gap-1 shadow-xs"
                     >
                       <Check size={13} /> Hoàn thành (Cần ảnh)

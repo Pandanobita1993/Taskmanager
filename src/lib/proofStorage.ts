@@ -20,10 +20,24 @@ export async function uploadTaskProof(file: File): Promise<string> {
   return path;
 }
 
+export async function uploadTaskProofSafe(file: File): Promise<string | null> {
+  try {
+    return await uploadTaskProof(file);
+  } catch (err) {
+    console.warn('Supabase storage upload failed, fallback to inline base64:', err);
+    return null;
+  }
+}
+
 export async function createProofUrl(path: string): Promise<string> {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
-  if (error) throw error;
-  return data.signedUrl;
+  try {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
+    if (error) throw error;
+    return data.signedUrl;
+  } catch (err) {
+    console.warn('Failed to create signed proof url:', err);
+    return '';
+  }
 }
 
 export function dataUrlToFile(dataUrl: string, fileName: string): File {
@@ -33,4 +47,13 @@ export function dataUrlToFile(dataUrl: string, fileName: string): File {
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return new File([bytes], fileName, { type: mime });
+}
+
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }

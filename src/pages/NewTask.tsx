@@ -12,7 +12,7 @@ import { PaymentDetailsForm } from '../components/newTask/PaymentDetailsForm';
 import { TaskCategorySelector } from '../components/newTask/TaskCategorySelector';
 import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
-import { uploadTaskProof } from '../lib/proofStorage';
+import { uploadTaskProofSafe, fileToDataUrl } from '../lib/proofStorage';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -356,7 +356,14 @@ export default function NewTask() {
         || (selectedClientObj?.contact_phone ? `Liên hệ (${selectedClientObj.contact_phone})` : '')
         || 'Người liên hệ cty';
       const resolvedContactPerson = contactPerson.trim() || fallbackContact;
-      const proofPath = proofFile ? await uploadTaskProof(proofFile) : null;
+      let proofPath: string | null = null;
+      let proofImagePayload: string | null = proofBase64 || null;
+      if (proofFile) {
+        proofPath = await uploadTaskProofSafe(proofFile);
+        if (!proofPath && !proofImagePayload) {
+          proofImagePayload = await fileToDataUrl(proofFile);
+        }
+      }
 
       const newTask = {
         type: taskType,
@@ -379,7 +386,7 @@ export default function NewTask() {
         payment_reason: taskType === 'payment' ? actualPaymentReason : null,
         paid_months: taskType === 'payment' ? paidMonths : null,
         proof_file: proofPath,
-        proof_image: null,
+        proof_image: proofImagePayload,
         completed_at: taskType === 'payment' ? new Date().toISOString() : null
       };
 
