@@ -8,6 +8,7 @@ import { createProofUrl, dataUrlToFile, uploadTaskProof } from './lib/proofStora
 import { localDateKey } from './lib/date';
 import { updateTaskWithLog } from './lib/taskUpdates';
 import { TaskEditModal } from './components/tasks/TaskEditModal';
+import { TaskHistoryCard } from './components/tasks/TaskHistoryCard';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -263,7 +264,7 @@ function Dashboard() {
   const uniqueClients = Array.from(new Set(historyTasks.map(t => t.clients?.name).filter(Boolean)));
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Bảng điều khiển</h1>
@@ -421,8 +422,8 @@ function Dashboard() {
       </div>
 
       {/* 2. KHU VỰC LỊCH SỬ CÔNG VIỆC (Xem theo công ty hoặc theo ngày) */}
-      <div className="bg-white/75 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden">
-        <div className="p-4 border-b border-gray-100/70 flex flex-col md:flex-row justify-between md:items-center gap-3 bg-white/40">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-3 bg-white">
           <div className="flex items-center gap-2">
             <History size={18} className="text-purple-600" />
             <h2 className="text-base font-bold text-gray-800">Lịch sử công việc ({filteredHistory.length})</h2>
@@ -466,8 +467,35 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 2xl:hidden bg-gray-50/70">
+          {filteredHistory.map((task) => (
+            <TaskHistoryCard
+              key={task.id}
+              task={task}
+              onEdit={() => setEditingTask(task)}
+              onOpenProof={() => openProof(task)}
+            />
+          ))}
+          {filteredHistory.length === 0 && (
+            <div className="lg:col-span-2 py-10 text-center text-gray-500 text-sm bg-white rounded-xl border border-gray-200">
+              {historyTasks.length === 0 ? 'Chưa có công việc nào được hoàn thành hoặc thất bại.' : 'Không tìm thấy công việc phù hợp với bộ lọc.'}
+            </div>
+          )}
+        </div>
+
+        <div className="hidden 2xl:block overflow-x-auto">
+          <table className="w-full min-w-[1280px] table-fixed text-left text-sm">
+            <colgroup>
+              <col className="w-[100px]" />
+              <col className="w-[260px]" />
+              <col className="w-[260px]" />
+              <col className="w-[165px]" />
+              <col className="w-[125px]" />
+              <col className="w-[135px]" />
+              <col className="w-[110px]" />
+              <col className="w-[220px]" />
+              <col className="w-[130px]" />
+            </colgroup>
             <thead>
               <tr className="bg-gray-50/60 border-b border-gray-200/50 text-gray-600 text-xs uppercase font-semibold">
                 <th className="py-3 px-4">Ngày xử lý</th>
@@ -483,14 +511,14 @@ function Dashboard() {
             </thead>
             <tbody className="divide-y divide-gray-100/70">
               {filteredHistory.map((t) => (
-                <tr key={t.id} className="hover:bg-white/60 transition">
+                <tr key={t.id} className="bg-white hover:bg-gray-50 transition align-top">
                   <td className="py-3 px-4 text-xs text-gray-500 whitespace-nowrap">
                     {t.completed_at ? new Date(t.completed_at).toLocaleDateString('vi-VN') : new Date(t.created_at).toLocaleDateString('vi-VN')}
                   </td>
-                  <td className="py-3 px-4 font-medium text-gray-800 whitespace-nowrap">
+                  <td className="py-3 px-4 font-semibold text-gray-800 leading-relaxed break-words">
                     {t.clients?.name || '-'}
                   </td>
-                  <td className="py-3 px-4 text-gray-700">
+                  <td className="py-3 px-4 text-gray-700 leading-relaxed break-words">
                     {t.content}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
@@ -530,7 +558,7 @@ function Dashboard() {
                       <span className="text-gray-400 text-xs">-</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-xs text-gray-600 max-w-xs truncate" title={t.resolution_note || ''}>
+                  <td className="py-3 px-4 text-xs text-gray-600 leading-relaxed break-words" title={t.resolution_note || ''}>
                     {t.resolution_note || '-'}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
@@ -991,7 +1019,7 @@ function Layout({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden bg-white/15">
+      <main className="min-w-0 flex-1 flex flex-col overflow-hidden bg-white/15">
         <header className="bg-white/55 backdrop-blur-md border-b border-gray-200/50 py-2 px-4 flex items-center justify-between md:justify-end shadow-sm">
           <button type="button" aria-label="Mở menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)} className="md:hidden text-gray-600 p-2 -ml-2">
             <Menu size={20} />
