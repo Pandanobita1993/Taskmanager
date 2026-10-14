@@ -1,6 +1,6 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, Pencil } from 'lucide-react';
+import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, Pencil, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { defaultProfile, readCachedProfile } from './lib/profile';
 import type { UserProfile } from './lib/profile';
@@ -9,6 +9,7 @@ import { localDateKey } from './lib/date';
 import { updateTaskWithLog } from './lib/taskUpdates';
 import { TaskEditModal } from './components/tasks/TaskEditModal';
 import { TaskHistoryCard } from './components/tasks/TaskHistoryCard';
+import { groupTasksByClient } from './lib/taskGrouping';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -300,6 +301,46 @@ function Dashboard() {
   // Danh sách tên công ty duy nhất trong lịch sử
   const uniqueClients = Array.from(new Set(historyTasks.map(t => t.clients?.name).filter(Boolean)));
 
+  // Trạng thái mở/đóng accordion theo khách hàng
+  const [expandedPendingClients, setExpandedPendingClients] = useState<Record<string, boolean>>({});
+  const [expandedHistoryClients, setExpandedHistoryClients] = useState<Record<string, boolean>>({});
+  const [expandedDossierClients, setExpandedDossierClients] = useState<Record<string, boolean>>({});
+
+  // Nhóm công việc theo khách hàng
+  const groupedPendingTasks = useMemo(() => groupTasksByClient(pendingTasks), [pendingTasks]);
+  const groupedHistoryTasks = useMemo(() => groupTasksByClient(filteredHistory), [filteredHistory]);
+  const groupedDossierTasks = useMemo(() => groupTasksByClient(pendingDossiers), [pendingDossiers]);
+
+  const togglePendingClient = (clientId: string) => {
+    setExpandedPendingClients(prev => ({ ...prev, [clientId]: !prev[clientId] }));
+  };
+
+  const toggleAllPending = (open: boolean) => {
+    const next: Record<string, boolean> = {};
+    groupedPendingTasks.forEach(g => { next[g.clientId] = open; });
+    setExpandedPendingClients(next);
+  };
+
+  const toggleHistoryClient = (clientId: string) => {
+    setExpandedHistoryClients(prev => ({ ...prev, [clientId]: !prev[clientId] }));
+  };
+
+  const toggleAllHistory = (open: boolean) => {
+    const next: Record<string, boolean> = {};
+    groupedHistoryTasks.forEach(g => { next[g.clientId] = open; });
+    setExpandedHistoryClients(next);
+  };
+
+  const toggleDossierClient = (clientId: string) => {
+    setExpandedDossierClients(prev => ({ ...prev, [clientId]: !prev[clientId] }));
+  };
+
+  const toggleAllDossiers = (open: boolean) => {
+    const next: Record<string, boolean> = {};
+    groupedDossierTasks.forEach(g => { next[g.clientId] = open; });
+    setExpandedDossierClients(next);
+  };
+
   return (
     <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -372,102 +413,205 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* 1. KHU VỰC CÔNG VIỆC CẦN XỬ LÝ */}
+      {/* 1. KHU VỰC CÔNG VIỆC CẦN XỬ LÝ (NHÓM THEO KHÁCH HÀNG) */}
       <div className="bg-white/75 backdrop-blur-md rounded-xl shadow-sm border border-white/60 overflow-hidden">
-        <div className="p-4 border-b border-gray-100/70 flex justify-between items-center bg-white/40">
-          <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-            <Clock size={18} className="text-blue-600" />
-            Công việc đang thực hiện ({pendingTasks.length})
-          </h2>
+        <div className="p-4 border-b border-gray-100/70 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-white/40">
+          <div>
+            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <Clock size={18} className="text-blue-600" />
+              Công việc đang thực hiện ({pendingTasks.length})
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Phân loại theo {groupedPendingTasks.length} khách hàng · Nhấn vào khách hàng để xem chi tiết
+            </p>
+          </div>
+
+          {groupedPendingTasks.length > 0 && (
+            <div className="flex items-center gap-2 self-end sm:self-auto text-xs">
+              <button
+                type="button"
+                onClick={() => toggleAllPending(true)}
+                className="px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-700 border border-gray-200 rounded-md font-medium transition"
+              >
+                Mở tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleAllPending(false)}
+                className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-md font-medium transition"
+              >
+                Thu gọn
+              </button>
+            </div>
+          )}
         </div>
+
         <div>
-          <ul className="divide-y divide-gray-100/70">
-            {pendingTasks.map((task) => (
-              <li key={task.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/60 transition">
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {task.is_urgent && <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">GẤP</span>}
-                    {task.task_category === 'support' && (
-                      <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Hỗ trợ: {task.supported_user_name || 'Đồng nghiệp'}
-                      </span>
+          {groupedPendingTasks.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 font-medium text-sm">
+              Không có công việc nào đang chờ xử lý.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {groupedPendingTasks.map((group) => {
+                const isExpanded = Boolean(expandedPendingClients[group.clientId]);
+                return (
+                  <div key={group.clientId} className="transition-colors">
+                    {/* Header Khách hàng (Click để xổ ra / thu lại) */}
+                    <div
+                      onClick={() => togglePendingClient(group.clientId)}
+                      className={`p-4 flex items-center justify-between cursor-pointer select-none transition ${
+                        isExpanded ? 'bg-blue-50/60 border-b border-blue-100' : 'hover:bg-gray-50/80 bg-white/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`p-1.5 rounded-lg transition-transform ${isExpanded ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-gray-900 text-sm sm:text-base hover:text-blue-700 transition">
+                              {group.clientName}
+                            </h3>
+                            {group.taxCode && (
+                              <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                MST: {group.taxCode}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {isExpanded ? 'Nhấn để thu gọn danh sách' : 'Nhấn để xổ ra các công việc cần xem'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
+                        {group.hasUrgent && (
+                          <span className="bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse border border-red-200">
+                            <Bell size={12} /> GẤP
+                          </span>
+                        )}
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold transition ${
+                          isExpanded ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}>
+                          {group.tasks.length} công việc
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Danh sách công việc của khách hàng này (khi xổ ra) */}
+                    {isExpanded && (
+                      <ul className="divide-y divide-gray-100/80 bg-white/90 animate-in fade-in duration-150">
+                        {group.tasks.map((task) => (
+                          <li key={task.id} className="p-4 pl-8 sm:pl-12 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-blue-50/25 transition">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {task.is_urgent && <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">GẤP</span>}
+                                {task.task_category === 'support' && (
+                                  <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    Hỗ trợ: {task.supported_user_name || 'Đồng nghiệp'}
+                                  </span>
+                                )}
+                                {task.action_type === 'ke_toan' && (
+                                  <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    Kế toán
+                                  </span>
+                                )}
+                                {task.action_type === 'bhxh' && (
+                                  <span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    BHXH
+                                  </span>
+                                )}
+                                {(task.action_type === 'nop_ho_so' || task.action_type === 'setup') && (
+                                  <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    Setup / GPKD
+                                  </span>
+                                )}
+                                {task.action_type === 'ra_soat' && (
+                                  <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    Rà soát
+                                  </span>
+                                )}
+                                {task.action_type === 'dau_tu' && (
+                                  <span className="bg-rose-100 text-rose-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    Đầu tư
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-800 font-medium">{task.content}</p>
+                              <p className="text-xs text-gray-500">
+                                Người liên hệ: <strong>{task.contact_person}</strong> 
+                                {task.info_pending && <span className="text-orange-600 ml-2">• Chờ bổ sung: {task.info_pending}</span>}
+                                {task.notes && <span className="ml-2">• Ghi chú: {task.notes}</span>}
+                              </p>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => setEditingTask(task)}
+                                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
+                              >
+                                <Pencil size={13} /> Sửa / bổ sung
+                              </button>
+                              <button 
+                                onClick={() => openResolveModal(task, 'completed', 'normal_task')}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition shadow-sm"
+                              >
+                                <Check size={14} /> Hoàn thành
+                              </button>
+                              <button 
+                                onClick={() => openResolveModal(task, 'failed', 'normal_task')}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
+                              >
+                                <X size={14} /> Thất bại
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                    {task.action_type === 'ke_toan' && (
-                      <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Kế toán
-                      </span>
-                    )}
-                    {task.action_type === 'bhxh' && (
-                      <span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        BHXH
-                      </span>
-                    )}
-                    {(task.action_type === 'nop_ho_so' || task.action_type === 'setup') && (
-                      <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Setup / GPKD
-                      </span>
-                    )}
-                    {task.action_type === 'ra_soat' && (
-                      <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Rà soát
-                      </span>
-                    )}
-                    {task.action_type === 'dau_tu' && (
-                      <span className="bg-rose-100 text-rose-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                        Đầu tư
-                      </span>
-                    )}
-                    <span className="font-semibold text-gray-800 text-base">{task.clients?.name}</span>
                   </div>
-                  <p className="text-sm text-gray-700 font-medium">{task.content}</p>
-                  <p className="text-xs text-gray-500">
-                    Người liên hệ: <strong>{task.contact_person}</strong> 
-                    {task.info_pending && <span className="text-orange-600 ml-2">• Chờ bổ sung: {task.info_pending}</span>}
-                    {task.notes && <span className="ml-2">• Ghi chú: {task.notes}</span>}
-                  </p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => setEditingTask(task)}
-                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
-                  >
-                    <Pencil size={13} /> Sửa / bổ sung
-                  </button>
-                  <button 
-                    onClick={() => openResolveModal(task, 'completed', 'normal_task')}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition shadow-sm"
-                  >
-                    <Check size={14} /> Hoàn thành
-                  </button>
-                  <button 
-                    onClick={() => openResolveModal(task, 'failed', 'normal_task')}
-                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
-                  >
-                    <X size={14} /> Thất bại
-                  </button>
-                </div>
-              </li>
-            ))}
-            {pendingTasks.length === 0 && (
-              <li className="p-8 text-center text-gray-500 font-medium text-sm">
-                Không có công việc nào đang chờ xử lý.
-              </li>
-            )}
-          </ul>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
       {/* 2. KHU VỰC LỊCH SỬ CÔNG VIỆC (Xem theo công ty hoặc theo ngày) */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-3 bg-white">
-          <div className="flex items-center gap-2">
-            <History size={18} className="text-purple-600" />
-            <h2 className="text-base font-bold text-gray-800">Lịch sử công việc ({filteredHistory.length})</h2>
+          <div>
+            <div className="flex items-center gap-2">
+              <History size={18} className="text-purple-600" />
+              <h2 className="text-base font-bold text-gray-800">Lịch sử công việc ({filteredHistory.length})</h2>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Phân loại theo {groupedHistoryTasks.length} khách hàng · Nhấn vào khách hàng để xem chi tiết
+            </p>
           </div>
 
-          {/* Bộ lọc linh hoạt */}
+          {/* Bộ lọc linh hoạt & Nút Mở tất cả */}
           <div className="flex flex-wrap items-center gap-3">
+            {groupedHistoryTasks.length > 0 && (
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => toggleAllHistory(true)}
+                  className="px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 border border-gray-200 rounded-md font-medium transition"
+                >
+                  Mở tất cả
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleAllHistory(false)}
+                  className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-md font-medium transition"
+                >
+                  Thu gọn
+                </button>
+              </div>
+            )}
+
             {/* Lọc theo công ty */}
             <div className="flex items-center gap-1.5 bg-white/80 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs">
               <Building2 size={14} className="text-gray-400" />
@@ -504,116 +648,171 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 2xl:hidden bg-gray-50/70">
-          {filteredHistory.map((task) => (
-            <TaskHistoryCard
-              key={task.id}
-              task={task}
-              onEdit={() => setEditingTask(task)}
-              onOpenProof={() => openProof(task)}
-            />
-          ))}
-          {filteredHistory.length === 0 && (
-            <div className="lg:col-span-2 py-10 text-center text-gray-500 text-sm bg-white rounded-xl border border-gray-200">
+        <div>
+          {groupedHistoryTasks.length === 0 ? (
+            <div className="py-12 text-center text-gray-500 text-sm bg-white">
               {historyTasks.length === 0 ? 'Chưa có công việc nào được hoàn thành hoặc thất bại.' : 'Không tìm thấy công việc phù hợp với bộ lọc.'}
             </div>
-          )}
-        </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {groupedHistoryTasks.map((group) => {
+                const isExpanded = Boolean(expandedHistoryClients[group.clientId]);
+                const completedCount = group.tasks.filter(t => t.status === 'completed').length;
+                const failedCount = group.tasks.filter(t => t.status === 'failed').length;
 
-        <div className="hidden 2xl:block overflow-x-auto">
-          <table className="w-full min-w-[1280px] table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[100px]" />
-              <col className="w-[260px]" />
-              <col className="w-[260px]" />
-              <col className="w-[165px]" />
-              <col className="w-[125px]" />
-              <col className="w-[135px]" />
-              <col className="w-[110px]" />
-              <col className="w-[220px]" />
-              <col className="w-[130px]" />
-            </colgroup>
-            <thead>
-              <tr className="bg-gray-50/60 border-b border-gray-200/50 text-gray-600 text-xs uppercase font-semibold">
-                <th className="py-3 px-4">Ngày xử lý</th>
-                <th className="py-3 px-4">Khách hàng</th>
-                <th className="py-3 px-4">Nội dung</th>
-                <th className="py-3 px-4">Tính chất</th>
-                <th className="py-3 px-4">Kết quả</th>
-                <th className="py-3 px-4">Mã hồ sơ</th>
-                <th className="py-3 px-4">Ảnh kết quả</th>
-                <th className="py-3 px-4">Lý do / Ghi chú</th>
-                <th className="py-3 px-4">Cập nhật</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100/70">
-              {filteredHistory.map((t) => (
-                <tr key={t.id} className="bg-white hover:bg-gray-50 transition align-top">
-                  <td className="py-3 px-4 text-xs text-gray-500 whitespace-nowrap">
-                    {t.completed_at ? new Date(t.completed_at).toLocaleDateString('vi-VN') : new Date(t.created_at).toLocaleDateString('vi-VN')}
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-gray-800 leading-relaxed break-words">
-                    {t.clients?.name || '-'}
-                  </td>
-                  <td className="py-3 px-4 text-gray-700 leading-relaxed break-words">
-                    {t.content}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    {t.task_category === 'support' ? (
-                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full font-medium">
-                        Hỗ trợ {t.supported_user_name}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
-                        Nhiệm vụ chính
-                      </span>
+                return (
+                  <div key={group.clientId} className="transition-colors">
+                    {/* Header Khách hàng (Click để xổ ra / thu lại) */}
+                    <div
+                      onClick={() => toggleHistoryClient(group.clientId)}
+                      className={`p-4 flex items-center justify-between cursor-pointer select-none transition ${
+                        isExpanded ? 'bg-purple-50/60 border-b border-purple-100' : 'hover:bg-gray-50/80 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`p-1.5 rounded-lg transition-transform ${isExpanded ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-gray-900 text-sm sm:text-base hover:text-purple-700 transition">
+                              {group.clientName}
+                            </h3>
+                            {group.taxCode && (
+                              <span className="text-xs font-mono font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                MST: {group.taxCode}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {isExpanded ? 'Nhấn để thu gọn danh sách' : 'Nhấn để xổ ra các công việc đã xử lý'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 ml-3 flex-wrap justify-end">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                          <Check size={12} /> {completedCount} hoàn thành
+                        </span>
+                        {failedCount > 0 && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                            <X size={12} /> {failedCount} thất bại
+                          </span>
+                        )}
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold transition ${
+                          isExpanded ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        }`}>
+                          {group.tasks.length} công việc
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Danh sách công việc khi xổ ra */}
+                    {isExpanded && (
+                      <div className="bg-gray-50/50 animate-in fade-in duration-150">
+                        {/* Mobile / Tablet cards */}
+                        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 2xl:hidden">
+                          {group.tasks.map((task) => (
+                            <TaskHistoryCard
+                              key={task.id}
+                              task={task}
+                              onEdit={() => setEditingTask(task)}
+                              onOpenProof={() => openProof(task)}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Desktop table */}
+                        <div className="hidden 2xl:block overflow-x-auto bg-white border-t border-gray-100">
+                          <table className="w-full min-w-[1280px] table-fixed text-left text-sm">
+                            <colgroup>
+                              <col className="w-[110px]" />
+                              <col className="w-[340px]" />
+                              <col className="w-[150px]" />
+                              <col className="w-[130px]" />
+                              <col className="w-[140px]" />
+                              <col className="w-[120px]" />
+                              <col className="w-[280px]" />
+                              <col className="w-[130px]" />
+                            </colgroup>
+                            <thead>
+                              <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-600 text-xs uppercase font-semibold">
+                                <th className="py-2.5 px-4">Ngày xử lý</th>
+                                <th className="py-2.5 px-4">Nội dung</th>
+                                <th className="py-2.5 px-4">Tính chất</th>
+                                <th className="py-2.5 px-4">Kết quả</th>
+                                <th className="py-2.5 px-4">Mã hồ sơ</th>
+                                <th className="py-2.5 px-4">Ảnh kết quả</th>
+                                <th className="py-2.5 px-4">Lý do / Ghi chú</th>
+                                <th className="py-2.5 px-4">Cập nhật</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100/70">
+                              {group.tasks.map((t) => (
+                                <tr key={t.id} className="bg-white hover:bg-gray-50 transition align-top">
+                                  <td className="py-3 px-4 text-xs text-gray-500 whitespace-nowrap">
+                                    {t.completed_at ? new Date(t.completed_at).toLocaleDateString('vi-VN') : new Date(t.created_at).toLocaleDateString('vi-VN')}
+                                  </td>
+                                  <td className="py-3 px-4 text-gray-700 leading-relaxed break-words font-medium">
+                                    {t.content}
+                                  </td>
+                                  <td className="py-3 px-4 whitespace-nowrap">
+                                    {t.task_category === 'support' ? (
+                                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full font-medium">
+                                        Hỗ trợ {t.supported_user_name}
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                        Nhiệm vụ chính
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 whitespace-nowrap">
+                                    {t.status === 'completed' ? (
+                                      <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                        <Check size={12} /> Hoàn thành
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                        <X size={12} /> Thất bại
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-xs font-mono font-semibold text-blue-700 whitespace-nowrap">
+                                    {t.dossier_code || '-'}
+                                  </td>
+                                  <td className="py-3 px-4 whitespace-nowrap">
+                                    {(t.proof_image || t.proof_file?.includes('/')) ? (
+                                      <button 
+                                        onClick={() => openProof(t)}
+                                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium"
+                                      >
+                                        <Eye size={12} /> Xem ảnh
+                                      </button>
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-xs text-gray-600 leading-relaxed break-words" title={t.resolution_note || ''}>
+                                    {t.resolution_note || '-'}
+                                  </td>
+                                  <td className="py-3 px-4 whitespace-nowrap">
+                                    <button onClick={() => setEditingTask(t)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium">
+                                      <Pencil size={12} /> Sửa / xem log
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     )}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    {t.status === 'completed' ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-xs font-semibold">
-                        <Check size={12} /> Hoàn thành
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full text-xs font-semibold">
-                        <X size={12} /> Thất bại
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-xs font-mono font-semibold text-blue-700 whitespace-nowrap">
-                    {t.dossier_code || '-'}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    {(t.proof_image || t.proof_file?.includes('/')) ? (
-                      <button 
-                        onClick={() => openProof(t)}
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium"
-                      >
-                        <Eye size={12} /> Xem ảnh
-                      </button>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-xs text-gray-600 leading-relaxed break-words" title={t.resolution_note || ''}>
-                    {t.resolution_note || '-'}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <button onClick={() => setEditingTask(t)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium">
-                      <Pencil size={12} /> Sửa / xem log
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredHistory.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-400 text-sm">
-                    {historyTasks.length === 0 ? 'Chưa có công việc nào được hoàn thành hoặc thất bại.' : 'Không tìm thấy công việc phù hợp với bộ lọc.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -800,61 +999,127 @@ function Dashboard() {
               <button onClick={() => setShowDossierDrawer(false)} className="text-white hover:bg-amber-600 p-1 rounded-full text-xl font-bold">×</button>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
-              {pendingDossiers.map(d => (
-                <div key={d.id} className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/70 hover:border-amber-400 transition space-y-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <div>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-                        Mã HS: {d.dossier_code}
-                      </span>
-                      <h4 className="font-bold text-gray-800 mt-1">{d.clients?.name}</h4>
-                      <p className="text-xs text-gray-600">{d.content}</p>
-                    </div>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
-                      {new Date(d.created_at).toLocaleDateString('vi-VN')}
-                    </span>
-                  </div>
-
-                  {/* Tiến độ hiện tại */}
-                  <div className="p-2.5 bg-white rounded-lg border border-amber-100 text-xs flex justify-between items-center">
-                    <div>
-                      <span className="text-gray-500">Tiến độ hồ sơ: </span>
-                      <strong className="text-amber-800 font-semibold">{d.dossier_progress || 'Chưa cập nhật tiến độ (Đang xử lý)'}</strong>
-                    </div>
-                    <button 
-                      onClick={() => { setDossierModalTask(d); setProgressInput(d.dossier_progress || ''); }}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium underline ml-2"
-                    >
-                      Cập nhật tiến độ
-                    </button>
-                  </div>
-
-                  {/* Nút hành động hoàn thành/thất bại */}
-                  <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-amber-100/60">
-                    <button
-                      onClick={() => setEditingTask(d)}
-                      className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-xs font-medium hover:bg-blue-100 flex items-center gap-1"
-                    >
-                      <Pencil size={13} /> Sửa / bổ sung
-                    </button>
-                    <button 
-                      onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'failed', 'dossier_drawer'); }}
-                      className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-xs font-medium hover:bg-rose-100 flex items-center gap-1"
-                    >
-                      <X size={13} /> Thất bại
-                    </button>
-                    <button 
-                      onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'completed', 'dossier_drawer'); }}
-                      className="px-3 py-1 bg-emerald-600 text-white rounded-md text-xs font-medium hover:bg-emerald-700 flex items-center gap-1 shadow-xs"
-                    >
-                      <Check size={13} /> Hoàn thành (Cần ảnh)
-                    </button>
-                  </div>
+            {groupedDossierTasks.length > 0 && (
+              <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200 flex justify-between items-center text-xs">
+                <span className="text-amber-900 font-medium">
+                  Phân loại theo {groupedDossierTasks.length} khách hàng
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleAllDossiers(true)}
+                    className="px-2 py-0.5 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 rounded font-medium transition"
+                  >
+                    Mở tất cả
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleAllDossiers(false)}
+                    className="px-2 py-0.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded font-medium transition"
+                  >
+                    Thu gọn
+                  </button>
                 </div>
-              ))}
+              </div>
+            )}
 
-              {pendingDossiers.length === 0 && (
+            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+              {groupedDossierTasks.map((group) => {
+                const isExpanded = Boolean(expandedDossierClients[group.clientId]);
+                return (
+                  <div key={group.clientId} className="border border-amber-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                    {/* Header Khách hàng (Click để xổ ra / thu lại) */}
+                    <div
+                      onClick={() => toggleDossierClient(group.clientId)}
+                      className={`p-3.5 flex items-center justify-between cursor-pointer select-none transition ${
+                        isExpanded ? 'bg-amber-100/70 border-b border-amber-200' : 'bg-amber-50/50 hover:bg-amber-100/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className={`p-1 rounded-md transition ${isExpanded ? 'bg-amber-600 text-white' : 'bg-white text-amber-700 border border-amber-200'}`}>
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-gray-800 text-sm">{group.clientName}</h4>
+                            {group.taxCode && (
+                              <span className="text-[11px] font-mono text-gray-500 bg-white px-1.5 py-0.2 rounded border border-gray-200">
+                                MST: {group.taxCode}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5">
+                            {isExpanded ? 'Nhấn để thu gọn danh sách' : 'Nhấn để xổ ra các hồ sơ'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white shrink-0 ml-2">
+                        {group.tasks.length} hồ sơ
+                      </span>
+                    </div>
+
+                    {/* Danh sách hồ sơ của khách hàng */}
+                    {isExpanded && (
+                      <div className="p-3 space-y-3 bg-amber-50/20 divide-y divide-amber-100">
+                        {group.tasks.map((d) => (
+                          <div key={d.id} className="pt-3 first:pt-0 space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <div>
+                                <span className="text-xs font-mono font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                                  Mã HS: {d.dossier_code}
+                                </span>
+                                <p className="text-xs text-gray-700 font-medium mt-1">{d.content}</p>
+                              </div>
+                              <span className="text-xs text-gray-400 whitespace-nowrap">
+                                {new Date(d.created_at).toLocaleDateString('vi-VN')}
+                              </span>
+                            </div>
+
+                            {/* Tiến độ hiện tại */}
+                            <div className="p-2.5 bg-white rounded-lg border border-amber-100 text-xs flex justify-between items-center">
+                              <div>
+                                <span className="text-gray-500">Tiến độ hồ sơ: </span>
+                                <strong className="text-amber-800 font-semibold">{d.dossier_progress || 'Chưa cập nhật tiến độ (Đang xử lý)'}</strong>
+                              </div>
+                              <button 
+                                onClick={() => { setDossierModalTask(d); setProgressInput(d.dossier_progress || ''); }}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium underline ml-2"
+                              >
+                                Cập nhật tiến độ
+                              </button>
+                            </div>
+
+                            {/* Nút hành động */}
+                            <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-amber-100/60">
+                              <button
+                                onClick={() => setEditingTask(d)}
+                                className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-xs font-medium hover:bg-blue-100 flex items-center gap-1"
+                              >
+                                <Pencil size={13} /> Sửa / bổ sung
+                              </button>
+                              <button 
+                                onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'failed', 'dossier_drawer'); }}
+                                className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-xs font-medium hover:bg-rose-100 flex items-center gap-1"
+                              >
+                                <X size={13} /> Thất bại
+                              </button>
+                              <button 
+                                onClick={() => { setShowDossierDrawer(false); openResolveModal(d, 'completed', 'dossier_drawer'); }}
+                                className="px-3 py-1 bg-emerald-600 text-white rounded-md text-xs font-medium hover:bg-emerald-700 flex items-center gap-1 shadow-xs"
+                              >
+                                <Check size={13} /> Hoàn thành (Cần ảnh)
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {groupedDossierTasks.length === 0 && (
                 <div className="py-12 text-center text-gray-400 text-sm">
                   <FileCheck size={36} className="mx-auto text-gray-300 mb-2" />
                   Hiện không có hồ sơ nào đang chờ kiểm tra!
