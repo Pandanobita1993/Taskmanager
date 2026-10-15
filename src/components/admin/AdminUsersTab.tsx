@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import type { UserFormData } from './adminTypes';
+import { OFFICES, getOffice } from '../../lib/offices';
 
 interface AdminUsersTabProps {
   users: any[];
@@ -27,6 +28,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   onEditUser,
   onDeleteUser
 }) => {
+  const [officeFilter, setOfficeFilter] = useState('');
+  const visibleUsers = users.filter(user => !officeFilter || getOffice(user.office) === officeFilter);
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex justify-between items-center mb-6">
@@ -39,20 +42,35 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
         </button>
       </div>
 
+      <label className="flex flex-wrap items-center gap-3 text-sm text-gray-700 mb-5">
+        Văn phòng
+        <select value={officeFilter} onChange={e => setOfficeFilter(e.target.value)} className="px-3 py-2 border rounded-lg bg-white">
+          <option value="">Tất cả văn phòng</option>
+          {OFFICES.map(office => <option key={office} value={office}>{office}</option>)}
+        </select>
+        <span className="text-gray-500">{visibleUsers.length} nhân sự</span>
+      </label>
+
       {showUserForm && (
         <form onSubmit={onSaveUser} className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm mb-1">Họ và tên *</label>
               <input required type="text" value={userForm.name} onChange={e => setUserForm({...userForm, name: e.target.value})} className="w-full px-3 py-2 border rounded-md"/>
             </div>
             <div>
-              <label className="block text-sm mb-1">Phòng ban</label>
+              <label className="block text-sm mb-1">Nghiệp vụ chính</label>
               <select value={userForm.department} onChange={e => setUserForm({...userForm, department: e.target.value})} className="w-full px-3 py-2 border rounded-md">
                 <option value="Kế toán">Kế toán</option>
                 <option value="BHXH">Bảo hiểm xã hội</option>
               </select>
             </div>
+            <label className="block text-sm">
+              Văn phòng *
+              <select required value={userForm.office} onChange={e => setUserForm({...userForm, office: e.target.value})} className="mt-1 w-full px-3 py-2 border rounded-md bg-white">
+                {OFFICES.map(office => <option key={office} value={office}>{office}</option>)}
+              </select>
+            </label>
           </div>
           <div className="mb-4">
             <label className="block text-sm mb-2">Quyền hạn kiêm nhiệm thêm:</label>
@@ -90,15 +108,17 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
           <thead>
             <tr className="bg-gray-50 border-y border-gray-200">
               <th className="py-3 px-4 font-medium text-gray-600">Họ và tên</th>
-              <th className="py-3 px-4 font-medium text-gray-600">Phòng ban</th>
+              <th className="py-3 px-4 font-medium text-gray-600">Văn phòng</th>
+              <th className="py-3 px-4 font-medium text-gray-600">Nghiệp vụ</th>
               <th className="py-3 px-4 font-medium text-gray-600">Quyền hạn</th>
               <th className="py-3 px-4 font-medium text-gray-600">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {users.map(u => (
+            {visibleUsers.map(u => (
               <tr key={u.id} className="hover:bg-gray-50">
                 <td className="py-3 px-4 font-medium">{u.name}</td>
+                <td className="py-3 px-4 whitespace-nowrap"><span className="text-xs font-semibold bg-blue-50 text-blue-700 rounded-full px-2.5 py-1">{getOffice(u.office)}</span></td>
                 <td className="py-3 px-4">{u.department}</td>
                 <td className="py-3 px-4">
                   <div className="flex gap-1 flex-wrap">
@@ -115,6 +135,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                 </td>
               </tr>
             ))}
+            {visibleUsers.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-500">Chưa có nhân sự thuộc văn phòng này. Chọn “Thêm nhân sự” để tạo mới.</td></tr>}
           </tbody>
         </table>
       </div>

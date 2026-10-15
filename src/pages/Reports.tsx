@@ -7,6 +7,7 @@ import { buildProfessionalReportSheet, formatDateVN } from '../lib/reportExcelHe
 import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
 import { saveFileToPreferredDirectory } from '../lib/fileStorage';
+import { getOffice } from '../lib/offices';
 
 export default function Reports() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -73,7 +74,9 @@ export default function Reports() {
       ? `(Kỳ báo cáo: Từ ${formatDateVN(startDate)} Đến ${formatDateVN(endDate)})`
       : '(Kỳ báo cáo: Toàn bộ thời gian)';
 
-    const { ws } = buildProfessionalReportSheet(myTasks, profile.fullName, settings, periodStr);
+    const { data: staff, error: staffError } = await supabase.from('app_users').select('*').eq('id', profile.id).single();
+    if (staffError || !staff) return alert('Không thể xác định văn phòng nhân sự. Vui lòng thử lại.');
+    const { ws } = buildProfessionalReportSheet(myTasks, profile.fullName, { ...settings, office_name: getOffice(staff.office) }, periodStr);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCongViec");
     

@@ -1,7 +1,10 @@
+import { DEFAULT_OFFICE } from './offices';
+
 export interface UserProfile {
   id?: string;
   fullName: string;
   department: string;
+  office?: string;
   additionalRoles: string[];
   isSetupComplete: boolean;
   background?: string;
@@ -11,6 +14,7 @@ export interface UserProfile {
 export const defaultProfile: UserProfile = {
   fullName: '',
   department: 'Kế toán',
+  office: DEFAULT_OFFICE,
   additionalRoles: [],
   isSetupComplete: false,
   background: 'bg-gray-50',

@@ -2,7 +2,8 @@ import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, Pencil, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { defaultProfile, readCachedProfile } from './lib/profile';
+import { cacheProfile, defaultProfile, readCachedProfile } from './lib/profile';
+import { getOffice } from './lib/offices';
 import type { UserProfile } from './lib/profile';
 import { createProofUrl, dataUrlToFile, uploadTaskProofSafe, fileToDataUrl } from './lib/proofStorage';
 import { localDateKey } from './lib/date';
@@ -1286,6 +1287,18 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setMobileMenuOpen(false), [location.pathname]);
 
+  useEffect(() => {
+    const current = readCachedProfile();
+    if (!current.id || !current.isSetupComplete) return;
+    supabase.from('app_users').select('*').eq('id', current.id).single().then(({ data, error }) => {
+      if (error || !data) return;
+      const latest = readCachedProfile();
+      if (latest.id === current.id && latest.office !== getOffice(data.office)) {
+        cacheProfile({ ...latest, office: getOffice(data.office) });
+      }
+    });
+  }, [location.pathname]);
+
   const navLinkClass = (path: string) => 
     `flex items-center gap-2 px-3 py-2 rounded-md font-medium transition ${
       location.pathname === path 
@@ -1353,7 +1366,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <p className="text-[13px] font-medium text-gray-800 leading-tight flex items-center justify-end gap-1">
                 {profile.fullName || 'Người dùng'}
               </p>
-              <p className="text-[11px] text-gray-500 leading-tight">{profile.department}</p>
+              <p className="text-[11px] text-gray-500 leading-tight">{profile.department} · {getOffice(profile.office)}</p>
             </div>
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold uppercase text-sm shadow-2xs">
               {profile.fullName ? profile.fullName.charAt(0) : 'U'}

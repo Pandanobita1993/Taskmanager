@@ -9,6 +9,7 @@ import { AdminClientsTab } from '../components/admin/AdminClientsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminAuth } from '../components/admin/AdminAuth';
 import { exportManagerExcel } from '../components/admin/adminExcelExport';
+import { DEFAULT_OFFICE, getOffice } from '../lib/offices';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -32,7 +33,7 @@ export default function AdminPage() {
 
   // Form add user
   const [showUserForm, setShowUserForm] = useState(false);
-  const [userForm, setUserForm] = useState<UserFormData>({ id: '', name: '', department: 'Kế toán', roles: [] });
+  const [userForm, setUserForm] = useState<UserFormData>({ id: '', name: '', department: 'Kế toán', office: DEFAULT_OFFICE, roles: [] });
 
   useEffect(() => {
     if (isAuthenticated) fetchData();
@@ -230,17 +231,20 @@ export default function AdminPage() {
     
     try {
       if (userForm.id) {
-        await supabase.from('app_users').update({
+        const { error } = await supabase.from('app_users').update({
           name: userForm.name,
           department: userForm.department,
+          office: userForm.office,
           roles: userForm.roles
         }).eq('id', userForm.id);
+        if (error) throw error;
       } else {
         const { id, ...newUser } = userForm;
-        await supabase.from('app_users').insert([newUser]);
+        const { error } = await supabase.from('app_users').insert([newUser]);
+        if (error) throw error;
       }
       setShowUserForm(false);
-      setUserForm({ id: '', name: '', department: 'Kế toán', roles: [] });
+      setUserForm({ id: '', name: '', department: 'Kế toán', office: DEFAULT_OFFICE, roles: [] });
       fetchData();
     } catch(err) {
       console.error(err);
@@ -249,7 +253,7 @@ export default function AdminPage() {
   };
 
   const editUser = (u: any) => {
-    setUserForm({ id: u.id, name: u.name, department: u.department, roles: u.roles || [] });
+    setUserForm({ id: u.id, name: u.name, department: u.department, office: getOffice(u.office), roles: u.roles || [] });
     setShowUserForm(true);
   };
 
@@ -326,7 +330,7 @@ export default function AdminPage() {
             users={users}
             selectedUsers={selectedUsers}
             toggleUserSelection={toggleUserSelection}
-            onSelectAllUsers={() => setSelectedUsers(users.map(u => u.id))}
+            onSelectAllUsers={setSelectedUsers}
             onClearUserSelection={() => setSelectedUsers([])}
             onExportManager={exportManager}
           />
@@ -354,7 +358,7 @@ export default function AdminPage() {
             showUserForm={showUserForm}
             userForm={userForm}
             setUserForm={setUserForm}
-            onOpenAddUser={() => { setUserForm({ id: '', name: '', department: 'Kế toán', roles: [] }); setShowUserForm(true); }}
+            onOpenAddUser={() => { setUserForm({ id: '', name: '', department: 'Kế toán', office: DEFAULT_OFFICE, roles: [] }); setShowUserForm(true); }}
             onCloseUserForm={() => setShowUserForm(false)}
             onSaveUser={saveUser}
             onToggleUserRole={toggleUserRole}

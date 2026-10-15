@@ -4,11 +4,13 @@ import { chooseReportsDirectory, getSavedDirectoryName } from '../lib/fileStorag
 import { cacheProfile, readCachedProfile } from '../lib/profile';
 import type { UserProfile } from '../lib/profile';
 import { supabase } from '../lib/supabase';
+import { getOffice } from '../lib/offices';
 
 interface StaffMember {
   id: string;
   name: string;
   department?: string;
+  office?: string;
   roles?: string[];
 }
 
@@ -31,11 +33,18 @@ export default function Settings() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('app_users').select('id, name, department, roles').eq('is_active', true).order('name'),
+      supabase.from('app_users').select('*').eq('is_active', true).order('name'),
       getSavedDirectoryName(),
     ]).then(([usersResult, directory]) => {
       if (usersResult.error) throw usersResult.error;
       setUsers(usersResult.data || []);
+      const cached = readCachedProfile();
+      const staff = usersResult.data?.find(user => user.id === cached.id);
+      if (staff && cached.isSetupComplete) {
+        const updated = { ...cached, office: getOffice(staff.office) };
+        cacheProfile(updated);
+        setProfile(updated);
+      }
       if (directory) setProfile((current) => ({ ...current, storagePath: directory }));
     }).catch((error) => {
       console.error(error);
@@ -52,6 +61,7 @@ export default function Settings() {
       id: user.id,
       fullName: user.name,
       department: user.department || 'Kế toán',
+      office: getOffice(user.office),
       additionalRoles: user.roles || [],
     }));
   };
@@ -116,13 +126,17 @@ export default function Settings() {
               ) : (
                 <select className="mt-2 w-full px-4 py-2.5 border rounded-lg bg-white" value={profile.id || ''} onChange={(event) => selectUser(event.target.value)} required disabled={loading}>
                   <option value="">{loading ? 'Đang tải...' : '-- Chọn tên của bạn --'}</option>
-                  {users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+                  {users.map((user) => <option key={user.id} value={user.id}>{user.name} — {getOffice(user.office)}</option>)}
                 </select>
               )}
             </label>
             <div className="text-sm font-medium text-gray-700">
               Nghiệp vụ chính
               <div className="mt-2 px-4 py-3 rounded-lg bg-gray-50 border text-gray-700">{profile.department}</div>
+            </div>
+            <div className="text-sm font-medium text-gray-700">
+              Văn phòng
+              <div className="mt-2 px-4 py-3 rounded-lg bg-blue-50 border border-blue-100 text-blue-800">{getOffice(profile.office)}</div>
             </div>
           </div>
           {!isLocked && <p className="text-xs text-amber-700 mt-3">Sau khi lưu, nhân sự sẽ được cố định trên thiết bị. Cần mật khẩu quản trị để thay đổi.</p>}

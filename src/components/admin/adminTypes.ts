@@ -27,6 +27,7 @@ export interface UserFormData {
   id: string;
   name: string;
   department: string;
+  office: string;
   roles: string[];
 }
 

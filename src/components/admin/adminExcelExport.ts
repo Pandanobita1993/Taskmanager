@@ -3,6 +3,7 @@ import type { ReportSettings } from './adminTypes';
 import { buildProfessionalReportSheet, formatDateVN } from '../../lib/reportExcelHelper';
 import { localDateKey } from '../../lib/date';
 import { saveFileToPreferredDirectory } from '../../lib/fileStorage';
+import { getOffice } from '../../lib/offices';
 
 export { formatDateVN };
 
@@ -30,7 +31,7 @@ export const exportManagerExcel = (
       const { ws } = buildProfessionalReportSheet(
         userTasks, 
         user.name, 
-        reportSettings, 
+        { ...reportSettings, office_name: getOffice(user.office) },
         '(Kỳ báo cáo: Báo cáo tổng hợp quản lý)'
       );
       const sheetName = user.name.substring(0, 31);
