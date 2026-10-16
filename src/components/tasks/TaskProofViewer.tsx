@@ -5,9 +5,11 @@ import { createProofUrl } from '../../lib/proofStorage';
 interface TaskProofViewerProps {
   task: { proof_image?: string; proof_file?: string };
   onClose: () => void;
+  title?: string;
+  imageAlt?: string;
 }
 
-export function TaskProofViewer({ task, onClose }: TaskProofViewerProps) {
+export function TaskProofViewer({ task, onClose, title = 'Ảnh chứng minh công việc', imageAlt = 'Ảnh chứng minh hoàn thành công việc' }: TaskProofViewerProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [source, setSource] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export function TaskProofViewer({ task, onClose }: TaskProofViewerProps) {
       onClick={event => { if (event.target === event.currentTarget) onClose(); }}
       className="m-auto w-[calc(100%-2rem)] max-w-5xl max-h-[90vh] rounded-xl bg-white p-0 shadow-xl backdrop:bg-black/70">
       <div className="flex items-center justify-between gap-4 px-4 py-3 border-b">
-        <h2 id="proof-viewer-title" className="font-bold text-gray-800">Ảnh chứng minh công việc</h2>
+        <h2 id="proof-viewer-title" className="font-bold text-gray-800">{title}</h2>
         <button type="button" autoFocus aria-label="Đóng ảnh" onClick={onClose} className="rounded-lg p-2 hover:bg-gray-100"><X size={20} /></button>
       </div>
       <div className="bg-gray-100 p-3 min-h-40 flex flex-col items-center justify-center gap-3">
@@ -58,7 +60,7 @@ export function TaskProofViewer({ task, onClose }: TaskProofViewerProps) {
             <button type="button" onClick={() => setAttempt(value => value + 1)} className="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm">Thử lại</button>
           </div>
         ) : source && (
-          <img key={source} src={source} alt="Ảnh chứng minh hoàn thành công việc"
+          <img key={source} src={source} alt={imageAlt}
             onLoad={() => setLoading(false)}
             onError={() => { setLoading(false); setError('Không thể tải ảnh. Vui lòng thử lại hoặc kiểm tra kết nối mạng.'); }}
             className="max-w-full max-h-[72vh] object-contain rounded" />

@@ -13,6 +13,7 @@ import { TaskCategorySelector } from '../components/newTask/TaskCategorySelector
 import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
 import { uploadTaskProofSafe, fileToDataUrl } from '../lib/proofStorage';
+import { appendWorkNote } from '../lib/workNotes';
 import { statusAfterFiling } from '../lib/taskStatus';
 
 export default function NewTask() {
@@ -38,6 +39,7 @@ export default function NewTask() {
   const [infoProvided, setInfoProvided] = useState('');
   const [infoPending, setInfoPending] = useState('');
   const [notes, setNotes] = useState('');
+  const [noteBusy, setNoteBusy] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
 
   // Trường chuyên biệt theo nghiệp vụ thực tế
@@ -141,6 +143,7 @@ export default function NewTask() {
 
   useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
+      if (taskType !== 'payment' || e.defaultPrevented) return;
       const items = e.clipboardData?.items;
       if (!items) return;
       for (let i = 0; i < items.length; i++) {
@@ -164,7 +167,7 @@ export default function NewTask() {
 
     window.addEventListener('paste', handleGlobalPaste);
     return () => window.removeEventListener('paste', handleGlobalPaste);
-  }, [clients, selectedClientId, paidMonths]);
+  }, [clients, selectedClientId, paidMonths, taskType]);
 
   const fetchInitialData = async () => {
     try {
@@ -325,6 +328,7 @@ export default function NewTask() {
 
   const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (noteBusy) return;
     if (!isOtherTask && !selectedClientId) {
       alert("Vui lòng chọn khách hàng!");
       return;
@@ -370,10 +374,9 @@ export default function NewTask() {
 
       // Xây dựng phần ghi chú tổng hợp (kèm cơ quan sở tại, chứng từ giấy nếu có)
       const noteParts: string[] = [];
-      if (notes.trim()) noteParts.push(notes.trim());
       if (authorityAgency.trim()) noteParts.push(`Cơ quan sở tại: ${authorityAgency.trim()}`);
       if (paperDossier.trim()) noteParts.push(`Chứng từ giấy: ${paperDossier.trim()}`);
-      const combinedNotes = noteParts.join(' | ');
+      const combinedNotes = appendWorkNote(notes, noteParts.join(' | '));
 
       const selectedClientObj = clients.find(c => c.id === selectedClientId);
       const fallbackContact = selectedClientObj?.contact_name?.trim() 
@@ -549,6 +552,7 @@ export default function NewTask() {
               setInfoPending={setInfoPending}
               notes={notes}
               setNotes={setNotes}
+              onNoteBusyChange={setNoteBusy}
             />
           )}
 
@@ -598,7 +602,8 @@ export default function NewTask() {
             </button>
             <button 
               type="submit" 
-              className={`px-8 py-2.5 rounded-lg font-bold text-white flex items-center gap-2 shadow-sm transition ${taskType === 'normal' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+              disabled={noteBusy}
+              className={`disabled:opacity-50 px-8 py-2.5 rounded-lg font-bold text-white flex items-center gap-2 shadow-sm transition ${taskType === 'normal' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
             >
               <Save size={18} />
               Lưu & Xác nhận tiếp nhận

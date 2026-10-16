@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileText, Sparkles, Calculator } from 'lucide-react';
+import { WorkNoteEditor } from '../WorkNote';
 import type { BusinessDomain } from './newTaskConstants';
 import {
   QUICK_ACCOUNTING_TASKS,
@@ -36,6 +37,7 @@ interface TaskDetailsFormProps {
   setInfoPending: (val: string) => void;
   notes: string;
   setNotes: (val: string) => void;
+  onNoteBusyChange?: (busy: boolean) => void;
 }
 
 export const TaskDetailsForm: React.FC<TaskDetailsFormProps> = ({
@@ -63,7 +65,8 @@ export const TaskDetailsForm: React.FC<TaskDetailsFormProps> = ({
   infoPending,
   setInfoPending,
   notes,
-  setNotes
+  setNotes,
+  onNoteBusyChange
 }) => {
   const handleSelectQuickTask = (taskText: string) => {
     if (!content) {
@@ -334,16 +337,7 @@ export const TaskDetailsForm: React.FC<TaskDetailsFormProps> = ({
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-gray-700 mb-1">Ghi chú lưu ý thêm</label>
-        <input 
-          type="text" 
-          value={notes} 
-          onChange={e => setNotes(e.target.value)} 
-          placeholder="Ghi chú khác nếu có..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 text-sm" 
-        />
-      </div>
+      <WorkNoteEditor label="Ghi chú lưu ý thêm" value={notes} onChange={setNotes} onBusyChange={onNoteBusyChange} />
     </div>
   );
 };

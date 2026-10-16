@@ -10,6 +10,8 @@ import { localDateKey } from './lib/date';
 import { updateTaskWithLog } from './lib/taskUpdates';
 import { TaskEditModal } from './components/tasks/TaskEditModal';
 import { TaskHistoryCard } from './components/tasks/TaskHistoryCard';
+import { WorkNoteEditor, WorkNoteView } from './components/WorkNote';
+import { hasWorkNote, prependWorkNote, workNoteSummary } from './lib/workNotes';
 import { TaskProofViewer } from './components/tasks/TaskProofViewer';
 import { groupTasksByClient } from './lib/taskGrouping';
 
@@ -31,6 +33,8 @@ function Dashboard() {
   const [resolveStatus, setResolveStatus] = useState<'completed' | 'failed'>('completed');
   const [resolveOrigin, setResolveOrigin] = useState<'normal_task' | 'dossier_drawer'>('normal_task');
   const [resolutionNote, setResolutionNote] = useState('');
+  const [resolutionNoteBusy, setResolutionNoteBusy] = useState(false);
+  const [progressNoteBusy, setProgressNoteBusy] = useState(false);
   const [dossierCode, setDossierCode] = useState('');
   const [proofImage, setProofImage] = useState<string>('');
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -165,9 +169,9 @@ function Dashboard() {
 
   const handleResolveTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeTask) return;
+    if (!activeTask || resolutionNoteBusy) return;
 
-    if (resolveStatus === 'failed' && !resolutionNote.trim()) {
+    if (resolveStatus === 'failed' && !hasWorkNote(resolutionNote)) {
       alert("Vui lòng điền ghi chú / lý do!");
       return;
     }
@@ -207,7 +211,7 @@ function Dashboard() {
       if (enteredDossierCode) {
         updates.dossier_code = enteredDossierCode;
         if (isTransferringToDossier) {
-          updates.dossier_progress = `Đã nộp hồ sơ (Mã: ${enteredDossierCode})${resolutionNote.trim() ? ` - ${resolutionNote.trim()}` : ''}`;
+          updates.dossier_progress = prependWorkNote(resolutionNote, `Đã nộp hồ sơ (Mã: ${enteredDossierCode})`);
         }
       }
 
@@ -253,7 +257,7 @@ function Dashboard() {
 
   const handleUpdateDossierProgress = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dossierModalTask) return;
+    if (!dossierModalTask || progressNoteBusy || !hasWorkNote(progressInput)) return;
     try {
       await updateTaskWithLog(
         dossierModalTask.id,
@@ -530,8 +534,8 @@ function Dashboard() {
                               <p className="text-xs text-gray-500">
                                 Người liên hệ: <strong>{task.contact_person}</strong> 
                                 {task.info_pending && <span className="text-orange-600 ml-2">• Chờ bổ sung: {task.info_pending}</span>}
-                                {task.notes && <span className="ml-2">• Ghi chú: {task.notes}</span>}
                               </p>
+                              {task.notes && <div className="text-xs text-gray-500 mt-2"><span className="font-semibold">Ghi chú:</span><WorkNoteView value={task.notes} /></div>}
                             </div>
                             
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -781,8 +785,8 @@ function Dashboard() {
                                       <span className="text-gray-400 text-xs">-</span>
                                     )}
                                   </td>
-                                  <td className="py-3 px-4 text-xs text-gray-600 leading-relaxed break-words" title={t.resolution_note || ''}>
-                                    {t.resolution_note || '-'}
+                                  <td className="py-3 px-4 text-xs text-gray-600 leading-relaxed break-words" title={workNoteSummary(t.resolution_note)}>
+                                    {t.resolution_note ? <WorkNoteView value={t.resolution_note} /> : '-'}
                                   </td>
                                   <td className="py-3 px-4 whitespace-nowrap">
                                     <button onClick={() => setEditingTask(t)} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-1 rounded border border-blue-200 font-medium">
@@ -816,7 +820,7 @@ function Dashboard() {
       {/* POPUP MODAL HOÀN THÀNH / THẤT BÀI */}
       {activeTask && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
                 {resolveStatus === 'completed' ? (
@@ -926,25 +930,10 @@ function Dashboard() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  {resolveStatus === 'completed' 
-                    ? 'Ghi chú kết quả hoàn thành (không bắt buộc)'
-                    : (isDossierTask(activeTask) ? 'Lý do hồ sơ thất bại / Cần bổ sung chỉnh sửa *' : 'Lý do công việc thất bại *')}
-                </label>
-                <textarea 
-                  required={resolveStatus === 'failed'}
-                  rows={3} 
-                  value={resolutionNote} 
-                  onChange={e => setResolutionNote(e.target.value)} 
-                  placeholder={resolveStatus === 'completed' 
-                    ? 'Ghi rõ chi tiết kết quả đã hoàn thành...' 
-                    : (isDossierTask(activeTask) 
-                        ? 'Ghi rõ nguyên nhân bị từ chối / lý do cần bổ sung chỉnh sửa hồ sơ...' 
-                        : 'Ghi rõ nguyên nhân thất bại / bị từ chối / trục trặc...')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
+              <WorkNoteEditor
+                label={resolveStatus === 'completed' ? 'Ghi chú kết quả hoàn thành (không bắt buộc)' : (isDossierTask(activeTask) ? 'Lý do hồ sơ thất bại / Cần bổ sung chỉnh sửa *' : 'Lý do công việc thất bại *')}
+                value={resolutionNote} onChange={setResolutionNote} required={resolveStatus === 'failed'} onBusyChange={setResolutionNoteBusy}
+              />
 
               <div className="flex justify-end gap-3 pt-2">
                 <button 
@@ -956,7 +945,8 @@ function Dashboard() {
                 </button>
                 <button 
                   type="submit" 
-                  className={`px-4 py-2 text-white rounded-lg text-sm font-semibold shadow-sm transition ${
+                  disabled={resolutionNoteBusy}
+                  className={`disabled:opacity-50 px-4 py-2 text-white rounded-lg text-sm font-semibold shadow-sm transition ${
                     resolveStatus === 'completed' 
                       ? (resolveOrigin === 'normal_task' && dossierCode.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700')
                       : 'bg-rose-600 hover:bg-rose-700'
@@ -1068,7 +1058,7 @@ function Dashboard() {
                             <div className="p-2.5 bg-white rounded-lg border border-amber-100 text-xs flex justify-between items-center">
                               <div>
                                 <span className="text-gray-500">Tiến độ hồ sơ: </span>
-                                <strong className="text-amber-800 font-semibold">{d.dossier_progress || 'Chưa cập nhật tiến độ (Đang xử lý)'}</strong>
+                                <div className="text-amber-800 font-semibold"><WorkNoteView value={d.dossier_progress || 'Chưa cập nhật tiến độ (Đang xử lý)'} /></div>
                               </div>
                               <button 
                                 onClick={() => { setDossierModalTask(d); setProgressInput(d.dossier_progress || ''); }}
@@ -1130,7 +1120,7 @@ function Dashboard() {
       {/* POPUP CẬP NHẬT TIẾN ĐỘ HỒ SƠ */}
       {dossierModalTask && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
               <h3 className="font-bold text-gray-800 text-sm">Cập nhật tiến độ hồ sơ</h3>
               <button onClick={() => setDossierModalTask(null)} className="text-gray-400 hover:text-gray-600 text-lg">×</button>
@@ -1142,19 +1132,7 @@ function Dashboard() {
             </div>
 
             <form onSubmit={handleUpdateDossierProgress} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Nội dung tiến độ mới *
-                </label>
-                <textarea 
-                  required 
-                  rows={2} 
-                  value={progressInput} 
-                  onChange={e => setProgressInput(e.target.value)} 
-                  placeholder="VD: Đã nộp lên Cổng DVC, Chờ chuyên viên thẩm định, Bổ sung giấy phép..." 
-                  className="w-full px-3 py-2 border rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+              <WorkNoteEditor label="Nội dung tiến độ mới *" value={progressInput} onChange={setProgressInput} required onBusyChange={setProgressNoteBusy} />
 
               <div className="flex justify-end gap-2 pt-1">
                 <button 
@@ -1166,7 +1144,8 @@ function Dashboard() {
                 </button>
                 <button 
                   type="submit" 
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"
+                  disabled={progressNoteBusy}
+                  className="disabled:opacity-50 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"
                 >
                   Lưu tiến độ
                 </button>
@@ -1179,7 +1158,7 @@ function Dashboard() {
       {/* MODAL HỎI TIẾP NHẬN LẠI KHI HỒ SƠ THẤT BẠI */}
       {failedRetryTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 border border-rose-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in fade-in zoom-in-95 border border-rose-200">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-rose-100 text-rose-600 rounded-full">
                 <AlertCircle size={24} />
@@ -1196,9 +1175,9 @@ function Dashboard() {
               <p className="text-rose-800 font-medium pt-1 border-t border-rose-200/60">
                 Lý do thất bại / Cần bổ sung:
               </p>
-              <p className="italic text-rose-900 bg-white p-2 rounded border border-rose-200">
-                "{failedRetryTask.resolution_note}"
-              </p>
+              <div className="italic text-rose-900 bg-white p-2 rounded border border-rose-200">
+                <WorkNoteView value={failedRetryTask.resolution_note} />
+              </div>
             </div>
 
             <div className="text-sm text-gray-800 font-semibold">
@@ -1231,7 +1210,7 @@ function Dashboard() {
                     is_urgent: failedRetryTask.is_urgent || false,
                     dossier_code: '', // Mã hồ sơ mới sẽ được cấp sau khi nộp lại
                     notes: failedRetryTask.resolution_note 
-                      ? `Lý do nộp/thực hiện lại: ${failedRetryTask.resolution_note}`
+                      ? prependWorkNote(failedRetryTask.resolution_note, 'Lý do nộp/thực hiện lại:')
                       : 'Thực hiện nộp lại hồ sơ'
                   };
                   setFailedRetryTask(null);

@@ -7,6 +7,8 @@ import {
   updateTaskWithLog,
 } from '../../lib/taskUpdates';
 import type { TaskUpdateLog } from '../../lib/taskUpdates';
+import { WorkNoteEditor } from '../WorkNote';
+import { workNoteSummary } from '../../lib/workNotes';
 import { statusAfterFiling } from '../../lib/taskStatus';
 
 interface TaskEditModalProps {
@@ -49,6 +51,7 @@ const statusLabels: Record<string, string> = {
 
 function displayLogValue(field: string, value: unknown) {
   if (value === null || value === undefined || value === '') return 'Trống';
+  if (field === 'notes' || field === 'resolution_note' || field === 'dossier_progress') return workNoteSummary(String(value));
   if (field === 'is_urgent') return value ? 'Có' : 'Không';
   if (field === 'status') return statusLabels[String(value)] || String(value);
   if (field === 'completed_at') return new Date(String(value)).toLocaleString('vi-VN');
@@ -57,6 +60,8 @@ function displayLogValue(field: string, value: unknown) {
 }
 
 export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModalProps) {
+  const [noteBusy, setNoteBusy] = useState(false);
+  const [progressBusy, setProgressBusy] = useState(false);
   const [form, setForm] = useState<TaskEditForm>(() => formFromTask(task));
   const [baseline, setBaseline] = useState<TaskEditForm>(() => formFromTask(task));
   const [logs, setLogs] = useState<TaskUpdateLog[]>([]);
@@ -98,6 +103,7 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (noteBusy || progressBusy) return;
     if (!form.content.trim()) {
       setError('Nội dung công việc không được để trống.');
       return;
@@ -181,15 +187,8 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
               <textarea rows={2} value={form.info_pending} onChange={(event) => updateField('info_pending', event.target.value)} className="mt-1 w-full px-3 py-2 border border-amber-300 rounded-lg font-normal outline-none focus:ring-2 focus:ring-amber-500" />
             </label>
 
-            <label className="block text-sm font-semibold text-gray-700">
-              Tiến độ hồ sơ
-              <textarea rows={2} value={form.dossier_progress} onChange={(event) => updateField('dossier_progress', event.target.value)} placeholder="Dùng khi đã có mã hồ sơ điện tử" className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500" />
-            </label>
-
-            <label className="block text-sm font-semibold text-gray-700">
-              Ghi chú
-              <textarea rows={2} value={form.notes} onChange={(event) => updateField('notes', event.target.value)} className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500" />
-            </label>
+            <WorkNoteEditor label="Tiến độ hồ sơ" value={form.dossier_progress} onChange={value => updateField('dossier_progress', value)} onBusyChange={setProgressBusy} disabled={saving} />
+            <WorkNoteEditor label="Ghi chú" value={form.notes} onChange={value => updateField('notes', value)} onBusyChange={setNoteBusy} disabled={saving} />
 
             <label className="inline-flex items-center gap-2 text-sm font-semibold text-red-700 cursor-pointer">
               <input type="checkbox" checked={form.is_urgent} onChange={(event) => updateField('is_urgent', event.target.checked)} className="w-4 h-4" />
@@ -201,7 +200,7 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
 
             <div className="flex justify-end gap-3 pt-2 border-t">
               <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">Đóng</button>
-              <button type="submit" disabled={saving || Object.keys(changes).length === 0} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-2">
+              <button type="submit" disabled={saving || noteBusy || progressBusy || Object.keys(changes).length === 0} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-2">
                 <Save size={16} /> {saving ? 'Đang lưu...' : 'Lưu cập nhật'}
               </button>
             </div>

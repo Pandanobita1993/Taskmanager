@@ -1,3 +1,4 @@
+import { workNoteSummary } from './workNotes';
 import * as XLSX from 'xlsx-js-style';
 import { localDateKey } from './date';
 
@@ -186,7 +187,7 @@ export const buildProfessionalReportSheet = (
         : (formatDateVN(t.deadline) || '');
       const statusText = STATUS_LABELS[t.status] || (t.info_pending ? `Đang chờ: ${t.info_pending}` : 'Đang xử lý');
       const dossierCode = t.dossier_code || '';
-      const notes = t.resolution_note || t.notes || '';
+      const notes = workNoteSummary(t.resolution_note || t.notes || '');
 
       rows.push([
         stt,

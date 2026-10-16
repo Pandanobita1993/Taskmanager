@@ -1,3 +1,5 @@
+import { WorkNoteView } from '../WorkNote';
+import { readWorkNote } from '../../lib/workNotes';
 import { Building2, CalendarDays, Check, Eye, FileText, Pencil, X } from 'lucide-react';
 
 interface TaskHistoryCardProps {
@@ -51,9 +53,11 @@ export function TaskHistoryCard({ task, onEdit, onOpenProof }: TaskHistoryCardPr
           )}
         </div>
 
+        {task.notes && <div className="text-sm text-gray-600"><span className="font-semibold text-gray-700">Ghi chú công việc: </span><WorkNoteView value={task.notes} /></div>}
+        {readWorkNote(task.dossier_progress).images.length > 0 && <div className="text-sm text-gray-600"><span className="font-semibold text-gray-700">Ghi chú hồ sơ: </span><WorkNoteView value={task.dossier_progress} /></div>}
         {task.resolution_note && (
           <div className="text-sm text-gray-600 border-l-4 border-amber-300 pl-3 py-1 whitespace-pre-wrap [overflow-wrap:anywhere]">
-            <span className="font-semibold text-gray-700">Kết quả / ghi chú: </span>{task.resolution_note}
+            <span className="font-semibold text-gray-700">Kết quả / ghi chú: </span><WorkNoteView value={task.resolution_note} />
           </div>
         )}
       </div>
