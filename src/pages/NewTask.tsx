@@ -13,6 +13,7 @@ import { TaskCategorySelector } from '../components/newTask/TaskCategorySelector
 import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
 import { uploadTaskProofSafe, fileToDataUrl } from '../lib/proofStorage';
+import { statusAfterFiling } from '../lib/taskStatus';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -392,7 +393,7 @@ export default function NewTask() {
         type: taskType,
         client_id: taskClientId,
         user_id: profile?.id || profile?.fullName,
-        status: taskType === 'payment' ? 'completed' : 'received',
+        status: taskType === 'payment' ? 'completed' : statusAfterFiling('received', isOtherTask ? null : dossierCode),
         task_category: isOtherTask ? 'main' : taskCategory,
         supported_user_id: !isOtherTask && taskCategory === 'support' ? (supportedUser?.id || supportedUserId) : null,
         supported_user_name: !isOtherTask && taskCategory === 'support' ? (supportedUser?.name || supportedUserId) : null,

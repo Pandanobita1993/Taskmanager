@@ -187,13 +187,13 @@ function Dashboard() {
 
     try {
       // Nếu thao tác từ danh sách công việc thông thường đang làm (pendingTasks) và CÓ nhập mã hồ sơ:
-      // Đây là hành động "GHI NHẬN NỘP HỒ SƠ" -> chuyển sang theo dõi tiến độ (status giữ 'received')
+      // Ghi nhận nộp hồ sơ: tự chuyển sang đang xử lý và theo dõi tiến độ.
       let newStatus: string = resolveStatus;
       let actionLog = resolveStatus === 'completed' ? 'Xác nhận hoàn thành công việc' : 'Xác nhận công việc thất bại';
       let isTransferringToDossier = false;
 
       if (!isFromDrawer && resolveStatus === 'completed' && enteredDossierCode) {
-        newStatus = 'received';
+        newStatus = 'in_progress';
         isTransferringToDossier = true;
         actionLog = `Ghi nhận nộp hồ sơ (Mã HS: ${enteredDossierCode}) - Chuyển sang theo dõi tiến độ`;
       }
@@ -257,7 +257,7 @@ function Dashboard() {
     try {
       await updateTaskWithLog(
         dossierModalTask.id,
-        { dossier_progress: progressInput },
+        { dossier_progress: progressInput, ...(dossierModalTask.status === 'received' ? { status: 'in_progress' } : {}) },
         profile,
         'Cập nhật tiến độ hồ sơ',
       );
@@ -857,7 +857,7 @@ function Dashboard() {
                   />
                   {resolveOrigin === 'normal_task' && (
                     <p className="text-[11px] text-blue-700 leading-relaxed">
-                      💡 <strong>Lưu ý:</strong> Khi điền mã hồ sơ, hệ thống sẽ hiểu là bạn <strong>vừa nộp hồ sơ xong</strong> và sẽ tự động chuyển hồ sơ này sang mục <strong>"Hồ sơ cần kiểm tra"</strong> để tiếp tục theo dõi tiến độ xử lý, không bị đóng hoàn thành ngay.
+                      💡 <strong>Lưu ý:</strong> Khi điền mã hồ sơ, hệ thống sẽ hiểu là bạn <strong>vừa nộp hồ sơ xong</strong>, tự chuyển trạng thái sang <strong>Đang xử lý</strong> và đưa vào mục <strong>"Hồ sơ cần kiểm tra"</strong> để tiếp tục theo dõi tiến độ.
                     </p>
                   )}
                 </div>

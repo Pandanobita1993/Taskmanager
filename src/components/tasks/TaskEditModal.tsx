@@ -7,6 +7,7 @@ import {
   updateTaskWithLog,
 } from '../../lib/taskUpdates';
 import type { TaskUpdateLog } from '../../lib/taskUpdates';
+import { statusAfterFiling } from '../../lib/taskStatus';
 
 interface TaskEditModalProps {
   task: any;
@@ -82,8 +83,9 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
 
   const changes = useMemo(() => {
     const nextChanges: Record<string, unknown> = {};
-    (Object.keys(form) as Array<keyof TaskEditForm>).forEach((field) => {
-      if (form[field] !== baseline[field]) nextChanges[field] = form[field];
+    const normalized = { ...form, status: statusAfterFiling(form.status, form.dossier_code) };
+    (Object.keys(normalized) as Array<keyof TaskEditForm>).forEach((field) => {
+      if (normalized[field] !== baseline[field]) nextChanges[field] = normalized[field];
     });
     return nextChanges;
   }, [baseline, form]);
@@ -109,7 +111,9 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
     setError('');
     try {
       await updateTaskWithLog(task.id, changes, profile, 'Cập nhật / bổ sung nội dung');
-      setBaseline(form);
+      const savedForm = { ...form, status: statusAfterFiling(form.status, form.dossier_code) };
+      setForm(savedForm);
+      setBaseline(savedForm);
       setMessage('Đã lưu thay đổi và ghi vào nhật ký hệ thống.');
       await loadLogs();
       onSaved();
