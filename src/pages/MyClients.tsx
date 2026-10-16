@@ -3,12 +3,15 @@ import { Building2, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../lib/profile';
 import { readCachedProfile } from '../lib/profile';
+import { clientDetailUpdates } from '../lib/clientDetails';
 
 export default function MyClients() {
   const [clients, setClients] = useState<any[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingClient, setEditingClient] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     const current = readCachedProfile();
@@ -62,6 +65,7 @@ export default function MyClients() {
   };
 
   const openEdit = (client: any) => {
+    setSaveError('');
     setEditingClient({
       ...client,
       invoice_user: client.invoice_user || client.tax_code,
@@ -71,19 +75,26 @@ export default function MyClients() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingClient) return;
+    if (!editingClient || saving) return;
 
+    setSaving(true);
+    setSaveError('');
     try {
-      const { id, tax_code, name, contact_name, contact_phone, accounting_person, insurance_person, services, created_at, ...updates } = editingClient;
-      const { error } = await supabase.from('clients').update(updates).eq('id', id);
+      const updates = clientDetailUpdates(editingClient, profile?.fullName || '');
+      if (!Object.keys(updates).length) throw new Error('Bạn không có thông tin có thể cập nhật cho khách hàng này.');
+      const { error } = await supabase.from('clients').update(updates).eq('id', editingClient.id).select('id').single();
       if (error) throw error;
       
       alert('Lưu thông tin thành công!');
       setEditingClient(null);
       fetchClients(profile);
-    } catch(err) {
+    } catch(err: any) {
       console.error(err);
-      alert('Lỗi khi lưu thông tin');
+      setSaveError(err?.message?.includes('ins_code')
+        ? 'Cơ sở dữ liệu chưa có cột Mã đơn vị BHXH. Vui lòng nhờ quản trị cập nhật cơ sở dữ liệu.'
+        : `Không thể lưu thông tin: ${err?.message || 'Vui lòng thử lại.'}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -101,7 +112,7 @@ export default function MyClients() {
           <div className="bg-white rounded-xl shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-800">Cập nhật: {editingClient.name}</h2>
-              <button onClick={() => setEditingClient(null)} className="text-gray-400 hover:text-gray-600">
+              <button disabled={saving} onClick={() => setEditingClient(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
@@ -234,9 +245,10 @@ export default function MyClients() {
                 </div>
               )}
 
+              {saveError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{saveError}</p>}
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setEditingClient(null)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2 hover:bg-blue-700"><Save size={18}/> Lưu thông tin</button>
+                <button type="button" disabled={saving} onClick={() => setEditingClient(null)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Hủy</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2 hover:bg-blue-700 disabled:opacity-50"><Save size={18}/> {saving ? 'Đang lưu...' : 'Lưu thông tin'}</button>
               </div>
 
             </form>

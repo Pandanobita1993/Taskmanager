@@ -5,11 +5,12 @@ import { supabase } from './lib/supabase';
 import { cacheProfile, defaultProfile, readCachedProfile } from './lib/profile';
 import { getOffice } from './lib/offices';
 import type { UserProfile } from './lib/profile';
-import { createProofUrl, dataUrlToFile, uploadTaskProofSafe, fileToDataUrl } from './lib/proofStorage';
+import { dataUrlToFile, uploadTaskProofSafe, fileToDataUrl } from './lib/proofStorage';
 import { localDateKey } from './lib/date';
 import { updateTaskWithLog } from './lib/taskUpdates';
 import { TaskEditModal } from './components/tasks/TaskEditModal';
 import { TaskHistoryCard } from './components/tasks/TaskHistoryCard';
+import { TaskProofViewer } from './components/tasks/TaskProofViewer';
 import { groupTasksByClient } from './lib/taskGrouping';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
@@ -32,6 +33,7 @@ function Dashboard() {
   const [dossierCode, setDossierCode] = useState('');
   const [proofImage, setProofImage] = useState<string>('');
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofTask, setProofTask] = useState<any | null>(null);
 
   // Modal hỏi làm lại hồ sơ thất bại
   const [failedRetryTask, setFailedRetryTask] = useState<any | null>(null);
@@ -110,24 +112,7 @@ function Dashboard() {
 
   const [proofFileName, setProofFileName] = useState<string>('');
 
-  const openProof = async (task: any) => {
-    try {
-      const source = task.proof_image || (task.proof_file?.includes('/') ? await createProofUrl(task.proof_file) : '');
-      if (!source) return alert('Không tìm thấy ảnh bằng chứng.');
-      const popup = window.open('', '_blank', 'noopener,noreferrer');
-      if (!popup) return alert('Trình duyệt đang chặn cửa sổ xem ảnh.');
-      popup.document.title = 'Ảnh chứng minh';
-      popup.document.body.style.cssText = 'margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;';
-      const image = popup.document.createElement('img');
-      image.src = source;
-      image.alt = 'Ảnh chứng minh hoàn thành công việc';
-      image.style.cssText = 'max-width:95%;max-height:95%;box-shadow:0 0 20px rgba(0,0,0,.5);border-radius:8px;';
-      popup.document.body.appendChild(image);
-    } catch (error) {
-      console.error(error);
-      alert('Không thể mở ảnh bằng chứng.');
-    }
-  };
+  const openProof = (task: any) => setProofTask(task);
 
   const generateProofFileName = (task: any) => {
     const today = localDateKey();
@@ -181,7 +166,7 @@ function Dashboard() {
     e.preventDefault();
     if (!activeTask) return;
 
-    if (!resolutionNote.trim()) {
+    if (resolveStatus === 'failed' && !resolutionNote.trim()) {
       alert("Vui lòng điền ghi chú / lý do!");
       return;
     }
@@ -214,14 +199,14 @@ function Dashboard() {
 
       const updates: any = {
         status: newStatus,
-        resolution_note: resolutionNote,
+        resolution_note: resolutionNote.trim(),
         completed_at: newStatus === 'completed' ? new Date().toISOString() : null
       };
 
       if (enteredDossierCode) {
         updates.dossier_code = enteredDossierCode;
         if (isTransferringToDossier) {
-          updates.dossier_progress = `Đã nộp hồ sơ (Mã: ${enteredDossierCode}) - ${resolutionNote}`;
+          updates.dossier_progress = `Đã nộp hồ sơ (Mã: ${enteredDossierCode})${resolutionNote.trim() ? ` - ${resolutionNote.trim()}` : ''}`;
         }
       }
 
@@ -344,6 +329,7 @@ function Dashboard() {
 
   return (
     <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6">
+      {proofTask && <TaskProofViewer task={proofTask} onClose={() => setProofTask(null)} />}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Bảng điều khiển</h1>
@@ -942,11 +928,11 @@ function Dashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   {resolveStatus === 'completed' 
-                    ? 'Ghi chú kết quả hoàn thành *' 
+                    ? 'Ghi chú kết quả hoàn thành (không bắt buộc)'
                     : (isDossierTask(activeTask) ? 'Lý do hồ sơ thất bại / Cần bổ sung chỉnh sửa *' : 'Lý do công việc thất bại *')}
                 </label>
                 <textarea 
-                  required 
+                  required={resolveStatus === 'failed'}
                   rows={3} 
                   value={resolutionNote} 
                   onChange={e => setResolutionNote(e.target.value)} 
