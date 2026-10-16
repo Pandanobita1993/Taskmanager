@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Shield, Settings2, FileSearch, Landmark } from 'lucide-react';
+import { Calculator, Shield, Settings2, FileSearch, Landmark, Wrench } from 'lucide-react';
 import type { BusinessDomain } from './newTaskConstants';
 
 interface BusinessDomainSelectorProps {
@@ -16,7 +16,7 @@ export const BusinessDomainSelector: React.FC<BusinessDomainSelectorProps> = ({
       <label className="block text-sm font-bold text-gray-800">
         1. Chọn mảng nghiệp vụ tiếp nhận *
       </label>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
         <button
           type="button"
           onClick={() => onChangeDomain('ke_toan')}
@@ -104,6 +104,19 @@ export const BusinessDomainSelector: React.FC<BusinessDomainSelectorProps> = ({
           <div>
             <div className="font-bold text-sm">Đăng ký đầu tư</div>
             <div className="text-xs text-gray-500 mt-0.5">Dự án đầu tư, IRC, vốn ngoại</div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => onChangeDomain('khac')}
+          className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${businessDomain === 'khac' ? 'bg-slate-50 border-slate-500 ring-2 ring-slate-500/30 text-slate-900 shadow-xs' : 'bg-white border-gray-200 text-gray-700 hover:border-slate-300 hover:bg-slate-50'}`}
+        >
+          <div className={`p-2 rounded-lg ${businessDomain === 'khac' ? 'bg-slate-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            <Wrench size={20} />
+          </div>
+          <div>
+            <div className="font-bold text-sm">Khác</div>
+            <div className="text-xs text-gray-500 mt-0.5">Thiết bị, công việc nội bộ khác</div>
           </div>
         </button>
       </div>

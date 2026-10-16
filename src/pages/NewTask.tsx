@@ -62,6 +62,8 @@ export default function NewTask() {
   const [paymentReason, setPaymentReason] = useState<string>('Phí dịch vụ kế toán');
   const [customPaymentReason, setCustomPaymentReason] = useState<string>('');
 
+  const isOtherTask = taskType === 'normal' && businessDomain === 'khac';
+
   // Hàm tạo tên file
   const generateFileName = (selectedTaxCode?: string, selectedMonths?: string[]) => {
     const today = localDateKey();
@@ -128,6 +130,7 @@ export default function NewTask() {
       if (retryData.action_type === 'bhxh') setBusinessDomain('bhxh');
       else if (retryData.action_type === 'nop_ho_so' || retryData.action_type === 'setup') setBusinessDomain('setup');
       else if (retryData.action_type === 'ra_soat') setBusinessDomain('ra_soat');
+      else if (retryData.action_type === 'khac') setBusinessDomain('khac');
       else if (retryData.action_type === 'dau_tu') setBusinessDomain('dau_tu');
       else if (retryData.action_type === 'ke_toan') setBusinessDomain('ke_toan');
     }
@@ -321,12 +324,31 @@ export default function NewTask() {
 
   const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClientId) {
+    if (!isOtherTask && !selectedClientId) {
       alert("Vui lòng chọn khách hàng!");
       return;
     }
 
+    if (isOtherTask && !content.trim()) {
+      alert('Vui lòng nhập nội dung công việc!');
+      return;
+    }
+
     try {
+      let taskClientId = selectedClientId;
+      if (isOtherTask) {
+        const { data: internalClient, error: lookupError } = await supabase.from('clients').select('id').eq('tax_code', 'NỘI BỘ').is('archived_at', null).ilike('name', '%AN AN%').limit(1).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (internalClient) {
+          taskClientId = internalClient.id;
+        } else {
+          const { id: _placeholderId, ...internalClientData } = INTERNAL_COMPANY_CLIENT;
+          const { data, error } = await supabase.from('clients').insert([{ ...internalClientData, name: 'Công ty TNHH Dịch Vụ Kế Toán An An' }]).select().single();
+          if (error) throw error;
+          taskClientId = data.id;
+          setClients(prev => [...prev, data]);
+        }
+      }
       const actualPaymentReason = paymentReason === 'Khác' ? customPaymentReason : paymentReason;
       
       // Ánh xạ action_type chuẩn hóa
@@ -335,6 +357,7 @@ export default function NewTask() {
       else if (businessDomain === 'setup') resolvedActionType = 'nop_ho_so';
       else if (businessDomain === 'ra_soat') resolvedActionType = 'ra_soat';
       else if (businessDomain === 'dau_tu') resolvedActionType = 'dau_tu';
+      else if (businessDomain === 'khac') resolvedActionType = 'khac';
 
       // Xây dựng nội dung chi tiết
       let finalContent = content;
@@ -358,7 +381,7 @@ export default function NewTask() {
       const resolvedContactPerson = contactPerson.trim() || fallbackContact;
       let proofPath: string | null = null;
       let proofImagePayload: string | null = proofBase64 || null;
-      if (proofFile) {
+      if (proofFile && !isOtherTask) {
         proofPath = await uploadTaskProofSafe(proofFile);
         if (!proofPath && !proofImagePayload) {
           proofImagePayload = await fileToDataUrl(proofFile);
@@ -367,26 +390,26 @@ export default function NewTask() {
 
       const newTask = {
         type: taskType,
-        client_id: selectedClientId,
+        client_id: taskClientId,
         user_id: profile?.id || profile?.fullName,
         status: taskType === 'payment' ? 'completed' : 'received',
-        task_category: taskCategory,
-        supported_user_id: taskCategory === 'support' ? (supportedUser?.id || supportedUserId) : null,
-        supported_user_name: taskCategory === 'support' ? (supportedUser?.name || supportedUserId) : null,
+        task_category: isOtherTask ? 'main' : taskCategory,
+        supported_user_id: !isOtherTask && taskCategory === 'support' ? (supportedUser?.id || supportedUserId) : null,
+        supported_user_name: !isOtherTask && taskCategory === 'support' ? (supportedUser?.name || supportedUserId) : null,
         action_type: resolvedActionType,
         
-        contact_person: resolvedContactPerson,
-        content: finalContent,
-        info_provided: infoProvided,
-        info_pending: infoPending,
-        notes: combinedNotes,
-        is_urgent: isUrgent,
-        dossier_code: dossierCode.trim() || null,
+        contact_person: isOtherTask ? '' : resolvedContactPerson,
+        content: isOtherTask ? content.trim() : finalContent,
+        info_provided: isOtherTask ? '' : infoProvided,
+        info_pending: isOtherTask ? '' : infoPending,
+        notes: isOtherTask ? '' : combinedNotes,
+        is_urgent: isOtherTask ? false : isUrgent,
+        dossier_code: isOtherTask ? null : dossierCode.trim() || null,
 
         payment_reason: taskType === 'payment' ? actualPaymentReason : null,
         paid_months: taskType === 'payment' ? paidMonths : null,
         proof_file: proofPath,
-        proof_image: proofImagePayload,
+        proof_image: isOtherTask ? null : proofImagePayload,
         completed_at: taskType === 'payment' ? new Date().toISOString() : null
       };
 
@@ -451,7 +474,7 @@ export default function NewTask() {
 
         <form onSubmit={handleSaveTask} className="p-6 sm:p-8 space-y-6">
           {/* LỰA CHỌN: TÍNH CHẤT NHIỆM VỤ (CHÍNH VS HỖ TRỢ) */}
-          <TaskCategorySelector
+          {!isOtherTask && <TaskCategorySelector
             taskCategory={taskCategory}
             setTaskCategory={setTaskCategory}
             supportedUserId={supportedUserId}
@@ -459,7 +482,7 @@ export default function NewTask() {
             users={users}
             currentUserName={profile?.fullName}
             onResetSelectedClient={() => setSelectedClientId('')}
-          />
+          />}
 
           {/* 1. CHỌN 3 NGHIỆP VỤ CHUẨN HÓA (Kế toán | BHXH | Setup | Rà soát | Đầu tư) */}
           {taskType === 'normal' && (
@@ -470,7 +493,17 @@ export default function NewTask() {
           )}
 
           {/* 2. CHỌN KHÁCH HÀNG & TÌM KIẾM NHANH */}
-          <ClientSelectorSection
+          {isOtherTask ? (
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-gray-700">Công ty TNHH Dịch Vụ Kế Toán An An</p>
+              <div>
+                <label htmlFor="other-task-content" className="block text-sm font-semibold text-gray-700 mb-1">Nội dung công việc *</label>
+                <textarea id="other-task-content" required value={content} onChange={e => setContent(e.target.value)} rows={4}
+                  placeholder="VD: Kiểm tra máy in, mua thiết bị văn phòng..."
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+            </div>
+          ) : <ClientSelectorSection
             clients={clients}
             filteredClients={filteredClients}
             selectedClientId={selectedClientId}
@@ -485,10 +518,10 @@ export default function NewTask() {
             onNewClientNameChange={setNewClientName}
             onNewClientTaxChange={setNewClientTax}
             onQuickAddSubmit={handleQuickAddClient}
-          />
+          />}
 
           {/* 3. CHI TIẾT CÔNG VIỆC CHUYÊN MÔN */}
-          {taskType === 'normal' && (
+          {taskType === 'normal' && !isOtherTask && (
             <TaskDetailsForm
               businessDomain={businessDomain}
               isUrgent={isUrgent}

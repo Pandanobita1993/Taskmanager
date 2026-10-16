@@ -1,4 +1,4 @@
-export type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup' | 'ra_soat' | 'dau_tu';
+export type BusinessDomain = 'ke_toan' | 'bhxh' | 'setup' | 'ra_soat' | 'dau_tu' | 'khac';
 
 export const QUICK_ACCOUNTING_TASKS = [
   'Khai thuế GTGT & TNCN quý',
