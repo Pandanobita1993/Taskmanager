@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Save, X } from 'lucide-react';
+import { ArrowUpToLine, Building2, ListOrdered, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../lib/profile';
 import { readCachedProfile } from '../lib/profile';
 import { clientDetailUpdates } from '../lib/clientDetails';
+import { clientOrderKey, orderClients, readClientOrder, saveClientOrder } from '../lib/clientOrder';
+import { ClientOrderModal } from '../components/ClientOrderModal';
 
 export default function MyClients() {
   const [clients, setClients] = useState<any[]>([]);
@@ -12,12 +14,42 @@ export default function MyClients() {
   const [editingClient, setEditingClient] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [clientOrder, setClientOrder] = useState<string[]>([]);
+  const [sorting, setSorting] = useState(false);
+  const [orderMessage, setOrderMessage] = useState('');
+  const [orderError, setOrderError] = useState('');
 
   useEffect(() => {
     const current = readCachedProfile();
     setProfile(current);
+    setClientOrder(readClientOrder(current));
     fetchClients(current);
   }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === clientOrderKey(profile) || event.key === null) setClientOrder(readClientOrder(profile));
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [profile]);
+
+  const orderedClients = orderClients(clients, clientOrder);
+
+  const saveOrder = (ids: string[]) => {
+    if (!profile) throw new Error('Chưa có hồ sơ nhân viên');
+    const saved = saveClientOrder(profile, ids, clientOrder);
+    setClientOrder(saved);
+    setSorting(false);
+    setOrderError('');
+    setOrderMessage('Đã lưu thứ tự khách hàng riêng của bạn trên trình duyệt này.');
+  };
+
+  const moveToTop = (id: string) => {
+    try { saveOrder([id, ...orderedClients.filter(client => client.id !== id).map(client => client.id)]); }
+    catch { setOrderMessage(''); setOrderError('Không thể lưu thứ tự trên trình duyệt. Vui lòng thử lại.'); }
+  };
 
   const fetchClients = async (userProfile: UserProfile | null) => {
     if (!userProfile) return;
@@ -106,6 +138,14 @@ export default function MyClients() {
         <h1 className="text-2xl font-bold text-gray-800">Khách hàng của tôi</h1>
         <p className="text-gray-600 mt-1 text-sm font-medium">Quản lý và bổ sung thông tin (Hóa đơn, Thuế, Kế toán, BHXH) cho các khách hàng bạn phụ trách.</p>
       </div>
+
+      {clients.length > 0 && <div className="mb-5 flex flex-wrap justify-between items-center gap-3">
+        <p className="text-xs text-gray-500">Đưa khách hàng thường cập nhật lên đầu để tìm nhanh hơn.</p>
+        <button type="button" onClick={() => setSorting(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"><ListOrdered size={17} /> Sắp xếp</button>
+      </div>}
+      {orderMessage && <p role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">{orderMessage}</p>}
+      {orderError && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{orderError}</p>}
+      {sorting && <ClientOrderModal clients={orderedClients} onSave={saveOrder} onClose={() => setSorting(false)} />}
 
       {editingClient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -262,10 +302,10 @@ export default function MyClients() {
             Bạn chưa được phân công phụ trách khách hàng nào.
           </div>
         ) : (
-          clients.map(c => (
+          orderedClients.map((c, index) => (
             <div key={c.id} className="bg-white/70 backdrop-blur-md p-5 rounded-xl shadow-sm border border-white/50 hover:shadow-md transition">
               <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 pr-2">
+                <div className="flex-1 min-w-0 pr-2">
                   <h3 className="font-bold text-gray-800 line-clamp-1" title={c.name}>{c.name}</h3>
                   <p className="text-sm text-gray-500">MST: {c.tax_code}</p>
                   <div className="flex flex-wrap gap-1 mt-1.5">
@@ -285,9 +325,12 @@ export default function MyClients() {
                     ))}
                   </div>
                 </div>
+                <div className="flex items-center gap-1 shrink-0">
+                <button type="button" disabled={index === 0} title="Đưa lên đầu" aria-label={`Đưa ${c.name} lên đầu`} onClick={() => moveToTop(c.id)} className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 disabled:opacity-25"><ArrowUpToLine size={16} /></button>
                 <button onClick={() => openEdit(c)} className="text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-md hover:bg-blue-100 transition text-xs font-semibold shrink-0">
                   Cập nhật
                 </button>
+                </div>
               </div>
               
               <div className="space-y-2 text-sm">
