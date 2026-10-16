@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, FolderOpen, HardDrive, Lock, Save, Unlock, UserRound } from 'lucide-react';
+import { AlertCircle, FolderOpen, HardDrive, Lock, Save, Unlock, Upload, UserRound } from 'lucide-react';
 import { chooseReportsDirectory, getSavedDirectoryName } from '../lib/fileStorage';
 import { cacheProfile, readCachedProfile } from '../lib/profile';
 import type { UserProfile } from '../lib/profile';
@@ -30,6 +30,12 @@ export default function Settings() {
   const [adminPassword, setAdminPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
   const [message, setMessage] = useState('');
+  const [uploadingBackground, setUploadingBackground] = useState(false);
+  const [backgroundError, setBackgroundError] = useState('');
+  const [customBackground, setCustomBackground] = useState(() => {
+    const background = readCachedProfile().background || '';
+    return background.startsWith('url(') && !BACKGROUNDS.some(item => item.id === background) ? background : '';
+  });
 
   useEffect(() => {
     Promise.all([
@@ -90,14 +96,61 @@ export default function Settings() {
     }
   };
 
+  const uploadBackground = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setBackgroundError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setBackgroundError('Vui lòng chọn ảnh JPG, PNG hoặc WebP.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setBackgroundError('Vui lòng chọn ảnh không quá 10 MB.');
+      return;
+    }
+    setUploadingBackground(true);
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.src = objectUrl;
+      await image.decode();
+      const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Không thể xử lý ảnh.');
+      context.fillStyle = '#f3f4f6';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const background = `url(${canvas.toDataURL('image/jpeg', 0.85)})`;
+      setCustomBackground(background);
+      setProfile(current => ({ ...current, background }));
+      setMessage('Đã chọn ảnh. Nhấn Lưu thiết lập để áp dụng.');
+    } catch {
+      setBackgroundError('Không thể đọc ảnh này. Vui lòng chọn ảnh khác.');
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+      setUploadingBackground(false);
+    }
+  };
+
   const save = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!profile.id || !profile.fullName) return;
-    const updated = { ...profile, isSetupComplete: true };
-    cacheProfile(updated);
-    setProfile(updated);
-    setIsLocked(true);
-    setMessage('Đã lưu thiết lập và khóa nhân sự trên thiết bị này.');
+    if (!profile.id || !profile.fullName || uploadingBackground) return;
+    // Khi đã khóa, chỉ lưu giao diện và thư mục; giữ nguyên định danh nhân sự.
+    const updated = isLocked
+      ? { ...readCachedProfile(), background: profile.background, storagePath: profile.storagePath }
+      : { ...profile, isSetupComplete: true };
+    try {
+      cacheProfile(updated);
+      setProfile(updated);
+      setIsLocked(true);
+      setMessage('Đã lưu thiết lập trên thiết bị này.');
+    } catch {
+      setMessage('Không thể lưu thiết lập vì bộ nhớ trình duyệt đã đầy. Vui lòng chọn ảnh nhỏ hơn hoặc ảnh mẫu.');
+    }
   };
 
   return (
@@ -162,20 +215,34 @@ export default function Settings() {
 
         <section>
           <h2 className="text-lg font-semibold text-blue-700 border-b pb-2 mb-4">Giao diện</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <p className="text-sm text-gray-500 mb-4">Chọn màu nền, một trong 2 ảnh mẫu hoặc ảnh từ thiết bị của bạn.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {BACKGROUNDS.map((background) => (
               <label key={background.id} className="cursor-pointer">
                 <div className={`h-20 rounded-lg border-2 ${profile.background === background.id ? 'border-blue-600 ring-2 ring-blue-100' : 'border-gray-200'} ${background.className}`} style={background.id.startsWith('url(') ? { backgroundImage: background.id } : undefined} />
                 <span className="mt-2 flex items-center gap-2 text-sm"><input type="radio" name="background" checked={profile.background === background.id} onChange={() => setProfile((current) => ({ ...current, background: background.id }))} /> {background.label}</span>
               </label>
             ))}
+            <div className="space-y-2">
+              <label htmlFor="custom-background-upload" className={`h-20 rounded-lg border-2 border-dashed flex items-center justify-center gap-2 cursor-pointer bg-cover bg-center ${customBackground && profile.background === customBackground ? 'border-blue-600 ring-2 ring-blue-100' : 'border-gray-300 bg-gray-50 hover:border-blue-400'}`}
+                style={customBackground ? { backgroundImage: customBackground } : undefined}>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 text-sm font-medium text-gray-700"><Upload size={16} /> {uploadingBackground ? 'Đang xử lý...' : 'Tải ảnh lên'}</span>
+              </label>
+              <input id="custom-background-upload" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadBackground} disabled={loading || uploadingBackground} className="sr-only" />
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="background" checked={!!customBackground && profile.background === customBackground} disabled={!customBackground || uploadingBackground}
+                  onChange={() => setProfile(current => ({ ...current, background: customBackground }))} /> Ảnh tùy chọn
+              </label>
+            </div>
           </div>
+          <p className="text-xs text-gray-500 mt-3">Ảnh JPG, PNG hoặc WebP, tối đa 10 MB. Ảnh tùy chọn được lưu trên thiết bị này.</p>
+          {backgroundError && <p role="alert" className="text-sm text-red-700 mt-2">{backgroundError}</p>}
         </section>
 
         {message && <p role="status" className="text-sm bg-blue-50 text-blue-800 border border-blue-200 rounded-lg p-3">{message}</p>}
 
         <div className="flex justify-end border-t pt-5">
-          <button type="submit" disabled={isLocked || !profile.id} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg inline-flex items-center gap-2 font-semibold"><Save size={18} /> Lưu thiết lập</button>
+          <button type="submit" disabled={loading || uploadingBackground || !profile.id} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg inline-flex items-center gap-2 font-semibold"><Save size={18} /> Lưu thiết lập</button>
         </div>
       </form>
 
