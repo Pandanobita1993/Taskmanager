@@ -28,3 +28,7 @@
 4. Chạy `npm run build` hoặc kết nối repository với Vercel.
 
 Khi mở ứng dụng lần đầu trên một thiết bị, người dùng chọn tên nhân viên để hoàn tất thiết lập. Mật khẩu quản trị chỉ được kiểm tra qua hàm Supabase và không nằm trong mã nguồn giao diện.
+
+## Website điều hành riêng
+
+Mã nguồn trong `management-site/`, triển khai thành project Vercel riêng. Chạy `supabase-management-portal-migration.sql` để bật công nợ khách hàng, xác nhận thực nhận tiền và luồng xét duyệt số liệu. Website nhân viên có thêm mục Công nợ & yêu cầu để gửi yêu cầu và xem phản hồi. Xem `management-site/README.md` để thiết lập tài khoản sếp / quản lý.

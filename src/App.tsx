@@ -16,6 +16,7 @@ import { groupTasksByClient } from './lib/taskGrouping';
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
 const MyClients = lazy(() => import('./pages/MyClients'));
+const Coordination = lazy(() => import('./pages/Coordination'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const AdminPage = lazy(() => import('./pages/Admin'));
 
@@ -1315,6 +1316,10 @@ function Layout({ children }: { children: React.ReactNode }) {
             <BarChart3 size={16} />
             Xuất báo cáo
           </Link>
+          <Link to="/coordination" className={navLinkClass('/coordination')} onClick={() => setMobileMenuOpen(false)}>
+            <Bell size={16} />
+            Công nợ & yêu cầu
+          </Link>
           <Link to="/my-clients" className={navLinkClass('/my-clients')} onClick={() => setMobileMenuOpen(false)}>
             <Building2 size={16} />
             Khách hàng
@@ -1379,6 +1384,7 @@ function App() {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/my-clients" element={<MyClients />} />
+            <Route path="/coordination" element={<Coordination />} />
           </Routes>
         </Suspense>
       </Layout>

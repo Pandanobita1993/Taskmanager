@@ -140,7 +140,7 @@ export const PaymentDetailsForm: React.FC<PaymentDetailsFormProps> = ({
 
       <div className="bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 text-xs flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-        Hệ thống sẽ tự động đánh dấu <strong>Hoàn thành</strong> cho khoản phí này và lưu vào công nợ.
+        Khoản báo thu sẽ chờ <strong>sếp xác nhận tiền thực nhận</strong> trước khi giảm công nợ. Bạn có thể báo thu khi chưa có ảnh chuyển khoản.
       </div>
     </div>
   );

@@ -26,3 +26,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sites draft is unused: management portal is deployed on Vercel.
+management-site/.openai/

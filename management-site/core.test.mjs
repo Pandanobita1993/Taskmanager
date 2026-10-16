@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {debtTotals,outstanding,overdue,safeLink,escape,requestCounts} from './core.js';
+test('part payments, voids, settled and overdue balances',()=>{const rows=[{amount:100,paid:40,due_date:'2026-10-01'},{amount:200,paid:200,due_date:'2026-09-01'},{amount:500,paid:0,is_void:true,due_date:'2026-01-01'},{amount:70,paid:0,due_date:'2026-11-01'}];assert.deepEqual(debtTotals(rows,'2026-10-16'),{due:370,paid:240,remaining:130,overdue:60});assert.equal(overdue(rows[1],'2026-10-16'),false);assert.equal(outstanding(rows[2]),0);});
+test('unconfirmed reported payment is never subtracted',()=>{assert.equal(outstanding({amount:100,paid:0,reported:100}),100);});
+test('safe output and document links',()=>{assert.equal(safeLink('javascript:alert(1)'), '');assert.equal(safeLink('https://example.com/a'),'https://example.com/a');assert.equal(escape('<script>'),'&lt;script&gt;');});
+test('approval queue counts are separate',()=>assert.deepEqual(requestCounts([{status:'submitted'},{status:'needs_changes'},{status:'approved'}]),{submitted:1,in_review:0,needs_changes:1,approved:1}));
