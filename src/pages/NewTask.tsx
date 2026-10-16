@@ -343,7 +343,7 @@ export default function NewTask() {
           taskClientId = internalClient.id;
         } else {
           const { id: _placeholderId, ...internalClientData } = INTERNAL_COMPANY_CLIENT;
-          const { data, error } = await supabase.from('clients').insert([{ ...internalClientData, name: 'Công ty TNHH Dịch Vụ Kế Toán An An' }]).select().single();
+          const { data, error } = await supabase.from('clients').insert([{ ...internalClientData, name: 'CÔNG TY TNHH DỊCH VỤ KẾ TOÁN AN AN' }]).select().single();
           if (error) throw error;
           taskClientId = data.id;
           setClients(prev => [...prev, data]);
@@ -495,7 +495,7 @@ export default function NewTask() {
           {/* 2. CHỌN KHÁCH HÀNG & TÌM KIẾM NHANH */}
           {isOtherTask ? (
             <div className="space-y-4">
-              <p className="text-sm font-semibold text-gray-700">Công ty TNHH Dịch Vụ Kế Toán An An</p>
+              <p className="text-sm font-semibold text-gray-700">CÔNG TY TNHH DỊCH VỤ KẾ TOÁN AN AN</p>
               <div>
                 <label htmlFor="other-task-content" className="block text-sm font-semibold text-gray-700 mb-1">Nội dung công việc *</label>
                 <textarea id="other-task-content" required value={content} onChange={e => setContent(e.target.value)} rows={4}
