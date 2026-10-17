@@ -8,12 +8,16 @@ import { readCachedProfile } from '../lib/profile';
 import { localDateKey } from '../lib/date';
 import { saveFileToPreferredDirectory } from '../lib/fileStorage';
 import { getOffice } from '../lib/offices';
+import { loadDebtReportSource } from '../lib/debtReportSource';
+import { buildDebtReportSheet } from '../lib/debtReportExcel';
 
 export default function Reports() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportNotice, setExportNotice] = useState('');
 
   // Bộ lọc thời gian kỳ báo cáo
   const [startDate, setStartDate] = useState(() => {
@@ -48,42 +52,55 @@ export default function Reports() {
 
   const exportPersonal = async () => {
     if (!profile) return alert('Chưa thiết lập hồ sơ cá nhân');
-    
-    // Lọc công việc của người này
-    let myTasks = tasks.filter(t => t.user_id === profile.id || t.user_id === profile.fullName);
+    if (exporting) return;
+    if (startDate && endDate && startDate > endDate) return alert('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.');
+    setExporting(true);
+    setExportNotice('');
+    try {
+      // Lọc công việc của người này
+      const allMyTasks = tasks.filter(t => t.user_id === profile.id || t.user_id === profile.fullName);
+      let myTasks = allMyTasks;
 
-    // Lọc theo khoảng ngày nếu được chọn
-    if (startDate) {
-      myTasks = myTasks.filter(t => {
-        const taskDate = (t.intake_date || t.created_at || '').split('T')[0];
-        return taskDate >= startDate;
-      });
-    }
-    if (endDate) {
-      myTasks = myTasks.filter(t => {
-        const taskDate = (t.intake_date || t.created_at || '').split('T')[0];
-        return taskDate <= endDate;
-      });
-    }
-    
-    if (myTasks.length === 0) {
-      return alert('Không có công việc nào trong khoảng thời gian đã chọn!');
-    }
+      // Lọc theo khoảng ngày nếu được chọn
+      if (startDate) {
+        myTasks = myTasks.filter(t => {
+          const taskDate = (t.intake_date || t.created_at || '').split('T')[0];
+          return taskDate >= startDate;
+        });
+      }
+      if (endDate) {
+        myTasks = myTasks.filter(t => {
+          const taskDate = (t.intake_date || t.created_at || '').split('T')[0];
+          return taskDate <= endDate;
+        });
+      }
 
-    const periodStr = startDate && endDate 
-      ? `(Kỳ báo cáo: Từ ${formatDateVN(startDate)} Đến ${formatDateVN(endDate)})`
-      : '(Kỳ báo cáo: Toàn bộ thời gian)';
+      const periodStr = startDate && endDate
+        ? `(Kỳ báo cáo: Từ ${formatDateVN(startDate)} Đến ${formatDateVN(endDate)})`
+        : startDate ? `(Kỳ báo cáo: Từ ${formatDateVN(startDate)})`
+        : endDate ? `(Kỳ báo cáo: Đến ${formatDateVN(endDate)})`
+        : '(Kỳ báo cáo: Toàn bộ thời gian)';
 
-    const { data: staff, error: staffError } = await supabase.from('app_users').select('*').eq('id', profile.id).single();
-    if (staffError || !staff) return alert('Không thể xác định văn phòng nhân sự. Vui lòng thử lại.');
-    const { ws } = buildProfessionalReportSheet(myTasks, profile.fullName, { ...settings, office_name: getOffice(staff.office) }, periodStr);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCongViec");
-    
-    const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${localDateKey()}.xlsx`;
-    const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const saved = await saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').catch(() => false);
-    if (!saved) XLSX.writeFile(wb, fileName);
+      const { data: staff, error: staffError } = await supabase.from('app_users').select('*').eq('id', profile.id).single();
+      if (staffError || !staff) return alert('Không thể xác định văn phòng nhân sự. Vui lòng thử lại.');
+      const source = await loadDebtReportSource([staff.id]);
+      const exportSettings = { ...settings, office_name: getOffice(staff.office) };
+      const debtSheet = buildDebtReportSheet(source, allMyTasks, profile.fullName, exportSettings, periodStr, { startDate, endDate });
+      const { ws } = buildProfessionalReportSheet(myTasks, profile.fullName, exportSettings, periodStr);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCongViec");
+      XLSX.utils.book_append_sheet(wb, debtSheet.ws, 'GhiNhanCongNo');
+
+      const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${localDateKey()}.xlsx`;
+      const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const saved = await saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').catch(() => false);
+      if (!saved) XLSX.writeFile(wb, fileName);
+      setExportNotice(source.warning || 'Đã xuất báo cáo gồm công việc và sheet GhiNhanCongNo.');
+    } catch (error) {
+      setExportNotice(error instanceof Error ? error.message : 'Chưa xuất được báo cáo. Vui lòng thử lại.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) return <div className="p-10 text-center text-gray-500">Đang tải dữ liệu...</div>;
@@ -151,16 +168,20 @@ export default function Reports() {
             <li>Đầy đủ tiêu ngữ Quốc hiệu, Thông tin Công ty và Văn phòng Cần Thơ.</li>
             <li>Gom nhóm các đầu việc theo từng khách hàng và tự động gộp (merge) ô STT, Tên khách hàng.</li>
             <li>Đầy đủ 10 cột nghiệp vụ, ngày tiếp nhận, ngày hoàn thành, tiến độ, mã hồ sơ và ghi chú.</li>
+            <li>Thêm sheet GhiNhanCongNo: số phải thu, tiền đã xác minh, số còn thiếu và trạng thái sếp xác minh từng báo thu.</li>
+            <li>Công nợ là số dư tại lúc xuất; chi tiết báo thu theo kỳ được chọn.</li>
           </ul>
         </div>
 
         <button 
           onClick={exportPersonal}
-          className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm cursor-pointer text-sm"
+          disabled={exporting}
+          className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm cursor-pointer text-sm disabled:opacity-60 disabled:cursor-wait"
         >
           <FileSpreadsheet size={20} />
-          Tải file Excel báo cáo kết quả công việc
+          {exporting ? 'Đang lấy dữ liệu và xuất Excel...' : 'Tải file Excel báo cáo kết quả công việc'}
         </button>
+        {exportNotice && <p role="status" className="text-sm text-amber-800">{exportNotice}</p>}
       </div>
     </div>
   );

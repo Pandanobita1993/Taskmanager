@@ -139,8 +139,8 @@ export default function AdminPage() {
     );
   };
 
-  const exportManager = () => {
-    exportManagerExcel(selectedUsers, users, tasks, reportSettings);
+  const exportManager = async () => {
+    await exportManagerExcel(selectedUsers, users, tasks, reportSettings);
   };
 
   const handleClientFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

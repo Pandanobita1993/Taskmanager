@@ -12,7 +12,7 @@ interface AdminReportsTabProps {
   toggleUserSelection: (userId: string) => void;
   onSelectAllUsers: (userIds: string[]) => void;
   onClearUserSelection: () => void;
-  onExportManager: () => void;
+  onExportManager: () => Promise<void>;
 }
 
 export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
@@ -27,6 +27,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
   onExportManager
 }) => {
   const [officeFilter, setOfficeFilter] = useState('');
+  const [exporting, setExporting] = useState(false);
   const visibleUsers = users.filter(user => !officeFilter || getOffice(user.office) === officeFilter);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -88,6 +89,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         <p className="text-sm text-gray-600 mb-3">
           Chọn các nhân viên bên dưới để xuất báo cáo. Mỗi nhân viên được chọn sẽ nằm ở một Sheet riêng biệt trong cùng 1 file Excel:
         </p>
+        <p className="text-xs text-gray-600 mb-3">Có thêm sheet GhiNhanCongNo tổng hợp công nợ và trạng thái sếp xác minh; khách hàng chung chỉ được tính một lần.</p>
         
         <label className="text-sm text-gray-700 mb-3">Lọc theo văn phòng
           <select value={officeFilter} onChange={e => { setOfficeFilter(e.target.value); onClearUserSelection(); }} className="mt-1 w-full px-3 py-2 border rounded-lg bg-white">
@@ -129,11 +131,12 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         </div>
 
         <button 
-          onClick={onExportManager}
-          className="w-full mt-4 bg-emerald-600 text-white py-2.5 rounded-lg font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm text-sm"
+          onClick={async () => { setExporting(true); try { await onExportManager(); } finally { setExporting(false); } }}
+          disabled={exporting}
+          className="w-full mt-4 bg-emerald-600 text-white py-2.5 rounded-lg font-medium hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm text-sm disabled:opacity-60 disabled:cursor-wait"
         >
           <FileSpreadsheet size={18} />
-          Xuất Excel tổng hợp (Nhiều Sheet)
+          {exporting ? 'Đang lấy dữ liệu và xuất Excel...' : 'Xuất Excel tổng hợp (Nhiều Sheet)'}
         </button>
       </div>
     </div>
