@@ -1,5 +1,6 @@
 import { WorkNoteView } from '../WorkNote';
 import { readWorkNote } from '../../lib/workNotes';
+import { RecurringTaskBadge } from './RecurringTaskBadge';
 import { Building2, CalendarDays, Check, Eye, FileText, Pencil, X } from 'lucide-react';
 
 interface TaskHistoryCardProps {
@@ -43,6 +44,7 @@ export function TaskHistoryCard({ task, onEdit, onOpenProof }: TaskHistoryCardPr
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <RecurringTaskBadge task={task} />
           <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${task.task_category === 'support' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
             {task.task_category === 'support' ? `Hỗ trợ ${task.supported_user_name || 'đồng nghiệp'}` : 'Nhiệm vụ chính'}
           </span>

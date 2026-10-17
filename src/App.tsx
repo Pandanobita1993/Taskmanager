@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, Pencil, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -14,11 +14,14 @@ import { WorkNoteEditor, WorkNoteView } from './components/WorkNote';
 import { hasWorkNote, prependWorkNote, workNoteSummary } from './lib/workNotes';
 import { TaskProofViewer } from './components/tasks/TaskProofViewer';
 import { groupTasksByClient } from './lib/taskGrouping';
+import { RecurringTaskBadge } from './components/tasks/RecurringTaskBadge';
+import { CalendarClock } from 'lucide-react';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
 const MyClients = lazy(() => import('./pages/MyClients'));
 const Coordination = lazy(() => import('./pages/Coordination'));
+const RecurringTasks = lazy(() => import('./pages/RecurringTasks'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const AdminPage = lazy(() => import('./pages/Admin'));
 
@@ -27,6 +30,8 @@ function Dashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [recurringError, setRecurringError] = useState('');
+  const fetchingTasks = useRef(false);
 
   // Modal xử lý công việc (Hoàn thành / Thất bại)
   const [activeTask, setActiveTask] = useState<any | null>(null);
@@ -58,10 +63,23 @@ function Dashboard() {
     const current = readCachedProfile();
     setProfile(current.fullName ? current : null);
     fetchTasks();
+    const refresh = () => { if (document.visibilityState === 'visible') void fetchTasks(); };
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
   }, []);
 
   const fetchTasks = async () => {
+    if (fetchingTasks.current) return;
+    fetchingTasks.current = true;
     try {
+      const current = readCachedProfile();
+      if (current.id) {
+        const synced = await supabase.rpc('sync_my_recurring_tasks', { p_staff_id: current.id });
+        setRecurringError(synced.data?.failed_count || (synced.error && synced.error.code !== 'PGRST202')
+          ? 'Có lịch định kỳ chưa tạo được việc. Mở mục Công việc định kỳ để kiểm tra.' : '');
+      }
       const { data, error } = await supabase
         .from('tasks')
         .select(`*, clients(name, tax_code)`)
@@ -71,6 +89,7 @@ function Dashboard() {
     } catch(err) {
       console.error(err);
     } finally {
+      fetchingTasks.current = false;
       setLoading(false);
     }
   };
@@ -363,6 +382,7 @@ function Dashboard() {
             )}
           </button>
 
+          <Link to="/recurring-tasks" className="bg-white text-blue-700 border border-blue-200 px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium"><CalendarClock size={18} /> Công việc định kỳ</Link>
           <Link to="/new-task" className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition shadow-sm text-sm font-medium">
             <PlusCircle size={18} />
             Tiếp nhận công việc mới
@@ -370,6 +390,7 @@ function Dashboard() {
         </div>
       </div>
 
+      {recurringError && <p role="alert" className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-900">{recurringError}</p>}
       {/* Thống kê nhanh */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white/70 backdrop-blur-md p-5 rounded-xl shadow-sm border border-white/60 flex items-center gap-4">
@@ -499,6 +520,7 @@ function Dashboard() {
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {task.is_urgent && <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">GẤP</span>}
+                                <RecurringTaskBadge task={task} />
                                 {task.task_category === 'support' && (
                                   <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                                     Hỗ trợ: {task.supported_user_name || 'Đồng nghiệp'}
@@ -1295,6 +1317,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             <BarChart3 size={16} />
             Xuất báo cáo
           </Link>
+          <Link to="/recurring-tasks" className={navLinkClass('/recurring-tasks')} onClick={() => setMobileMenuOpen(false)}>
+            <CalendarClock size={16} /> Công việc định kỳ
+          </Link>
           <Link to="/coordination" className={navLinkClass('/coordination')} onClick={() => setMobileMenuOpen(false)}>
             <Bell size={16} />
             Công nợ & yêu cầu
@@ -1364,6 +1389,7 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/my-clients" element={<MyClients />} />
             <Route path="/coordination" element={<Coordination />} />
+            <Route path="/recurring-tasks" element={<RecurringTasks />} />
           </Routes>
         </Suspense>
       </Layout>
