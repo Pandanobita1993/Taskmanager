@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint src",
     "test:debt-report": "node scripts/test-debt-report.mjs",
+    "test:misa-report": "node scripts/test-misa-report.mjs",
     "test:recurring": "node scripts/test-recurring-tasks.mjs",
     "preview": "vite preview"
   },

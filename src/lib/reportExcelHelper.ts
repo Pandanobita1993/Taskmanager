@@ -1,4 +1,4 @@
-import { workNoteSummary } from './workNotes';
+import { accountingReportKind, reportTaskNotes, wrappedReportRowHeight } from './accountingEntryReport';
 import * as XLSX from 'xlsx-js-style';
 import { localDateKey } from './date';
 
@@ -31,7 +31,9 @@ export const ACTION_TYPE_LABELS: Record<string, string> = {
   'ra_soat': 'Rà soát',
   'dau_tu': 'Đầu tư (IRC)',
   'ho_tro': 'Hỗ trợ',
-  'khac': 'Khác'
+  'khac': 'Khác',
+  'misa': 'Nhập liệu MISA',
+  'nhap_lieu': 'Nhập liệu MISA'
 };
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -44,6 +46,8 @@ export const STATUS_LABELS: Record<string, string> = {
 // Thứ tự ưu tiên sắp xếp loại nghiệp vụ trong từng công ty
 const DOMAIN_ORDER: Record<string, number> = {
   'ke_toan': 1,
+  'misa': 1,
+  'nhap_lieu': 1,
   'bhxh': 2,
   'nop_ho_so': 3,
   'setup': 3,
@@ -52,6 +56,11 @@ const DOMAIN_ORDER: Record<string, number> = {
   'ho_tro': 6,
   'khac': 7
 };
+
+export function reportActionLabel(task: any) {
+  const label = ACTION_TYPE_LABELS[task.action_type] || task.action_type || 'Kế toán';
+  return accountingReportKind(task) === 'entry' && !['misa', 'nhap_lieu'].includes(task.action_type) ? `${label} / Nhập liệu MISA` : label;
+}
 
 // Kiểu viền bảng thanh lịch
 const thinBorder = {
@@ -161,7 +170,7 @@ export const buildProfessionalReportSheet = (
 
     // Gom nhóm liên tiếp theo loại nghiệp vụ (Action Type) để merge riêng cột Nghiệp vụ (cột 4)
     let domainStartRow = currentRow;
-    let currentDomain = cTasks[0]?.action_type || '';
+    let currentDomain = cTasks[0] ? reportActionLabel(cTasks[0]) : '';
 
     cTasks.forEach((t, idx) => {
       // Xác định người liên hệ
@@ -180,14 +189,14 @@ export const buildProfessionalReportSheet = (
         }
       }
 
-      const roleLabel = ACTION_TYPE_LABELS[t.action_type] || t.action_type || 'Kế toán';
+      const roleLabel = reportActionLabel(t);
       const intakeDate = formatDateVN(t.intake_date || t.created_at?.split('T')[0]);
       const completeDate = t.status === 'completed' 
         ? formatDateVN(t.completed_at?.split('T')[0]) 
         : (formatDateVN(t.deadline) || '');
       const statusText = STATUS_LABELS[t.status] || (t.info_pending ? `Đang chờ: ${t.info_pending}` : 'Đang xử lý');
       const dossierCode = t.dossier_code || '';
-      const notes = workNoteSummary(t.resolution_note || t.notes || '');
+      const notes = reportTaskNotes(t);
 
       rows.push([
         stt,
@@ -204,14 +213,14 @@ export const buildProfessionalReportSheet = (
 
       // Kiểm tra chuyển đổi sang nhóm nghiệp vụ tiếp theo hoặc việc cuối cùng của cty
       const nextTask = cTasks[idx + 1];
-      if (!nextTask || nextTask.action_type !== currentDomain) {
+      if (!nextTask || reportActionLabel(nextTask) !== currentDomain) {
         // Merge ô cột Nghiệp vụ (Cột index 4) cho nhóm nghiệp vụ này nếu có từ 2 việc trở lên
         if (currentRow > domainStartRow) {
           merges.push({ s: { r: domainStartRow, c: 4 }, e: { r: currentRow, c: 4 } });
         }
         if (nextTask) {
           domainStartRow = currentRow + 1;
-          currentDomain = nextTask.action_type;
+          currentDomain = reportActionLabel(nextTask);
         }
       }
 
@@ -288,7 +297,7 @@ export const buildProfessionalReportSheet = (
     if (rowHeights[r]) {
       wsRows.push({ hpt: rowHeights[r] });
     } else if (r >= dataStartRowIdx && r <= dataEndRowIdx) {
-      wsRows.push({ hpt: 24 }); // Dòng dữ liệu cao thoáng, đẹp mắt
+      wsRows.push({ hpt: wrappedReportRowHeight(rows[r], [6, 38, 24, 46, 18, 15, 16, 22, 20, 40]) });
     } else {
       wsRows.push({ hpt: 18 });
     }

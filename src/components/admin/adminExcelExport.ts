@@ -6,13 +6,14 @@ import { saveFileToPreferredDirectory } from '../../lib/fileStorage';
 import { getOffice } from '../../lib/offices';
 import { loadDebtReportSource } from '../../lib/debtReportSource';
 import { buildDebtReportSheet } from '../../lib/debtReportExcel';
+import { buildMisaReportSheet } from '../../lib/misaReportExcel';
+import { loadReportTasks } from '../../lib/reportTasks';
 
 export { formatDateVN };
 
 export const exportManagerExcel = async (
   selectedUsers: string[],
   users: any[],
-  tasks: any[],
   reportSettings: ReportSettings
 ) => {
   if (selectedUsers.length === 0) {
@@ -23,8 +24,13 @@ export const exportManagerExcel = async (
   try {
     const selectedStaff = users.filter(user => selectedUsers.includes(user.id));
     if (!selectedStaff.length) throw new Error('Không xác định được nhân viên đã chọn.');
-    const source = await loadDebtReportSource(selectedStaff.map(user => user.id));
-    const selectedTasks = tasks.filter(task => selectedStaff.some(user => task.user_id === user.id || task.user_id === user.name));
+    const [source, tasks] = await Promise.all([
+      loadDebtReportSource(selectedStaff.map(user => user.id)), loadReportTasks(selectedStaff),
+    ]);
+    const selectedTasks = tasks.map(task => {
+      const staff = selectedStaff.find(user => task.user_id === user.id || task.user_id === user.name);
+      return { ...task, report_staff_name: staff?.name, report_office: getOffice(staff?.office) };
+    });
     const debtSheet = buildDebtReportSheet(source, selectedTasks, selectedStaff.map(user => user.name).join(', '),
       reportSettings, '(Kỳ báo cáo: Báo cáo tổng hợp quản lý — toàn bộ thời gian)');
     const wb = XLSX.utils.book_new();
@@ -44,7 +50,7 @@ export const exportManagerExcel = async (
         const baseName = user.name.replace(/[\\/?*[\]:]/g, ' ').substring(0, 31) || 'NhanVien';
         let sheetName = baseName;
         let suffix = 2;
-        while (sheetName.toLowerCase() === 'ghinhancongno' || wb.SheetNames.some(name => name.toLowerCase() === sheetName.toLowerCase())) {
+        while (['ghinhancongno', 'nhaplieumisa'].includes(sheetName.toLowerCase()) || wb.SheetNames.some(name => name.toLowerCase() === sheetName.toLowerCase())) {
           const tail = ` (${suffix++})`;
           sheetName = baseName.substring(0, 31 - tail.length) + tail;
         }
@@ -52,6 +58,7 @@ export const exportManagerExcel = async (
       }
     });
 
+    XLSX.utils.book_append_sheet(wb, buildMisaReportSheet(selectedTasks, selectedStaff.map(user => user.name).join(', '), reportSettings, '(Kỳ báo cáo: Báo cáo tổng hợp quản lý — toàn bộ thời gian)').ws, 'NhapLieuMISA');
     XLSX.utils.book_append_sheet(wb, debtSheet.ws, 'GhiNhanCongNo');
 
     const fileName = `BaoCao_QuanLy_${localDateKey()}.xlsx`;

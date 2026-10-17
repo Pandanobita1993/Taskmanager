@@ -90,6 +90,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
           Chọn các nhân viên bên dưới để xuất báo cáo. Mỗi nhân viên được chọn sẽ nằm ở một Sheet riêng biệt trong cùng 1 file Excel:
         </p>
         <p className="text-xs text-gray-600 mb-3">Có thêm sheet GhiNhanCongNo tổng hợp công nợ và trạng thái sếp xác minh; khách hàng chung chỉ được tính một lần.</p>
+        <p className="text-xs text-gray-600 mb-3">Sheet NhapLieuMISA tổng hợp nhập liệu kế toán/rà soát và in chứng từ, có nhân sự thực hiện và trạng thái từng việc.</p>
         
         <label className="text-sm text-gray-700 mb-3">Lọc theo văn phòng
           <select value={officeFilter} onChange={e => { setOfficeFilter(e.target.value); onClearUserSelection(); }} className="mt-1 w-full px-3 py-2 border rounded-lg bg-white">

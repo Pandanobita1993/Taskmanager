@@ -10,9 +10,10 @@ import { saveFileToPreferredDirectory } from '../lib/fileStorage';
 import { getOffice } from '../lib/offices';
 import { loadDebtReportSource } from '../lib/debtReportSource';
 import { buildDebtReportSheet } from '../lib/debtReportExcel';
+import { buildMisaReportSheet } from '../lib/misaReportExcel';
+import { loadReportTasks } from '../lib/reportTasks';
 
 export default function Reports() {
-  const [tasks, setTasks] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,12 +37,8 @@ export default function Reports() {
 
   const fetchData = async () => {
     try {
-      const [tasksRes, settingsRes] = await Promise.all([
-        supabase.from('tasks').select(`*, clients(name, contact_name, contact_phone, tax_code)`).order('created_at', { ascending: false }),
-        supabase.from('report_settings').select('*').limit(1)
-      ]);
-
-      if (tasksRes.data) setTasks(tasksRes.data);
+      const settingsRes = await supabase.from('report_settings').select('*').limit(1);
+      if (settingsRes.error) throw settingsRes.error;
       if (settingsRes.data && settingsRes.data.length > 0) setSettings(settingsRes.data[0]);
     } catch(err) {
       console.error(err);
@@ -58,7 +55,12 @@ export default function Reports() {
     setExportNotice('');
     try {
       // Lọc công việc của người này
-      const allMyTasks = tasks.filter(t => t.user_id === profile.id || t.user_id === profile.fullName);
+      const [staffResult, allMyTasks] = await Promise.all([
+        supabase.from('app_users').select('*').eq('id', profile.id).single(),
+        loadReportTasks([{ id: profile.id, name: profile.fullName }]),
+      ]);
+      const { data: staff, error: staffError } = staffResult;
+      if (staffError || !staff) throw new Error('Không thể xác định văn phòng nhân sự. Vui lòng thử lại.');
       let myTasks = allMyTasks;
 
       // Lọc theo khoảng ngày nếu được chọn
@@ -81,21 +83,20 @@ export default function Reports() {
         : endDate ? `(Kỳ báo cáo: Đến ${formatDateVN(endDate)})`
         : '(Kỳ báo cáo: Toàn bộ thời gian)';
 
-      const { data: staff, error: staffError } = await supabase.from('app_users').select('*').eq('id', profile.id).single();
-      if (staffError || !staff) return alert('Không thể xác định văn phòng nhân sự. Vui lòng thử lại.');
       const source = await loadDebtReportSource([staff.id]);
       const exportSettings = { ...settings, office_name: getOffice(staff.office) };
       const debtSheet = buildDebtReportSheet(source, allMyTasks, profile.fullName, exportSettings, periodStr, { startDate, endDate });
       const { ws } = buildProfessionalReportSheet(myTasks, profile.fullName, exportSettings, periodStr);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCongViec");
+      XLSX.utils.book_append_sheet(wb, buildMisaReportSheet(myTasks, profile.fullName, exportSettings, periodStr).ws, 'NhapLieuMISA');
       XLSX.utils.book_append_sheet(wb, debtSheet.ws, 'GhiNhanCongNo');
 
       const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${localDateKey()}.xlsx`;
       const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       const saved = await saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').catch(() => false);
       if (!saved) XLSX.writeFile(wb, fileName);
-      setExportNotice(source.warning || 'Đã xuất báo cáo gồm công việc và sheet GhiNhanCongNo.');
+      setExportNotice(source.warning || 'Đã xuất báo cáo gồm công việc, sheet NhapLieuMISA và GhiNhanCongNo.');
     } catch (error) {
       setExportNotice(error instanceof Error ? error.message : 'Chưa xuất được báo cáo. Vui lòng thử lại.');
     } finally {
@@ -168,6 +169,7 @@ export default function Reports() {
             <li>Đầy đủ tiêu ngữ Quốc hiệu, Thông tin Công ty và Văn phòng Cần Thơ.</li>
             <li>Gom nhóm các đầu việc theo từng khách hàng và tự động gộp (merge) ô STT, Tên khách hàng.</li>
             <li>Đầy đủ 10 cột nghiệp vụ, ngày tiếp nhận, ngày hoàn thành, tiến độ, mã hồ sơ và ghi chú.</li>
+            <li>Sheet NhapLieuMISA riêng: nội dung/kỳ nhập liệu, phần còn chờ và lý do, in chứng từ, trạng thái và ghi chú.</li>
             <li>Thêm sheet GhiNhanCongNo: số phải thu, tiền đã xác minh, số còn thiếu và trạng thái sếp xác minh từng báo thu.</li>
             <li>Công nợ là số dư tại lúc xuất; chi tiết báo thu theo kỳ được chọn.</li>
           </ul>

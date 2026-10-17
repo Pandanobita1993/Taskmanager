@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const ts = require('typescript');
+const modules = new Map();
+let fakeSupabase;
+function loadTs(file) {
+  if (modules.has(file)) return modules.get(file).exports;
+  const module = { exports: {} }; modules.set(file, module);
+  const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const localRequire = name => name === './date' ? { localDateKey: () => '2026-10-17' } : name === './supabase' ? { supabase: fakeSupabase }
+    : name.startsWith('.') ? loadTs(path.resolve(path.dirname(file), `${name}.ts`)) : require(name);
+  new Function('require', 'module', 'exports', code)(localRequire, module, module.exports);
+  return module.exports;
+}
+const library = file => loadTs(path.resolve(import.meta.dirname, `../src/lib/${file}.ts`));
+const { accountingReportKind } = library('accountingEntryReport');
+const { buildMisaReportSheet } = library('misaReportExcel');
+const { buildProfessionalReportSheet } = library('reportExcelHelper');
+const task = { id:'task-1', client_id:'customer-1', user_id:'staff-1', type:'normal', action_type:'ra_soat', status:'received', created_at:'2026-10-17T08:42:00Z',
+  content:'Nhập liệu: Hóa đơn mua vào, Hóa đơn bán ra, Sổ phụ ngân hàng, Bảng lương, Toàn bộ chứng từ phát sinh năm 2022-2025 - Đến: - Hoàn thành dữ liệu, đang chờ duyệt và chỉnh sửa=> in sổ giao khách hàng',
+  info_pending:'Chờ khách gửi sổ phụ', notes:'Ghi chú gốc', resolution_note:'Cập nhật tiến độ', clients:{name:'KHÁCH MẪU A',tax_code:'0012345678'} };
+const print = { ...task, id:'print-1', content:'In và đóng tập chứng từ kế toán đến tháng 9', status:'in_progress' };
+const normal = { ...task, id:'tax-1', content:'Khai thuế GTGT quý 3' };
+const entry = { ...task, id:'entry-2', action_type:'ke_toan', status:'completed', content:'Nhập liệu: Hóa đơn mua vào - Đến: Hết tháng 9', completed_at:'2026-10-17T09:00:00Z', report_staff_name:'Nhân viên B' };
+assert.equal(accountingReportKind(task),'entry');
+assert.equal(accountingReportKind(entry),'entry');
+assert.equal(accountingReportKind(print),'print');
+assert.equal(accountingReportKind(normal),null);
+assert.equal(accountingReportKind({...task,type:'payment'}),null);
+assert.equal(accountingReportKind({...task,action_type:'bhxh'}),null);
+assert.equal(accountingReportKind({...task,content:'Gia hạn phần mềm MISA'}),null);
+assert.equal(accountingReportKind({...task,content:'NHAP LIEU: Hoa don'}),'entry');
+assert.equal(accountingReportKind({...task,action_type:'misa',content:'Hóa đơn đến tháng 9'}),'entry');
+const {ws,entries}=buildMisaReportSheet([task,print,normal,entry],'Nhân viên A',{},'Tháng 10');
+assert.equal(entries.length,3);
+const body=Object.entries(ws).filter(([key])=>!key.startsWith('!')).map(([,cell])=>String(cell.v??'')).join('\n');
+assert.match(body,/2022-2025/);
+assert.match(body,/đang chờ duyệt và chỉnh sửa=> in sổ giao khách hàng/);
+assert.match(body,/Kỳ \/ mốc ghi nhận: Hết tháng 9/);
+assert.match(body,/Trạng thái: Tiếp nhận/);
+assert.match(body,/Trạng thái: Đã hoàn thành/);
+assert.match(body,/Nhân viên B/);
+assert.match(body,/Chờ khách gửi sổ phụ/);
+assert.match(body,/Ghi chú gốc\nCập nhật tiến độ/);
+assert.equal(ws.E12.v,print.content);
+assert.ok(ws['!rows'][10].hpt>24);
+assert.ok(ws['!merges'].some(m=>m.s.c===1&&m.s.r===10&&m.e.r===12));
+const main=buildProfessionalReportSheet([normal,task],'QA',{},'Tháng 10').ws;
+assert.match(main.E12.v,/Nhập liệu MISA/);
+assert.equal(main.D12.v,task.content);
+assert.equal(main.J12.v,'Ghi chú gốc\nCập nhật tiến độ');
+assert.ok(!main['!merges'].some(m=>m.s.c===4&&m.s.r===10&&m.e.r===11),'MISA label must not merge into an ordinary tax task');
+assert.ok(main['!rows'][11].hpt>24,'Long entry details are visible in the main report');
+assert.match(buildMisaReportSheet([normal],'QA',{},'Tháng 10').ws.A11.v,/Chưa có/);
+const separate=buildMisaReportSheet([task,{...entry,client_id:'customer-2'}],'QA',{},'Tháng 10').ws;
+assert.equal(separate.A11.v,1); assert.equal(separate.A12.v,2,'Same-name clients with different IDs remain separate');
+
+let dataset=Array.from({length:1003},(_,i)=>({...task,id:`task-${i}`}));
+let ranges=[];let failPage=false;
+fakeSupabase={from(table){assert.equal(table,'tasks');const query={select(){return query;},in(column,ids){assert.equal(column,'user_id');assert.deepEqual(ids,['staff-1','QA']);return query;},order(){return query;},async range(start,end){ranges.push([start,end]);return failPage&&start===500?{error:{message:'QA network failure'}}:{data:dataset.slice(start,end+1),error:null};}};return query;}};
+const {loadReportTasks}=library('reportTasks');
+assert.equal((await loadReportTasks([{id:'staff-1',name:'QA'}])).length,1003);
+assert.deepEqual(ranges,[[0,499],[500,999],[1000,1499]]);
+dataset.push({...task,id:'new-after-page-open'});
+assert.ok((await loadReportTasks([{id:'staff-1',name:'QA'}])).some(t=>t.id==='new-after-page-open'),'Each export reloads current jobs');
+failPage=true;
+await assert.rejects(loadReportTasks([{id:'staff-1',name:'QA'}]),/Không tải đủ/,'Never export a silently truncated report on a failed page');
+console.log('Passed: accounting/review MISA entries, full period/text, pending vs completed, print work, both notes, staff identity, long rows, safe grouping, empty reports, fresh export data and >1,000-task pagination.');
