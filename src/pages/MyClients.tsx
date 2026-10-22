@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowUpToLine, Building2, ListOrdered, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../lib/profile';
@@ -308,6 +309,7 @@ export default function MyClients() {
                 <div className="flex-1 min-w-0 pr-2">
                   <h3 className="font-bold text-gray-800 line-clamp-1" title={c.name}>{c.name}</h3>
                   <p className="text-sm text-gray-500">MST: {c.tax_code}</p>
+                  <Link to={`/payment-followups?client=${encodeURIComponent(c.id)}`} className="inline-block text-xs font-semibold text-blue-700 hover:underline mt-1">Theo dõi đóng BHXH / thuế →</Link>
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {c.services?.map((s: string) => (
                       <span 

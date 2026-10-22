@@ -16,12 +16,14 @@ import { TaskProofViewer } from './components/tasks/TaskProofViewer';
 import { groupTasksByClient } from './lib/taskGrouping';
 import { RecurringTaskBadge } from './components/tasks/RecurringTaskBadge';
 import { CalendarClock } from 'lucide-react';
+import { PaymentFollowupReminder } from './components/PaymentFollowupReminder';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
 const MyClients = lazy(() => import('./pages/MyClients'));
 const Coordination = lazy(() => import('./pages/Coordination'));
 const RecurringTasks = lazy(() => import('./pages/RecurringTasks'));
+const PaymentFollowups = lazy(() => import('./pages/PaymentFollowups'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const AdminPage = lazy(() => import('./pages/Admin'));
 
@@ -354,6 +356,7 @@ function Dashboard() {
   return (
     <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-6">
       {proofTask && <TaskProofViewer task={proofTask} onClose={() => setProofTask(null)} />}
+      <PaymentFollowupReminder />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Bảng điều khiển</h1>
@@ -1324,6 +1327,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             <Bell size={16} />
             Công nợ & yêu cầu
           </Link>
+          <Link to="/payment-followups" className={navLinkClass('/payment-followups')} onClick={() => setMobileMenuOpen(false)}>
+            <Bell size={16} /> BHXH & thuế
+          </Link>
           <Link to="/my-clients" className={navLinkClass('/my-clients')} onClick={() => setMobileMenuOpen(false)}>
             <Building2 size={16} />
             Khách hàng
@@ -1390,6 +1396,7 @@ function App() {
             <Route path="/my-clients" element={<MyClients />} />
             <Route path="/coordination" element={<Coordination />} />
             <Route path="/recurring-tasks" element={<RecurringTasks />} />
+            <Route path="/payment-followups" element={<PaymentFollowups />} />
           </Routes>
         </Suspense>
       </Layout>

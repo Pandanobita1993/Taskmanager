@@ -10,6 +10,8 @@
     "test:debt-report": "node scripts/test-debt-report.mjs",
     "test:misa-report": "node scripts/test-misa-report.mjs",
     "test:recurring": "node scripts/test-recurring-tasks.mjs",
+    "test:payment-followups": "node scripts/test-payment-followups.mjs",
+    "test:payment-followups:ui": "node scripts/test-payment-followups-ui.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

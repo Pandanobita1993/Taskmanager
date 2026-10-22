@@ -11,6 +11,7 @@
 - Gán nhân sự theo văn phòng Cần Thơ / Long An, lọc danh sách và xuất báo cáo đúng văn phòng.
 - Xuất báo cáo Excel cá nhân và báo cáo quản lý.
 - Tạo công việc định kỳ cho nhiều khách hàng theo lịch ngày / tuần / tháng.
+- Theo dõi từng khoản khách phải đóng BHXH / thuế, lịch báo khách, lời hẹn, nhắc lại và xác nhận đã đóng.
 - Thiết lập hồ sơ nhân viên trực tiếp trên từng thiết bị, không cần đăng nhập email.
 - Khu vực quản trị được khóa bằng mật khẩu kiểm tra ở Supabase.
 
@@ -50,3 +51,30 @@ npm run test:recurring
 npm run test:debt-report
 npm run build
 ```
+
+## Theo dõi khách đóng BHXH & thuế
+
+Chạy toàn bộ `supabase-payment-followups-migration.sql` trong Supabase SQL Editor với role postgres, sau đó triển khai bản giao diện mới. File có thể chạy lại và độc lập với migration công việc định kỳ; không cần Cron. Khi chưa cài migration, giao diện hiển thị thông báo cài đặt và không cho lưu khoản mới.
+
+Mở **BHXH & thuế** ở menu hoặc **Theo dõi đóng BHXH / thuế** trên thẻ khách hàng:
+
+1. Thêm khoản: chọn khách, loại (BHXH / GTGT / TNCN / TNDN / thuế khác), kỳ (tháng / quý / năm hoặc nội dung riêng), hạn đóng và ngày cần nhắc. Số tiền có thể để trống khi chưa xác định. Hạn đóng do nhân viên nhập theo hồ sơ thực tế, hệ thống không tự suy ra thời hạn pháp luật.
+2. Sau khi liên hệ, chọn **Đã báo / nhắc khách**, ghi chú cách liên hệ và đặt ngày nhắc tiếp. Thao tác này giữ khoản đóng ở trạng thái chờ; không đánh dấu hoàn thành. Nếu khách đã hẹn ngày đóng, lời hẹn vẫn được giữ khi nhắc thêm.
+3. Chọn **Khách hẹn đóng** để lưu ngày khách hẹn và ngày kiểm tra tiếp. Khoản quá hạn đóng, qua ngày khách hẹn, đến ngày nhắc hoặc đến hạn trong 3 ngày đều vào nhóm cần kiểm tra.
+4. Khi kiểm tra được kết quả, chọn **Xác nhận đã đóng**, nhập ngày thực đóng và mã chứng từ / thông tin xác nhận nếu có. Khoản này dừng nhắc nhưng vẫn có trong bộ lọc Đã đóng và Lịch sử. Ngừng theo dõi hoặc mở lại phải ghi lý do.
+
+Nhắc hiển thị trên Bảng điều khiển và sổ theo dõi, kiểm tra lại mỗi phút khi tab đang mở hoặc khi quay lại tab; không gửi tin nhắn, email hay thông báo khi ứng dụng đã đóng. “Đã báo” là ghi nhận thao tác liên hệ do nhân viên thực hiện. Mỗi kỳ cần thêm khoản riêng; lịch công việc định kỳ hiện tại vẫn hoạt động độc lập.
+
+Các nhân viên cùng được phân công cho khách dùng chung sổ. Phạm vi dựa trên hồ sơ thiết bị và nhân sự phụ trách hiện có (không phải xác thực email). Đổi người phụ trách chuyển quyền xem/cập nhật theo phân công mới. Khách lưu trữ vẫn giữ các khoản cũ để xử lý, không tạo khoản mới. Không cho xóa khoản hoặc lịch sử từ trình duyệt; ghi nhận người sửa, thời điểm và thông tin sau từng cập nhật. Một khách / loại / kỳ có một khoản duy nhất, kể cả đã đóng hoặc ngừng theo dõi; khi cần sửa khoản đã kết thúc, mở lại theo dõi. Kiểm tra phiên bản tránh ghi đè khi hai người cùng sửa và mã yêu cầu tránh ghi trùng khi gửi lại do lỗi mạng.
+
+Sổ này theo dõi tiền khách đóng cho cơ quan, độc lập với phí dịch vụ, công nợ và tiền thực nhận của công ty; xác nhận đã đóng không tạo phiếu thu hay điều chỉnh công nợ.
+
+Kiểm tra logic bằng PostgreSQL WASM độc lập, không kết nối Supabase thật (dùng runtime QA đã cài ở phần Công việc định kỳ):
+
+```powershell
+npm run test:payment-followups
+npm run lint
+npm run build
+```
+
+Kiểm tra giao diện với Chromium (mọi lời gọi Supabase được chặn và xử lý bằng PostgreSQL WASM; không dùng dữ liệu thật): cài thêm `@playwright/test` vào cùng thư mục QA, mở dev server trên `127.0.0.1:5173`, rồi chạy `npm run test:payment-followups:ui`. Script mặc định dùng Chromium đã cài ở `%LOCALAPPDATA%/ms-playwright/chromium-1228/chrome-win64/chrome.exe`; có thể đặt `QA_CHROMIUM_PATH` trỏ đến Chromium khác. Ảnh desktop / mobile được lưu dưới `%TEMP%/anan-recurrence-qa/payment-followups-ui/`.
