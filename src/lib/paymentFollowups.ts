@@ -14,7 +14,7 @@ export interface PaymentFollowup {
   due_on: string; next_reminder_on: string | null; status: PaymentStatus;
   promised_on: string | null; paid_on: string | null; payment_reference: string;
   last_notified_at: string | null; notification_count: number; notes: string; version: number;
-  client_name: string; tax_code: string; client_archived: boolean;
+  proof_file?: string; client_name: string; tax_code: string; client_archived: boolean;
 }
 export interface FollowupPortal {
   today: string; clients: FollowupClient[]; records: PaymentFollowup[];

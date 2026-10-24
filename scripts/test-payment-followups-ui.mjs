@@ -1,4 +1,5 @@
 // npm install --prefix "$env:TEMP/anan-recurrence-qa" --no-audit --no-fund @electric-sql/pglite @playwright/test
+// Tax lifecycle regression; BHXH has its own UI suite.
 // Start npm run dev -- --host 127.0.0.1 --port 5173 first. All Supabase calls are intercepted.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -48,6 +49,7 @@ try {
     result = await scalar('select save_payment_followup($1,$2,$3,$4::jsonb)',[p.p_staff_id,p.p_request_id,p.p_action,JSON.stringify(p.p_record)]);
     if (loseResponse) { loseResponse=false; return route.fulfill({status:500,json:{message:'QA: mất phản hồi sau khi đã lưu'}}); }
    } else if (name === 'payment_followup_history') result = await scalar('select payment_followup_history($1,$2)',[p.p_staff_id,p.p_followup_id]);
+   else if (name === 'bhxh_followup_portal') result = {today,clients:[],records:[],summary:{unpaid:0,attention:0,overdue:0}};
    else if (name === 'app_users') result = {id:staff,name:'Nhân viên QA',office:'Cần Thơ',is_active:true};
    else if (name === 'sync_my_recurring_tasks') result = {created_count:0,failed_count:0};
    else if (name === 'tasks') result = [];
@@ -60,7 +62,7 @@ try {
  const page = await context.newPage();
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
- await page.goto(`http://127.0.0.1:5173/payment-followups?client=${client}`);
+ await page.goto(`http://127.0.0.1:5173/tax-followups?client=${client}`);
  await page.getByRole('button',{name:'Thêm khoản theo dõi'}).click();
  let dialog=page.getByRole('dialog');
  await expect(dialog.getByLabel('Khách hàng *')).toHaveValue(client);

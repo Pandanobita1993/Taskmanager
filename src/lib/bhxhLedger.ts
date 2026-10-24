@@ -1,4 +1,4 @@
-export interface BhxhClient { id: string; name: string; tax_code: string; ins_code: string | null; archived: boolean }
+export interface BhxhClient { id: string; name: string; tax_code: string; ins_code: string | null; archived: boolean; participating?: boolean }
 export interface BhxhPeriod {
   id: string; client_id: string; client_name: string; tax_code: string; period_on: string;
   opening_override: number | null; opening_reason: string; opening_balance: number | null;
@@ -10,6 +10,7 @@ export interface BhxhPeriod {
 export interface BhxhPayment {
   id: string; client_id: string; client_name: string; paid_on: string; amount: number; reference: string;
   notes: string; is_void: boolean; void_reason: string; version: number;
+  proof_file?: string; reporter_name?: string;
 }
 export interface BhxhPortal { today: string; clients: BhxhClient[]; periods: BhxhPeriod[]; payments: BhxhPayment[] }
 export interface BhxhEvent {
@@ -18,6 +19,16 @@ export interface BhxhEvent {
 }
 export const bhxhMoney = (value: number | null) => value == null ? 'Thiếu thông tin' : `${new Intl.NumberFormat('vi-VN').format(value)} đ`;
 export const bhxhMonthLabel = (value: string) => `${value.slice(5, 7)}/${value.slice(0, 4)}`;
+export function bhxhReminderMonth(value: string) {
+  const match = value.trim().match(/^(?:Tháng\s+)?(0?[1-9]|1[0-2])\s*\/\s*(\d{4})$/i);
+  return match ? `${match[2]}-${match[1].padStart(2, '0')}` : /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : '';
+}
+export function bhxhSuggestedAmount(periods: BhxhPeriod[], clientId: string, month: string, purpose: 'reminder' | 'payment') {
+  const row = periods.find(period => period.client_id === clientId && period.period_on.slice(0, 7) === month.slice(0, 7));
+  const amount = purpose === 'reminder' ? row?.charges : row?.closing_balance;
+  // Unknown input never silently becomes zero; credits are not an amount to collect.
+  return amount == null ? '' : String(Math.max(amount, 0));
+}
 export function previousBhxhMonth(value: string) {
   if (!/^\d{4}-(0[1-9]|1[0-2])(?:-01)?$/.test(value)) return '';
   const date = new Date(`${value.slice(0, 7)}-01T00:00:00Z`);
@@ -43,7 +54,7 @@ export function withCurrentBhxhDrafts(portal: BhxhPortal): BhxhPeriod[] {
   const added: BhxhPeriod[] = [];
   for (const prior of portal.periods) {
     const client = clients.get(prior.client_id);
-    if (prior.period_on !== previous || currentClients.has(prior.client_id) || !client || client.archived) continue;
+    if (prior.period_on !== previous || currentClients.has(prior.client_id) || !client || client.archived || client.participating === false) continue;
     const paid = portal.payments.filter(row => row.client_id === prior.client_id && !row.is_void && row.paid_on.slice(0, 7) === current.slice(0, 7));
     added.push({
       id: `current-draft:${prior.client_id}:${current}`, client_id: prior.client_id,

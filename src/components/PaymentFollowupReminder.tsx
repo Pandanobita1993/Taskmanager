@@ -17,10 +17,17 @@ export function PaymentFollowupReminder() {
       if (!profile.id || fetching || document.hidden) return;
       fetching = true;
       try {
-        const result = await supabase.rpc('payment_followup_portal', { p_staff_id: profile.id });
+        const results = await Promise.allSettled([
+          supabase.rpc('payment_followup_portal', { p_staff_id: profile.id }),
+          supabase.rpc('bhxh_followup_portal', { p_staff_id: profile.id }),
+        ]);
         if (!active) return;
-        if (result.error) { setPortal(null); setFailed(true); }
-        else { setPortal(result.data); setFailed(false); }
+        const [tax, bhxh] = results.map(result => result.status === 'fulfilled' ? result.value : null);
+        if (!tax || !bhxh || tax.error || bhxh.error) { setPortal(null); setFailed(true); }
+        else {
+          setPortal({ ...tax.data, records: [...tax.data.records.filter((row: { kind: string }) => row.kind !== 'bhxh'), ...bhxh.data.records] });
+          setFailed(false);
+        }
       } catch { if (active) { setPortal(null); setFailed(true); } }
       finally { fetching = false; }
     };

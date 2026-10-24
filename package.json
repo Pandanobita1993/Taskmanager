@@ -13,6 +13,7 @@
     "test:payment-followups": "node scripts/test-payment-followups.mjs",
     "test:payment-followups:ui": "node scripts/test-payment-followups-ui.mjs",
     "test:bhxh": "node scripts/test-bhxh-ledger.mjs",
+    "test:bhxh:shared": "node scripts/test-bhxh-shared-payments.mjs",
     "test:bhxh:ui": "node scripts/test-bhxh-ledger-ui.mjs",
     "preview": "vite preview"
   },

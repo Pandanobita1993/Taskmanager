@@ -6,11 +6,11 @@ function safeFileName(name: string) {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '-');
 }
 
-export async function uploadTaskProof(file: File): Promise<string> {
+export async function uploadTaskProof(file: File, folder?: 'bhxh'): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Bằng chứng phải là file ảnh');
   if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh bằng chứng không được vượt quá 5 MB');
 
-  const path = `public/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+  const path = `public/${folder ? `${folder}/` : ''}${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     cacheControl: '3600',
     contentType: file.type,

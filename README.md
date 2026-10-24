@@ -65,7 +65,7 @@ Hai phân hệ được tách riêng: **Theo dõi BHXH → Nhắc khách** và *
 
 Nhắc hiển thị trên Bảng điều khiển và sổ theo dõi, kiểm tra lại mỗi phút khi tab đang mở hoặc khi quay lại tab; không gửi tin nhắn, email hay thông báo khi ứng dụng đã đóng. “Đã báo” là ghi nhận thao tác liên hệ do nhân viên thực hiện. Mỗi kỳ cần thêm khoản riêng; lịch công việc định kỳ hiện tại vẫn hoạt động độc lập.
 
-Các nhân viên cùng được phân công cho khách dùng chung sổ. Phạm vi dựa trên hồ sơ thiết bị và nhân sự phụ trách hiện có (không phải xác thực email). Đổi người phụ trách chuyển quyền xem/cập nhật theo phân công mới. Khách lưu trữ vẫn giữ các khoản cũ để xử lý, không tạo khoản mới. Không cho xóa khoản hoặc lịch sử từ trình duyệt; ghi nhận người sửa, thời điểm và thông tin sau từng cập nhật. Một khách / loại / kỳ có một khoản duy nhất, kể cả đã đóng hoặc ngừng theo dõi; khi cần sửa khoản đã kết thúc, mở lại theo dõi. Kiểm tra phiên bản tránh ghi đè khi hai người cùng sửa và mã yêu cầu tránh ghi trùng khi gửi lại do lỗi mạng.
+Thuế dùng phạm vi nhân viên được phân công như trước; BHXH dùng chung danh sách khách có dịch vụ BHXH sau migration bên dưới. Phạm vi dựa trên hồ sơ thiết bị hiện có (không phải xác thực email). Khách lưu trữ vẫn giữ các khoản cũ để xử lý, không tạo khoản mới. Không cho xóa khoản hoặc lịch sử từ trình duyệt; ghi nhận người sửa, thời điểm và thông tin sau từng cập nhật. Một khách / loại / kỳ có một khoản duy nhất, kể cả đã đóng hoặc ngừng theo dõi; khi cần sửa khoản đã kết thúc, mở lại theo dõi. Kiểm tra phiên bản tránh ghi đè khi hai người cùng sửa và mã yêu cầu tránh ghi trùng khi gửi lại do lỗi mạng.
 
 Sổ này theo dõi tiền khách đóng cho cơ quan, độc lập với phí dịch vụ, công nợ và tiền thực nhận của công ty; xác nhận đã đóng không tạo phiếu thu hay điều chỉnh công nợ.
 
@@ -95,7 +95,18 @@ Số tổng nợ trên đầu trang lấy số dư dương của **kỳ mới nh
 
 Khi mở sổ, khách đang hoạt động đã có kỳ của **tháng liền trước** sẽ tự có thẻ tháng hiện tại ở trạng thái **Chờ nhập phát sinh**, tính theo ngày Việt Nam từ máy chủ. Đầu kỳ lấy số cuối kỳ trước (kể cả 0 hoặc số âm); chưa xác định được thì vẫn để thiếu thông tin. Phát sinh chưa nhập không được coi là 0, và chưa tính số dư cuối kỳ. Bấm **Nhập phát sinh**, nhập số thực tế rồi lưu để ghi nhận chính thức kỳ mới. Kỳ đã lưu được giữ nguyên, không sinh trùng khi mở lại sổ. Nếu đang lọc tháng cũ, nút **Xem tháng hiện tại** chuyển sang kỳ mới. Không tự tạo bù các tháng bị khuyết, không mở kỳ tương lai cho khách và không tạo kỳ mới cho khách lưu trữ.
 
-Thẻ chờ nhập chỉ là bản nháp hiển thị, không ghi một khoản phát sinh giả vào dữ liệu. Các nhân viên phụ trách cùng khách đều thấy bản nháp từ dữ liệu kỳ trước; sau khi một người lưu, các máy khác làm mới sẽ thấy kỳ đã ghi nhận. Tổng nợ dùng kỳ đã cập nhật gần nhất của từng khách, chưa cộng thẻ chờ nhập. Tính năng chuyển kỳ này dùng cấu trúc hiện có, không cần chạy thêm SQL hay cài lịch nền.
+Thẻ chờ nhập chỉ là bản nháp hiển thị, không ghi một khoản phát sinh giả vào dữ liệu. Các nhân viên đều thấy bản nháp từ dữ liệu kỳ trước; sau khi một người lưu, các máy khác làm mới sẽ thấy kỳ đã ghi nhận. Tổng nợ dùng kỳ đã cập nhật gần nhất của từng khách, chưa cộng thẻ chờ nhập. Tính năng chuyển kỳ này dùng cấu trúc hiện có, không cần cài lịch nền.
+
+### BHXH dùng chung, gợi ý số tiền và ảnh bằng chứng
+
+Sau hai migration ở trên, chạy **toàn bộ `supabase-bhxh-shared-payments-migration.sql`** trong Supabase SQL Editor, role postgres, rồi triển khai giao diện. File có thể chạy lại; giữ nguyên số tiền, bản ghi và lịch sử cũ. File này dùng Supabase Storage, tự tạo bucket `task-proofs` nếu thiếu và thêm chính sách tải / đọc thư mục `public/bhxh/`, giữ nguyên thiết lập bucket và chính sách cũ nếu đã có. Không chạy lại migration cũ sau file mới vì có thể ghi đè hàm kiểm tra mới; nếu cần, chạy lại file mới cuối cùng.
+
+- Sổ C12, tiền nộp và lời nhắc BHXH dùng chung cho mọi hồ sơ nhân viên đang hoạt động, gồm tất cả khách có `BHXH` trong Dịch vụ. Tab Quá trình đóng có bảng tổng quan cả khách chưa từng nộp, mặc định hiển thị tháng hiện tại. Khách ngừng dịch vụ / lưu trữ vẫn giữ lịch sử nhưng không sinh kỳ mới hoặc thêm khoản mới. Phạm vi thuế và danh sách khách thuế giữ nguyên theo người phụ trách.
+- Thêm khoản nhắc / bấm **Đã báo / nhắc khách** tự điền phát sinh C12 đúng kỳ, cho sửa số tiền trước khi lưu. Nút **Nhắc khách kỳ này** trên thẻ C12 mở đúng khách và tháng; nếu đã có khoản theo dõi thì dùng lại. Chưa có phát sinh thì không đoán thành 0. Kỳ riêng không phải tháng vẫn nhập thủ công. Phát sinh âm được gợi ý 0 để không nhắc thu số âm.
+- Lần nộp mới tự điền số dương còn phải đóng của tháng thực nộp (đầu kỳ + phát sinh − đã nộp). Thiếu đầu kỳ hoặc phát sinh thì để trống. Thay khách cập nhật gợi ý; đổi ngày chỉ cập nhật tự động khi chưa sửa tay số tiền. **Dùng số gợi ý** cho phép lấy lại. Khi sửa lần nộp đã có, giữ số tiền giao dịch cũ. Không tạo tiền nộp từ C12 hoặc từ xác nhận trạng thái lời nhắc.
+- Ghi / sửa / khôi phục lần nộp và xác nhận Đã đóng ở lời nhắc BHXH cần ảnh PNG, JPEG hoặc WebP tối đa 5 MB. Chọn file hoặc dán ảnh vào khung bằng chứng. Tải ảnh thành công mới cho lưu; server kiểm tra đối tượng ảnh tồn tại trong Storage. Ảnh được giữ kèm bản ghi và snapshot lịch sử; không xóa ảnh cũ khi thay ảnh mới. Bản ghi cũ thiếu ảnh vẫn xem được và cần bổ sung khi sửa / khôi phục. Tiền nộp hiển thị người ghi nhận, lịch sử ghi cả người sửa.
+
+Kiểm tra thêm migration mới bằng `npm run test:bhxh:shared`. Bộ `test:bhxh:ui` kiểm tra gợi ý, sửa tay, thiếu / lỗi tải ảnh, retry, xem ảnh, danh sách khách không phân công và giao diện mobile; `test:payment-followups:ui` kiểm tra vòng đời thuế không cần ảnh.
 
 ### Đọc C12 PDF không dùng API trả phí
 
