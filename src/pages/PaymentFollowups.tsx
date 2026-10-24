@@ -23,7 +23,7 @@ const errorMessage = (error: { code?: string; message?: string }) => error.code 
   ? 'Tính năng đang chờ cài đặt dữ liệu BHXH & thuế ở Supabase. Vui lòng báo quản trị chạy file supabase-payment-followups-migration.sql.'
   : error.message || 'Không thực hiện được. Vui lòng thử lại.';
 
-export default function PaymentFollowups() {
+export default function PaymentFollowups({ scope = 'all', embedded = false }: { scope?: 'all' | 'bhxh' | 'tax'; embedded?: boolean }) {
   const [profile] = useState(readCachedProfile);
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState<FollowupPortal | null>(null);
@@ -45,6 +45,8 @@ export default function PaymentFollowups() {
   const today = data?.today || vietnamToday();
   const filter = params.get('filter') || 'open';
   const clientId = params.get('client') || '';
+  const allowedKinds = PAYMENT_KINDS.filter(([key]) => scope === 'all' || (scope === 'bhxh' ? key === 'bhxh' : key !== 'bhxh'));
+  const Heading = embedded ? 'h2' : 'h1';
   const setFilter = (value: string) => setParams(previous => { const next = new URLSearchParams(previous); next.set('filter', value); return next; });
   const load = useCallback(async (quiet = false) => {
     if (!profile.id) { setError('Hãy thiết lập hồ sơ nhân viên trước.'); setLoading(false); return; }
@@ -89,7 +91,7 @@ export default function PaymentFollowups() {
     setEditor({ action, requestId: crypto.randomUUID(), existing: !!row, form: {
       id: row?.id || crypto.randomUUID(), version: row?.version || 0,
       client_id: row?.client_id || (data?.clients.some(c => c.id === clientId && !c.archived) ? clientId : ''),
-      kind: row?.kind || 'bhxh', period: row?.period || `Tháng ${today.slice(5, 7)}/${today.slice(0, 4)}`,
+      kind: row?.kind || (scope === 'tax' ? 'thue_gtgt' : 'bhxh'), period: row?.period || `Tháng ${today.slice(5, 7)}/${today.slice(0, 4)}`,
       amount: row?.amount == null ? '' : String(row.amount), due_on: row?.due_on || '',
       next_reminder_on: action === 'save' ? row?.next_reminder_on || today : action === 'reopen' ? today : addFollowupDays(today, 3),
       promised_on: today, paid_on: today, payment_reference: '', notes: row?.notes || '', event_note: '',
@@ -132,7 +134,7 @@ export default function PaymentFollowups() {
     } catch (cause: any) { if (request === historyRequest.current) setHistoryError(errorMessage(cause)); }
   }
 
-  const records = data?.records || [];
+  const records = (data?.records || []).filter(row => scope === 'all' || (scope === 'bhxh' ? row.kind === 'bhxh' : row.kind !== 'bhxh'));
   const scoped = records.filter(row => (!clientId || row.client_id === clientId) && (kind === 'all' || row.kind === kind)
     && `${row.client_name} ${row.tax_code} ${row.period}`.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')));
   const isOpen = (row: PaymentFollowup) => row.status !== 'paid' && row.status !== 'cancelled';
@@ -148,12 +150,12 @@ export default function PaymentFollowups() {
   const form = editor?.form;
   const formClient = data?.clients.find(c => c.id === form?.client_id);
   const terminal = editor?.action === 'paid' || editor?.action === 'cancel';
-  return <div className="p-3 sm:p-6 max-w-6xl mx-auto space-y-5">
+  return <div className={`${embedded ? '' : 'p-3 sm:p-6 max-w-6xl mx-auto'} space-y-5`}>
     <div className="flex flex-wrap justify-between items-center gap-3">
-      <div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BellRing className="text-blue-600" /> BHXH & thuế</h1><p className="text-sm text-gray-500 mt-1">Báo khách → theo dõi lời hẹn → nhắc lại → xác nhận đã đóng.</p></div>
+      <div><Heading className="text-2xl font-bold text-gray-800 flex items-center gap-2"><BellRing className="text-blue-600" /> {scope === 'bhxh' ? 'Nhắc khách đóng BHXH' : scope === 'tax' ? 'Theo dõi thuế' : 'BHXH & thuế'}</Heading><p className="text-sm text-gray-500 mt-1">Báo khách → theo dõi lời hẹn → nhắc lại → xác nhận đã đóng.</p></div>
       <div className="flex gap-2"><button disabled={loading} onClick={() => void load()} className={button}><RefreshCw size={16} /> Làm mới</button><button disabled={!data} onClick={() => openEditor('save')} className="inline-flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"><Plus size={17} /> Thêm khoản theo dõi</button></div>
     </div>
-    <p className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">Theo dõi khoản khách phải đóng BHXH / thuế cho cơ quan. Bạn tự nhập kỳ và hạn đóng theo hồ sơ thực tế. Nhắc việc hiển thị trong ứng dụng; thao tác “Đã báo” ghi nhận lần bạn liên hệ khách.</p>
+    <p className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">{scope === 'bhxh' ? 'Nhật ký nhắc khách, độc lập với sổ công nợ C12. Xác nhận “Đã đóng” ở đây không tạo số tiền nộp; hãy ghi số thực nộp tại Quá trình đóng.' : 'Theo dõi khoản khách phải đóng thuế cho cơ quan. Bạn tự nhập kỳ và hạn đóng theo hồ sơ thực tế. Nhắc việc hiển thị trong ứng dụng; thao tác “Đã báo” ghi nhận lần bạn liên hệ khách.'}</p>
     {error && <p role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</p>}
     {message && <p role="status" className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 text-sm">{message}</p>}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{([
@@ -163,7 +165,7 @@ export default function PaymentFollowups() {
     <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap gap-3">
       <label className="flex-1 min-w-44 text-xs text-gray-600">Tìm khách / kỳ<input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tên khách, MST, tháng / quý…" className={field} /></label>
       <label className="text-xs text-gray-600 flex-1 min-w-44">Khách hàng<select value={clientId} onChange={event => selectClient(event.target.value)} className={field}><option value="">Tất cả khách phụ trách</option>{data?.clients.map(client => <option key={client.id} value={client.id}>{client.name}{client.archived ? ' (đã lưu trữ)' : ''}</option>)}</select></label>
-      <label className="text-xs text-gray-600">Khoản đóng<select value={kind} onChange={event => setKind(event.target.value)} className={field}><option value="all">Tất cả loại</option>{PAYMENT_KINDS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      <label className="text-xs text-gray-600">Khoản đóng<select value={kind} onChange={event => setKind(event.target.value)} className={field}><option value="all">Tất cả loại</option>{allowedKinds.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label className="text-xs text-gray-600">Trạng thái<select aria-label="Trạng thái" value={filter} onChange={event => setFilter(event.target.value)} className={field}><option value="open">Còn chờ đóng</option><option value="attention">Cần kiểm tra / nhắc</option><option value="overdue">Quá hạn đóng</option><option value="pending">Chưa báo khách</option><option value="notified">Đã báo · chờ đóng</option><option value="promised">Khách hẹn đóng</option><option value="paid">Đã đóng</option><option value="cancelled">Ngừng theo dõi</option><option value="all">Tất cả</option></select></label>
     </div>
     <p className="text-xs text-gray-500">{visible.length} khoản trong bộ lọc · Ngày {recurringDateLabel(today)} (giờ Việt Nam). Khoản đến hạn trong 3 ngày luôn hiện ở mục cần kiểm tra.</p>
@@ -191,7 +193,7 @@ export default function PaymentFollowups() {
       <form onSubmit={submit} className="space-y-4"><fieldset disabled={saving} className="space-y-4">
         {editor.action === 'save' ? <>
           <label className="block text-sm font-medium">Khách hàng *<select required disabled={editor.existing} value={form.client_id} onChange={event => update({ client_id: event.target.value })} className={field}><option value="">Chọn khách hàng</option>{data?.clients.filter(client => !client.archived || client.id === form.client_id).map(client => <option key={client.id} value={client.id}>{client.name} · {client.tax_code}</option>)}</select></label>
-          <div className="grid sm:grid-cols-2 gap-4"><label className="block text-sm font-medium">Loại khoản đóng *<select value={form.kind} onChange={event => update({ kind: event.target.value as PaymentKind })} className={field}>{PAYMENT_KINDS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label className="block text-sm font-medium">Kỳ cần đóng *<input required maxLength={100} value={form.period} onChange={event => update({ period: event.target.value })} placeholder="Tháng 10/2026 hoặc Quý 4/2026" className={field} /></label></div>
+          <div className="grid sm:grid-cols-2 gap-4"><label className="block text-sm font-medium">Loại khoản đóng *<select value={form.kind} onChange={event => update({ kind: event.target.value as PaymentKind })} className={field}>{allowedKinds.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><label className="block text-sm font-medium">Kỳ cần đóng *<input required maxLength={100} value={form.period} onChange={event => update({ period: event.target.value })} placeholder="Tháng 10/2026 hoặc Quý 4/2026" className={field} /></label></div>
           <label className="block text-sm font-medium">Số tiền cần đóng (đồng)<input inputMode="numeric" pattern="[0-9]{1,15}" maxLength={15} value={form.amount} onChange={event => update({ amount: event.target.value })} placeholder="Để trống nếu chưa xác định" className={field} /></label>
           <label className="block text-sm font-medium">Hạn đóng *<input required type="date" value={form.due_on} onChange={event => update({ due_on: event.target.value })} className={field} /></label>
         </> : <p className="bg-gray-50 rounded-lg p-3 text-sm"><strong>{formClient?.name}</strong><br />{followupKindLabel(form.kind)} · {form.period}<br />Hạn đóng: {recurringDateLabel(form.due_on)}</p>}

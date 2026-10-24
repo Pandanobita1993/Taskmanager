@@ -52,11 +52,11 @@ npm run test:debt-report
 npm run build
 ```
 
-## Theo dõi khách đóng BHXH & thuế
+## Nhắc khách đóng BHXH / thuế
 
 Chạy toàn bộ `supabase-payment-followups-migration.sql` trong Supabase SQL Editor với role postgres, sau đó triển khai bản giao diện mới. File có thể chạy lại và độc lập với migration công việc định kỳ; không cần Cron. Khi chưa cài migration, giao diện hiển thị thông báo cài đặt và không cho lưu khoản mới.
 
-Mở **BHXH & thuế** ở menu hoặc **Theo dõi đóng BHXH / thuế** trên thẻ khách hàng:
+Hai phân hệ được tách riêng: **Theo dõi BHXH → Nhắc khách** và **Theo dõi thuế**. Mỗi thẻ khách hàng có đường dẫn riêng. Liên kết cũ `/payment-followups` chuyển tới Nhắc khách BHXH và giữ bộ lọc khách; dữ liệu thuế cũ vẫn nằm ở Theo dõi thuế.
 
 1. Thêm khoản: chọn khách, loại (BHXH / GTGT / TNCN / TNDN / thuế khác), kỳ (tháng / quý / năm hoặc nội dung riêng), hạn đóng và ngày cần nhắc. Số tiền có thể để trống khi chưa xác định. Hạn đóng do nhân viên nhập theo hồ sơ thực tế, hệ thống không tự suy ra thời hạn pháp luật.
 2. Sau khi liên hệ, chọn **Đã báo / nhắc khách**, ghi chú cách liên hệ và đặt ngày nhắc tiếp. Thao tác này giữ khoản đóng ở trạng thái chờ; không đánh dấu hoàn thành. Nếu khách đã hẹn ngày đóng, lời hẹn vẫn được giữ khi nhắc thêm.
@@ -78,3 +78,37 @@ npm run build
 ```
 
 Kiểm tra giao diện với Chromium (mọi lời gọi Supabase được chặn và xử lý bằng PostgreSQL WASM; không dùng dữ liệu thật): cài thêm `@playwright/test` vào cùng thư mục QA, mở dev server trên `127.0.0.1:5173`, rồi chạy `npm run test:payment-followups:ui`. Script mặc định dùng Chromium đã cài ở `%LOCALAPPDATA%/ms-playwright/chromium-1228/chrome-win64/chrome.exe`; có thể đặt `QA_CHROMIUM_PATH` trỏ đến Chromium khác. Ảnh desktop / mobile được lưu dưới `%TEMP%/anan-recurrence-qa/payment-followups-ui/`.
+
+## Sổ BHXH theo C12 và quá trình đóng
+
+Sau migration nhắc khách đã có, chạy **`supabase-bhxh-ledger-migration.sql`** trong Supabase SQL Editor với role postgres rồi triển khai giao diện mới. File có thể chạy lại, không đổi các khoản nhắc khách / dữ liệu thuế cũ. Khi chưa cài, tab Công nợ C12 và Quá trình đóng thông báo chờ cài đặt; tab Nhắc khách vẫn sử dụng được.
+
+**Theo dõi BHXH** có ba tab:
+
+- **Công nợ C12:** mỗi khách một bản ghi cho mỗi tháng. Nhập tổng phát sinh (dòng B, có thể cập nhật thường xuyên). Đầu kỳ tự lấy cuối tháng liền trước; nếu thiếu tháng hoặc chưa xác định được số dư kỳ trước thì đầu kỳ và cuối kỳ là **Thiếu thông tin**, không coi là 0. Có thể chọn chỉnh đầu kỳ riêng và ghi lý do / nguồn đối chiếu; bỏ chọn để lấy lại từ kỳ trước.
+- **Quá trình đóng:** ghi từng lần khách thực nộp cho cơ quan BHXH, số tiền, ngày thực nộp và mã giao dịch nếu có. Cho sửa thông tin, hủy hoặc khôi phục có lý do, không xóa mất lịch sử. Mã chứng từ trùng của cùng khách bị chặn (không phân biệt hoa thường / khoảng trắng đầu cuối); nếu giao dịch không có mã vẫn có thể ghi nhiều lần nộp.
+- **Nhắc khách:** giữ các lịch báo / hẹn / nhắc đã có. Xác nhận Đã đóng trước đây chỉ là trạng thái, không đủ để suy ra số tiền thực nộp nên không tự chuyển thành giao dịch. Nhập số thực nộp vào Quá trình đóng sau khi đối chiếu chứng từ.
+
+**Cuối kỳ = Đầu kỳ + Phát sinh − Tổng tiền đã nộp trong tháng thực nộp.** Số tiền đã nộp và số dư cuối kỳ là chỉ đọc trên form C12; server cũng không cho nhập hai số này. Khoản nộp bù được cộng vào tháng thực nộp, không phân bổ lại về tháng nợ. Số dư âm là đóng thừa, được chuyển tiếp nguyên dấu. Sửa phát sinh kỳ cũ / thêm tiền nộp / thay đổi tháng nộp / hủy hoặc khôi phục giao dịch sẽ tính lại chuỗi tháng liền kề, dừng ở khoảng trống hoặc kỳ có đầu kỳ chỉnh riêng. Lịch sử lưu người sửa, thời điểm và dữ liệu của mỗi lần cập nhật; kiểm tra phiên bản chống ghi đè và mã yêu cầu chống lặp khi mất phản hồi mạng.
+
+Số tổng nợ trên đầu trang lấy số dư dương của **kỳ mới nhất từng khách** trong phạm vi khách / tìm kiếm, không cộng dồn số dư của nhiều kỳ. Khách thiếu thông tin được thống kê riêng; số tiền nộp trong bộ lọc không gồm lần nộp đã hủy. Dữ liệu sổ BHXH độc lập với phí dịch vụ và tiền thực nhận của công ty.
+
+### Đọc C12 PDF không dùng API trả phí
+
+Chọn **Đọc C12 PDF** để PDF.js trích văn bản trực tiếp trong trình duyệt. Giới hạn 10 MB / 12 trang; file không tải lên server, chỉ tên file được lưu làm tham chiếu sau khi người dùng xác nhận. Thư viện và worker được đóng gói cùng website, chỉ tải khi chọn file.
+
+Đọc tháng / năm, mã đơn vị và cột **CỘNG** ở các dòng A, B, C, Đ. Không nhận dạng được cột hoặc ô tổng trống thì để thiếu dữ liệu; không dùng nhầm số của từng quỹ. Dữ liệu đi vào bản nháp để kiểm tra và sửa; không tự lưu, không tạo khách hay giao dịch. Nếu mã đơn vị trên C12 khác mã trong hồ sơ khách đang chọn, phải chọn đúng khách / kiểm tra mã hồ sơ trước khi lưu. Số đầu kỳ trên PDF chỉ thay thế đầu kỳ tự động khi người dùng bấm dùng số đầu kỳ C12; tiền đã nộp và cuối kỳ trên PDF dùng đối chiếu và cảnh báo lệch, không ghi vào sổ nộp tiền.
+
+PDF scan / ảnh hoặc mẫu không đọc được vẫn nhập thủ công; chưa dùng OCR hay API AI có phí. Để xem lại bản gốc cần giữ file trên máy vì ứng dụng không lưu file PDF.
+
+Kiểm thử độc lập (runtime QA như trên; UI cần Vite trên `127.0.0.1:5173`):
+
+```powershell
+npm run test:bhxh
+npm run test:bhxh:ui
+npm run test:payment-followups
+npm run test:payment-followups:ui
+npm run build
+```
+
+Ảnh UI ở `%TEMP%/anan-recurrence-qa/bhxh-ui/`. Đặt `QA_C12_PDF_PATH` tới file C12 kiểm thử và `QA_C12_EXPECTED_JSON` là JSON chứa `period`, `unitCode`, `opening`, `charges` để kiểm tra thêm luồng trích PDF thực tế (file thử nên thuộc tháng 11/2025 để khớp kịch bản kỳ có sẵn); các bản ghi chỉ lưu ở PostgreSQL WASM cô lập.

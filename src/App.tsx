@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, Clock, PlusCircle, BarChart3, Settings as SettingsIcon, Menu, Bell, Shield, Building2, XCircle, Calendar, History, Search, FileText, Check, X, Camera, Eye, AlertCircle, FileCheck, Upload, Send, Pencil, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { cacheProfile, defaultProfile, readCachedProfile } from './lib/profile';
@@ -24,6 +24,7 @@ const MyClients = lazy(() => import('./pages/MyClients'));
 const Coordination = lazy(() => import('./pages/Coordination'));
 const RecurringTasks = lazy(() => import('./pages/RecurringTasks'));
 const PaymentFollowups = lazy(() => import('./pages/PaymentFollowups'));
+const InsuranceLedger = lazy(() => import('./pages/InsuranceLedger'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const AdminPage = lazy(() => import('./pages/Admin'));
 
@@ -1327,8 +1328,11 @@ function Layout({ children }: { children: React.ReactNode }) {
             <Bell size={16} />
             Công nợ & yêu cầu
           </Link>
-          <Link to="/payment-followups" className={navLinkClass('/payment-followups')} onClick={() => setMobileMenuOpen(false)}>
-            <Bell size={16} /> BHXH & thuế
+          <Link to="/insurance" className={navLinkClass('/insurance')} onClick={() => setMobileMenuOpen(false)}>
+            <Shield size={16} /> Theo dõi BHXH
+          </Link>
+          <Link to="/tax-followups" className={navLinkClass('/tax-followups')} onClick={() => setMobileMenuOpen(false)}>
+            <Bell size={16} /> Theo dõi thuế
           </Link>
           <Link to="/my-clients" className={navLinkClass('/my-clients')} onClick={() => setMobileMenuOpen(false)}>
             <Building2 size={16} />
@@ -1382,6 +1386,13 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function LegacyPaymentFollowups() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.set('tab', 'reminders');
+  return <Navigate to={`/insurance?${params.toString()}`} replace />;
+}
+
 function App() {
   return (
     <Router>
@@ -1396,7 +1407,9 @@ function App() {
             <Route path="/my-clients" element={<MyClients />} />
             <Route path="/coordination" element={<Coordination />} />
             <Route path="/recurring-tasks" element={<RecurringTasks />} />
-            <Route path="/payment-followups" element={<PaymentFollowups />} />
+            <Route path="/payment-followups" element={<LegacyPaymentFollowups />} />
+            <Route path="/insurance" element={<InsuranceLedger />} />
+            <Route path="/tax-followups" element={<PaymentFollowups scope="tax" />} />
           </Routes>
         </Suspense>
       </Layout>

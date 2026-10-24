@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { BellRing } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { readCachedProfile } from '../lib/profile';
+import { paymentFollowupUrgency } from '../lib/paymentFollowups';
 import type { FollowupPortal } from '../lib/paymentFollowups';
 
 export function PaymentFollowupReminder() {
-  const [summary, setSummary] = useState<FollowupPortal['summary'] | null>(null);
+  const [portal, setPortal] = useState<FollowupPortal | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
@@ -16,11 +17,11 @@ export function PaymentFollowupReminder() {
       if (!profile.id || fetching || document.hidden) return;
       fetching = true;
       try {
-        const result = await supabase.rpc('payment_followup_portal', { p_staff_id: profile.id, p_summary_only: true });
+        const result = await supabase.rpc('payment_followup_portal', { p_staff_id: profile.id });
         if (!active) return;
-        if (result.error) { setSummary(null); setFailed(true); }
-        else { setSummary(result.data.summary); setFailed(false); }
-      } catch { if (active) { setSummary(null); setFailed(true); } }
+        if (result.error) { setPortal(null); setFailed(true); }
+        else { setPortal(result.data); setFailed(false); }
+      } catch { if (active) { setPortal(null); setFailed(true); } }
       finally { fetching = false; }
     };
     void load();
@@ -31,9 +32,13 @@ export function PaymentFollowupReminder() {
     window.addEventListener('taskflow-profile-changed', load);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', load); document.removeEventListener('visibilitychange', load); window.removeEventListener('taskflow-payment-followups-changed', load); window.removeEventListener('taskflow-profile-changed', load); };
   }, []);
-  if (!failed && !summary) return null;
-  const needsAttention = !!summary?.attention;
-  return <Link to={`/payment-followups${needsAttention ? '?filter=attention' : ''}`} className={`flex items-start gap-3 rounded-xl p-4 border text-sm ${needsAttention ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-gray-200 text-gray-700'}`}>
-    <BellRing size={20} className="shrink-0 mt-0.5" /><div><p className="font-semibold">BHXH & thuế{needsAttention ? ` · ${summary.attention} khoản cần kiểm tra / nhắc khách` : ''}</p><p className="text-xs mt-1">{failed ? 'Chưa tải được nhắc đóng. Mở sổ theo dõi để kiểm tra.' : `${summary!.unpaid} khoản còn chờ đóng · ${summary!.overdue} khoản quá hạn. ${needsAttention ? 'Có khoản đến ngày nhắc, sắp đến hạn hoặc đã qua ngày khách hẹn.' : 'Mở sổ theo dõi đóng phí của khách hàng.'}`}</p></div><span className="ml-auto shrink-0 font-semibold text-blue-700 text-xs">Xem →</span>
-  </Link>;
+  if (!failed && !portal) return null;
+  return <div className="grid sm:grid-cols-2 gap-3">{(['bhxh', 'tax'] as const).map(scope => {
+    const records = (portal?.records || []).filter(row => (scope === 'bhxh' ? row.kind === 'bhxh' : row.kind !== 'bhxh') && row.status !== 'paid' && row.status !== 'cancelled');
+    const attention = portal ? records.filter(row => paymentFollowupUrgency(row, portal.today)).length : 0;
+    const overdue = portal ? records.filter(row => row.due_on < portal.today).length : 0;
+    const label = scope === 'bhxh' ? 'BHXH' : 'Thuế';
+    const url = scope === 'bhxh' ? '/insurance?tab=reminders' : '/tax-followups';
+    return <Link key={scope} to={`${url}${attention ? `${url.includes('?') ? '&' : '?'}filter=attention` : ''}`} className={`flex items-start gap-3 rounded-xl p-4 border text-sm ${attention ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-white border-gray-200 text-gray-700'}`}><BellRing size={20} className="shrink-0 mt-0.5" /><div><p className="font-semibold">{label}{attention ? ` · ${attention} khoản cần kiểm tra / nhắc khách` : ''}</p><p className="text-xs mt-1">{failed ? 'Chưa tải được nhắc đóng. Mở sổ theo dõi để kiểm tra.' : `${records.length} khoản còn chờ đóng · ${overdue} khoản quá hạn.`}</p></div><span className="ml-auto shrink-0 font-semibold text-blue-700 text-xs">Xem →</span></Link>;
+  })}</div>;
 }

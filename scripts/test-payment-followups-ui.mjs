@@ -39,6 +39,9 @@ try {
    if (name === 'payment_followup_portal') {
     if (missingMigration) return route.fulfill({status:404,json:{code:'PGRST202',message:'Missing function'}});
     result = await scalar('select payment_followup_portal($1,$2)',[p.p_staff_id,p.p_summary_only || false]);
+   } else if (name === 'bhxh_ledger_portal') {
+    const legacy = await scalar('select payment_followup_portal($1,false)',[p.p_staff_id]);
+    result = {today:legacy.today,clients:legacy.clients,periods:[],payments:[]};
    } else if (name === 'save_payment_followup') {
     calls.push(p);
     if (failSave) return route.fulfill({status:500,json:{message:'QA: chưa lưu được, hãy thử lại'}});

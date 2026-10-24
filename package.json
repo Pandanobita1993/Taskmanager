@@ -12,6 +12,8 @@
     "test:recurring": "node scripts/test-recurring-tasks.mjs",
     "test:payment-followups": "node scripts/test-payment-followups.mjs",
     "test:payment-followups:ui": "node scripts/test-payment-followups-ui.mjs",
+    "test:bhxh": "node scripts/test-bhxh-ledger.mjs",
+    "test:bhxh:ui": "node scripts/test-bhxh-ledger-ui.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,6 +22,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.52.0",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
