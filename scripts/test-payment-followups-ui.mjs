@@ -17,6 +17,8 @@ await db.exec(`create role anon; create role authenticated;
  create table clients(id uuid primary key default gen_random_uuid(),name text,tax_code text,contact_name text,contact_phone text,
  services text[] default '{}',accounting_person text,insurance_person text,archived_at timestamptz);`);
 await db.exec(await fs.readFile(new URL('../supabase-payment-followups-migration.sql',import.meta.url),'utf8'));
+await db.exec(`create schema storage;create table storage.objects(bucket_id text,name text,metadata jsonb);create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
+for(const name of ['bhxh-ledger','bhxh-shared-payments','bhxh-agencies','bhxh-units']) await db.exec(await fs.readFile(new URL(`../supabase-${name}-migration.sql`,import.meta.url),'utf8'));
 const staff = await scalar("insert into app_users(name) values('Nhân viên QA') returning id");
 const client = await scalar("insert into clients(name,tax_code,accounting_person,contact_name,contact_phone) values('Công ty Minh An','0312345678','Nhân viên QA','Chị An','0901234567') returning id");
 const today = await scalar("select ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::text");

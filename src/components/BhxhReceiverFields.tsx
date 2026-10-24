@@ -5,8 +5,8 @@ import { renderTransferMemo, transferSnapshot, VIETNAM_BANKS } from '../lib/bhxh
 import type { AgencyPortal, TransferDetails, ReceiverForm } from '../lib/bhxhAgencies';
 import BhxhTransferInfo from './BhxhTransferInfo';
 
-export default function BhxhReceiverFields({ clientId, clientName, unitCode, period, amount, value, onChange, onReady }: {
-  clientId: string; clientName: string; unitCode: string; period: string; amount: string; value: ReceiverForm; onChange: (patch: Partial<ReceiverForm>) => void; onReady: () => void;
+export default function BhxhReceiverFields({ clientId, unitId, clientName, unitCode, period, amount, value, onChange, onReady }: {
+  clientId: string; unitId: string; clientName: string; unitCode: string; period: string; amount: string; value: ReceiverForm; onChange: (patch: Partial<ReceiverForm>) => void; onReady: () => void;
 }) {
   const [data, setData] = useState<AgencyPortal | null>(null);
   const [error, setError] = useState('');
@@ -25,13 +25,13 @@ export default function BhxhReceiverFields({ clientId, clientName, unitCode, per
   }, [onReady]);
   useEffect(() => {
     if (!data || value.receiver_touched || value.receiver_agency_id || !clientId) return;
-    const preferred = data.receivers.find(row => row.client_id === clientId);
+    const preferred = data.receivers.find(row => row.client_id === clientId && row.unit_id === unitId);
     const agency = data.agencies.find(row => row.id === preferred?.agency_id && row.is_active);
     const account = agency?.accounts.find(row => row.id === preferred?.account_id);
     if (!agency || !account) return;
     onChange({ receiver_agency_id: agency.id, receiver_account_id: account.id, receiver_version: agency.version,
       transfer_memo: renderTransferMemo(agency.memo_template, unitCode, agency.agency_code, period).memo });
-  }, [data, clientId, unitCode, period, value.receiver_touched, value.receiver_agency_id, onChange]);
+  }, [data, clientId, unitId, unitCode, period, value.receiver_touched, value.receiver_agency_id, onChange]);
   const agency = data?.agencies.find(row => row.id === value.receiver_agency_id && row.is_active);
   const account = agency?.accounts.find(row => row.id === value.receiver_account_id);
   useEffect(() => {
@@ -53,8 +53,8 @@ export default function BhxhReceiverFields({ clientId, clientName, unitCode, per
     {value.receiver_agency_id && !agency && data && <p className="text-xs text-amber-900">Cơ sở cũ đã ngừng sử dụng. Chọn lại cơ sở hoặc bỏ thông tin nhận tiền.</p>}
     {agency && <><label className="block text-sm">Cú pháp chuyển khoản *<textarea aria-label="Cú pháp chuyển khoản" required maxLength={500} rows={3} value={value.transfer_memo} onChange={event => onChange({ transfer_memo: event.target.value, receiver_touched: true, transfer_memo_manual: true })} className="mt-1 w-full rounded-lg border bg-white p-2 text-sm" /></label><button type="button" className="text-xs text-blue-700 underline" onClick={() => onChange({ transfer_memo: renderTransferMemo(agency.memo_template, unitCode, agency.agency_code, period).memo, receiver_version: agency.version, receiver_touched: true, transfer_memo_manual: false })}>Điền lại theo mã đơn vị và kỳ đang chọn</button></>}
     {agency && value.receiver_version !== agency.version && <p className="text-xs text-amber-900">Thông tin cơ sở đã thay đổi từ lần nhắc trước. Kiểm tra tài khoản rồi bấm “Điền lại theo mã đơn vị và kỳ đang chọn” để cập nhật trước khi lưu.</p>}
-    {!!value.receiver_agency_id && !unitCode && <p className="text-xs text-amber-900">Khách chưa có mã đơn vị BHXH. Cập nhật mã trong hồ sơ khách trước khi kèm thông tin nhận tiền.</p>}
-    {details && <BhxhTransferInfo key={`${clientId}:${clientName}:${agency?.id}:${agency?.version}:${account?.id}:${period}:${amount}:${value.transfer_memo}`} client={clientName} period={period} amount={/^\d{1,15}$/.test(amount) ? Number(amount) : null} details={details} />}
+    {!!value.receiver_agency_id && !unitCode && <p className="text-xs text-amber-900">Khách chưa có mã đơn vị BHXH. Cập nhật mã tại tab Mã đơn vị trước khi kèm thông tin nhận tiền.</p>}
+    {details && <BhxhTransferInfo key={`${clientId}:${unitId}:${clientName}:${agency?.id}:${agency?.version}:${account?.id}:${period}:${amount}:${value.transfer_memo}`} client={clientName} period={period} amount={/^\d{1,15}$/.test(amount) ? Number(amount) : null} details={details} />}
     <p className="text-xs text-gray-500">Thiết lập cơ sở và tài khoản mặc định ở tab Cơ sở BHXH. Lời nhắc sẽ giữ thông tin nhận tiền tại lúc lưu.</p>
   </section>;
 }

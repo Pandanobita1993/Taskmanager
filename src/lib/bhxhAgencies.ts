@@ -20,13 +20,14 @@ export interface BhxhAgency {
   memo_template: string; notes: string; is_active: boolean; version: number;
   accounts: AgencyAccount[]; areas: AgencyArea[];
 }
-export interface ClientReceiver { client_id: string; agency_id: string | null; account_id: string | null; version: number }
+export interface ClientReceiver { unit_id?: string; client_id: string; agency_id: string | null; account_id: string | null; version: number }
 export interface AgencyPortal { agencies: BhxhAgency[]; receivers: ClientReceiver[] }
 export interface ReceiverForm {
   receiver_agency_id: string; receiver_account_id: string; receiver_version: number; transfer_memo: string; receiver_touched: boolean; transfer_memo_manual: boolean;
 }
 export const emptyReceiver: ReceiverForm = { receiver_agency_id: '', receiver_account_id: '', receiver_version: 0, transfer_memo: '', receiver_touched: false, transfer_memo_manual: false };
 export interface TransferDetails {
+  unit_id?: string; unit_kind?: string | null;
   agency_id: string; agency_name: string; agency_version: number; agency_code: string; unit_code: string; account_id: string;
   bank_bin: string; bank_name: string; bank_short_name: string; account_no: string; account_name: string; branch: string;
   memo: string;

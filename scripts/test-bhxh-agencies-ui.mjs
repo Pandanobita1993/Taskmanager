@@ -23,6 +23,7 @@ const client=await scalar("insert into clients(name,tax_code,insurance_person,in
 const today=await scalar("select ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::text");
 const month=today.slice(0,7);
 await scalar("select save_bhxh_ledger($1,$2,'period','save',$3::jsonb)",[staff,crypto.randomUUID(),JSON.stringify({id:crypto.randomUUID(),version:0,client_id:client,period_on:`${month}-01`,opening_override:'0',opening_reason:'Khởi tạo QA',charges:'1230000'})]);
+await db.exec(await fs.readFile(new URL('../supabase-bhxh-units-migration.sql',import.meta.url),'utf8'));
 const browser=await chromium.launch({headless:true,executablePath:process.env.QA_CHROMIUM_PATH||path.join(process.env.LOCALAPPDATA,'ms-playwright','chromium-1228','chrome-win64','chrome.exe')});
 const origin=process.env.QA_APP_ORIGIN||'http://127.0.0.1:5186';
 const output=path.join(os.tmpdir(),'anan-recurrence-qa','bhxh-agencies-ui');await fs.mkdir(output,{recursive:true});
@@ -85,7 +86,7 @@ try {
  await page.getByLabel('Khách gắn cơ sở').selectOption(client);
  await page.getByLabel('Cơ sở mặc định',{exact:true}).selectOption(agency.id);
  await page.getByLabel('Tài khoản mặc định').selectOption(agency.accounts[1].id);
- await page.getByRole('button',{name:'Lưu mặc định cho khách'}).click();
+ await page.getByRole('button',{name:'Lưu mặc định cho mã'}).click();
  await expect(page.getByRole('status')).toContainText('Đã lưu cơ sở và tài khoản mặc định');
  await page.screenshot({path:path.join(output,'directory-desktop.png'),fullPage:true});
  await page.goto(`${origin}/insurance?tab=reminders&client=${client}`);

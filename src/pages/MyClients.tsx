@@ -123,9 +123,7 @@ export default function MyClients() {
       fetchClients(profile);
     } catch(err: any) {
       console.error(err);
-      setSaveError(err?.message?.includes('ins_code')
-        ? 'Cơ sở dữ liệu chưa có cột Mã đơn vị BHXH. Vui lòng nhờ quản trị cập nhật cơ sở dữ liệu.'
-        : `Không thể lưu thông tin: ${err?.message || 'Vui lòng thử lại.'}`);
+      setSaveError(`Không thể lưu thông tin: ${err?.message || 'Vui lòng thử lại.'}`);
     } finally {
       setSaving(false);
     }
@@ -268,7 +266,7 @@ export default function MyClients() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm mb-1 text-gray-700">Mã đơn vị BHXH</label>
-                      <input type="text" value={editingClient.ins_code || ''} onChange={e => setEditingClient({...editingClient, ins_code: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
+                      <Link className="block mt-1 text-sm text-blue-700 underline" to={`/insurance?tab=units&client=${editingClient.id}`}>Quản lý và phân loại tối đa 3 mã đơn vị</Link>
                     </div>
                     <div>
                       <label className="block text-sm mb-1 text-gray-700">Tên phần mềm</label>
@@ -368,7 +366,7 @@ export default function MyClients() {
                   <>
                     <div className="flex justify-between border-b pb-1">
                       <span className="text-gray-500">Mã ĐV BHXH</span>
-                      <span className="font-medium text-gray-700">{c.ins_code || '-'}</span>
+                      <Link className="text-blue-700 underline" to={`/insurance?tab=units&client=${c.id}`}>Quản lý tối đa 3 mã</Link>
                     </div>
                     <div className="flex justify-between pb-1">
                       <span className="text-gray-500">PM BHXH</span>

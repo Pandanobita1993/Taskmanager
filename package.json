@@ -17,7 +17,9 @@
     "test:bhxh:agencies": "node scripts/test-bhxh-agencies.mjs",
     "test:bhxh:agencies:ui": "node scripts/test-bhxh-agencies-ui.mjs",
     "test:bhxh:ui": "node scripts/test-bhxh-ledger-ui.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:bhxh:units": "node scripts/test-bhxh-units.mjs",
+    "test:bhxh:units:ui": "node scripts/test-bhxh-units-ui.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

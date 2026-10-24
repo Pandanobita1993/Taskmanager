@@ -1,3 +1,4 @@
+import { bhxhUnitLabel, soleBhxhUnit } from '../lib/bhxhUnits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Building2, Pencil, Plus, RefreshCw, X } from 'lucide-react';
@@ -22,7 +23,7 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
   const [search, setSearch] = useState('');
   const [province, setProvince] = useState('');
   const [showInactive, setShowInactive] = useState(false);
-  const [receiver, setReceiver] = useState<ClientReceiver & { requestId: string }>({ client_id: '', agency_id: '', account_id: '', version: 0, requestId: crypto.randomUUID() });
+  const [receiver, setReceiver] = useState<ClientReceiver & { requestId: string }>({ client_id: '', unit_id: '', agency_id: '', account_id: '', version: 0, requestId: crypto.randomUUID() });
   const busy = useRef(false);
   const fetching = useRef(false);
   const load = useCallback(async () => {
@@ -51,8 +52,8 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
   async function refreshDirectory() {
     const latest = await load();
     if (!latest || !receiver.client_id) return;
-    const row = latest.receivers.find(item => item.client_id === receiver.client_id);
-    setReceiver({ client_id: receiver.client_id, agency_id: row?.agency_id || '', account_id: row?.account_id || '', version: row?.version || 0, requestId: crypto.randomUUID() });
+    const row = latest.receivers.find(item => item.client_id === receiver.client_id && item.unit_id === receiver.unit_id);
+    setReceiver({ client_id: receiver.client_id, unit_id: receiver.unit_id, agency_id: row?.agency_id || '', account_id: row?.account_id || '', version: row?.version || 0, requestId: crypto.randomUUID() });
   }
   function edit(row?: BhxhAgency) {
     setFormError('');
@@ -72,17 +73,20 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
     finally { busy.current = false; setSaving(false); }
   }
   function chooseClient(client_id: string) {
-    const existing = data?.receivers.find(row => row.client_id === client_id);
-    setReceiver({ client_id, agency_id: existing?.agency_id || '', account_id: existing?.account_id || '', version: existing?.version || 0, requestId: crypto.randomUUID() });
+    chooseUnit(soleBhxhUnit(clients.find(client => client.id === client_id)?.units)?.id || '', client_id);
+  }
+  function chooseUnit(unit_id: string, client_id = receiver.client_id) {
+    const existing = data?.receivers.find(row => row.client_id === client_id && row.unit_id === unit_id);
+    setReceiver({ client_id, unit_id, agency_id: existing?.agency_id || '', account_id: existing?.account_id || '', version: existing?.version || 0, requestId: crypto.randomUUID() });
   }
   async function saveReceiver(event: FormEvent) {
-    event.preventDefault(); if (!receiver.client_id || busy.current) return;
+    event.preventDefault(); if (!receiver.client_id || !receiver.unit_id || busy.current) return;
     busy.current = true; setSaving(true); setError('');
     try {
       const { requestId, ...record } = receiver;
       const result = await supabase.rpc('save_bhxh_directory', { p_staff_id: profile.id, p_request_id: requestId, p_entity: 'receiver', p_record: record });
       if (result.error) throw result.error;
-      setReceiver({ ...result.data, requestId: crypto.randomUUID() }); setMessage('Đã lưu cơ sở và tài khoản mặc định của khách. Mỗi lệnh nhắc vẫn có thể chọn tài khoản khác.');
+      setReceiver({ ...result.data, requestId: crypto.randomUUID() }); setMessage('Đã lưu cơ sở và tài khoản mặc định cho mã đơn vị. Mỗi lệnh nhắc vẫn có thể chọn tài khoản khác.');
       window.dispatchEvent(new Event('taskflow-bhxh-directory-changed')); await load();
     } catch (cause: any) { setError(cause.message || 'Chưa lưu được cấu hình khách.'); }
     finally { busy.current = false; setSaving(false); }
@@ -96,15 +100,16 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{message}</p>}
     <form onSubmit={saveReceiver} aria-label="Cơ sở mặc định của khách" className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-      <h3 className="font-semibold text-blue-900">Cơ sở quản lý và tài khoản mặc định của khách</h3>
+      <h3 className="font-semibold text-blue-900">Cơ sở quản lý và tài khoản mặc định theo mã đơn vị</h3>
       <p className="text-xs text-blue-900">Chọn cơ sở theo hồ sơ thực tế. Địa bàn được lưu riêng để dùng cho chức năng tìm cơ sở theo địa chỉ / TK3 sau này.</p>
       <fieldset disabled={saving || !data} className="grid sm:grid-cols-3 gap-3">
         <label className="text-sm">Khách BHXH<select aria-label="Khách gắn cơ sở" required value={receiver.client_id} onChange={event => chooseClient(event.target.value)} className={input}><option value="">Chọn khách</option>{clients.filter(row => !row.archived && row.participating !== false).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+        <label className="text-sm">Mã đơn vị<select aria-label="Mã gắn cơ sở" required value={receiver.unit_id || ''} onChange={event => chooseUnit(event.target.value)} className={input}><option value="">Chọn mã đơn vị</option>{clients.find(client => client.id === receiver.client_id)?.units?.filter(unit => unit.is_active && unit.code).map(unit => <option key={unit.id} value={unit.id}>{bhxhUnitLabel(unit)}</option>)}</select></label>
         <label className="text-sm">Cơ sở<select aria-label="Cơ sở mặc định" value={receiver.agency_id || ''} onChange={event => setReceiver(previous => ({ ...previous, agency_id: event.target.value, account_id: '', requestId: crypto.randomUUID() }))} className={input}><option value="">Chưa gắn / bỏ mặc định</option>{activeAgencies.map(row => <option key={row.id} value={row.id}>{row.name} · {row.agency_code}</option>)}</select></label>
         <label className="text-sm">Tài khoản<select aria-label="Tài khoản mặc định" required={!!receiver.agency_id} value={receiver.account_id || ''} onChange={event => setReceiver(previous => ({ ...previous, account_id: event.target.value, requestId: crypto.randomUUID() }))} className={input}><option value="">Chọn tài khoản</option>{receiverAgency?.accounts.map(row => <option key={row.id} value={row.id}>{VIETNAM_BANKS.find(bank => bank.bin === row.bank_bin)?.shortName} · {row.account_no}</option>)}</select></label>
       </fieldset>
       {receiver.agency_id && !receiverAgency && <p className="text-xs text-amber-800">Cơ sở mặc định cũ đã ngừng sử dụng; chọn lại trước khi tạo lệnh nhắc.</p>}
-      <button disabled={saving || !data || !receiver.client_id} className={`${button} bg-white`}>{saving ? 'Đang lưu…' : 'Lưu mặc định cho khách'}</button>
+      <button disabled={saving || !data || !receiver.client_id || !receiver.unit_id} className={`${button} bg-white`}>{saving ? 'Đang lưu…' : 'Lưu mặc định cho mã'}</button>
     </form>
     <div className="flex flex-wrap gap-3"><input aria-label="Tìm cơ sở hoặc địa bàn" placeholder="Tìm tên, mã cơ sở hoặc địa bàn…" value={search} onChange={event => setSearch(event.target.value)} className={`${input} flex-1 min-w-48`} /><select aria-label="Lọc tỉnh cơ sở" value={province} onChange={event => setProvince(event.target.value)} className={`${input} sm:w-64`}><option value="">Tất cả tỉnh / thành phố</option>{VIETNAM_PROVINCES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></div>
     <label className="text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" checked={showInactive} onChange={event => setShowInactive(event.target.checked)} /> Hiện cơ sở ngừng sử dụng</label>

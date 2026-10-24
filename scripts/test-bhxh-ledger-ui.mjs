@@ -27,6 +27,8 @@ const client=await scalar("insert into clients(name,tax_code,insurance_person,in
 const today=await scalar("select ((now() at time zone 'Asia/Ho_Chi_Minh')::date)::text");
 for(const kind of ['bhxh','thue_gtgt']) await scalar('select save_payment_followup($1,$2,$3,$4::jsonb)',[staff,crypto.randomUUID(),'save',JSON.stringify({id:crypto.randomUUID(),version:0,client_id:client,kind,period:'Tháng 10/2026',due_on:today,next_reminder_on:today,amount:'100',notes:''})]);
 const unassigned=await scalar("insert into clients(name,tax_code,insurance_person) values('Khách BHXH không phân công','QA03','Người khác') returning id");
+for(const name of ['bhxh-agencies','bhxh-units']) await db.exec(await fs.readFile(new URL(`../supabase-${name}-migration.sql`,import.meta.url),'utf8'));
+await db.query("insert into bhxh_client_units(client_id,kind,code) values($1,'employees','UNASSIGNED')",[unassigned]);
 const proofBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=','base64');
 const browser=await chromium.launch({headless:true,executablePath:process.env.QA_CHROMIUM_PATH||path.join(process.env.LOCALAPPDATA,'ms-playwright','chromium-1228','chrome-win64','chrome.exe')});
 const output=path.join(os.tmpdir(),'anan-recurrence-qa','bhxh-ui');
@@ -189,6 +191,7 @@ try {
  // The current month appears automatically after the immediate previous month,
  // but remains an unsaved draft until real charges are entered.
  const autoClient=await scalar("insert into clients(name,tax_code,insurance_person) values('Khách tự chuyển kỳ','QA02','Nhân viên QA') returning id");
+ await db.query("insert into bhxh_client_units(client_id,kind,code) values($1,'employees','AUTO123')",[autoClient]);
  const currentMonth=today.slice(0,7);
  const previousMonth=previousBhxhMonth(`${currentMonth}-01`);
  const priorRecord={id:crypto.randomUUID(),version:0,client_id:autoClient,period_on:previousMonth,charges:'100',opening_override:'50',opening_reason:'Khởi tạo QA',notes:'',source_filename:''};
@@ -226,12 +229,12 @@ try {
  await page.setViewportSize({width:390,height:844});
  await autoCard.screenshot({path:path.join(output,'current-month-mobile.png')});
  // Shared roster includes unassigned customers with no payments, on mobile too.
- await page.goto('http://127.0.0.1:5173/insurance?tab=payments');
+ await page.goto(`${appOrigin}/insurance?tab=payments`);
  const roster=page.getByRole('region',{name:'Khách đang dùng dịch vụ BHXH'});
  await expect(roster).toContainText('Khách BHXH không phân công');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.screenshot({path:path.join(output,'shared-payments-mobile.png'),fullPage:true});
- await roster.getByRole('row').filter({hasText:'Khách tự chuyển kỳ'}).getByRole('button',{name:'Ghi tiền nộp'}).click();
+ await roster.locator('tbody').filter({hasText:'Khách tự chuyển kỳ'}).getByRole('button',{name:'Ghi tiền nộp'}).click();
  dialog=page.getByRole('dialog');
  await expect(dialog.getByLabel('Số tiền nộp *')).toHaveValue('210');
  await dialog.getByLabel('Số tiền nộp *').fill('80');

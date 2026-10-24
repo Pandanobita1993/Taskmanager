@@ -3,7 +3,7 @@ const ACCOUNTING_FIELDS = [
   'acc_software', 'acc_version', 'acc_user', 'acc_pass',
   'accounting_fee', 'insurance_fee', 'fee_effective_month',
 ];
-const INSURANCE_FIELDS = ['ins_code', 'ins_software', 'ins_user', 'ins_pass'];
+const INSURANCE_FIELDS = ['ins_software', 'ins_user', 'ins_pass'];
 
 export function clientDetailUpdates(client: Record<string, any>, staffName: string) {
   const fields = [
