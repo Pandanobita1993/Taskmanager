@@ -56,7 +56,7 @@ try {
  await assert.rejects(save('receiver',{client_id:taxClient,version:0,agency_id:agency.id,account_id:account.id}),/dịch vụ BHXH/);
  await assert.rejects(save('receiver',{...receiver,account_id:crypto.randomUUID()}),/tài khoản/);
  const memo=renderTransferMemo(template,'QA1234A','00123','Tháng 10/2026').memo;
- assert.equal(memo,'BHXH 103 00 QA1234A 00123 DONG BHXH 10/2026');
+ assert.equal(memo,'BHXH 103 00 QA1234A 00123 DONG BHXH 10-2026');
  let row=await follow({...old,receiver_agency_id:agency.id,receiver_account_id:second.id,receiver_version:agency.version,transfer_memo:memo});
  assert.equal(row.transfer_details.account_no,second.account_no,'Selected bank account is snapshotted');
  assert.equal(row.transfer_details.bank_name,VIETNAM_BANKS.find(bank=>bank.bin===second.bank_bin).name);

@@ -34,9 +34,9 @@ export interface TransferDetails {
 }
 export const provinceName = (code: string) => VIETNAM_PROVINCES.find(([id]) => id === code)?.[1] || code;
 export function renderTransferMemo(template: string, unitCode: string, agencyCode: string, period: string) {
-  const match = period.trim().match(/^(?:Tháng\s+)?(0?[1-9]|1[0-2])\s*\/\s*(\d{4})$/i);
+  const match = period.trim().match(/^(?:Tháng\s+)?(0?[1-9]|1[0-2])\s*[/-]\s*(\d{4})$/i);
   const iso = /^\d{4}-(0[1-9]|1[0-2])$/.test(period);
-  const monthlyPeriod = match ? `${match[1].padStart(2, '0')}/${match[2]}` : iso ? `${period.slice(5, 7)}/${period.slice(0, 4)}` : period;
+  const monthlyPeriod = match ? `${match[1].padStart(2, '0')}-${match[2]}` : iso ? `${period.slice(5, 7)}-${period.slice(0, 4)}` : period;
   const values: Record<string, string> = { ma_don_vi: unitCode.trim(), ma_co_quan: agencyCode, ky: monthlyPeriod,
     thang: match?.[1] || (iso ? period.slice(5, 7) : ''), nam: match?.[2] || (iso ? period.slice(0, 4) : '') };
   const missing = new Set<string>();
