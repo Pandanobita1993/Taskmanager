@@ -108,6 +108,10 @@ Sau hai migration ở trên, chạy **toàn bộ `supabase-bhxh-shared-payments-
 
 Kiểm tra thêm migration mới bằng `npm run test:bhxh:shared`. Bộ `test:bhxh:ui` kiểm tra gợi ý, sửa tay, thiếu / lỗi tải ảnh, retry, xem ảnh, danh sách khách không phân công và giao diện mobile; `test:payment-followups:ui` kiểm tra vòng đời thuế không cần ảnh.
 
+### Cơ sở BHXH và thông tin đóng tiền
+
+Danh mục cơ sở BHXH, tài khoản mặc định của khách, nội dung nhắc đóng và QR: chạy `supabase-bhxh-agencies-migration.sql` sau các migration BHXH ở trên. Xem [hướng dẫn cơ sở BHXH và thông tin đóng tiền](docs/bhxh-payment-directory.md) về thiết lập, giới hạn QR và kiểm thử.
+
 ### Đọc C12 PDF không dùng API trả phí
 
 Chọn **Đọc C12 PDF** để PDF.js trích văn bản trực tiếp trong trình duyệt. Giới hạn 10 MB / 12 trang; file không tải lên server, chỉ tên file được lưu làm tham chiếu sau khi người dùng xác nhận. Thư viện và worker được đóng gói cùng website, chỉ tải khi chọn file.

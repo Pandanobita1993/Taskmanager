@@ -13,9 +13,14 @@ import { bhxhMonthLabel, bhxhReminderMonth, bhxhSuggestedAmount } from '../lib/b
 import type { BhxhPeriod } from '../lib/bhxhLedger';
 import BhxhProofInput from '../components/BhxhProofInput';
 import { TaskProofViewer } from '../components/tasks/TaskProofViewer';
+import BhxhReceiverFields from '../components/BhxhReceiverFields';
+import { emptyReceiver } from '../lib/bhxhAgencies';
+import type { ReceiverForm } from '../lib/bhxhAgencies';
+import BhxhTransferInfo from '../components/BhxhTransferInfo';
+import type { TransferDetails } from '../lib/bhxhAgencies';
 import type { FollowupEvent, FollowupPortal, PaymentAction, PaymentFollowup, PaymentKind } from '../lib/paymentFollowups';
 
-interface FollowupForm {
+interface FollowupForm extends ReceiverForm {
   id: string; version: number; client_id: string; kind: PaymentKind; period: string; amount: string;
   due_on: string; next_reminder_on: string; promised_on: string; paid_on: string;
   payment_reference: string; proof_file: string; amount_manual: boolean; notes: string; event_note: string;
@@ -34,7 +39,9 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [proofBusy, setProofBusy] = useState(false);
+  const [receiverLoading, setReceiverLoading] = useState(false);
   const [proofView, setProofView] = useState('');
+  const [transferView, setTransferView] = useState<PaymentFollowup | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [formError, setFormError] = useState('');
@@ -48,6 +55,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
   const fetching = useRef(false);
   const reloadQueued = useRef(false);
   const submitting = useRef(false);
+  const receiverReady = useCallback(() => setReceiverLoading(false), []);
   const today = data?.today || vietnamToday();
   const filter = params.get('filter') || 'open';
   const clientId = params.get('client') || '';
@@ -78,11 +86,11 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     return () => { window.clearTimeout(initial); window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
   }, [load]);
   useEffect(() => {
-    if (!editor && !historyRow) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !document.querySelector('dialog[open]') && !submitting.current && !proofBusy) { setEditor(null); setHistoryRow(null); historyRequest.current++; } };
+    if (!editor && !historyRow && !transferView) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !document.querySelector('dialog[open]') && !submitting.current && !proofBusy) { setEditor(null); setHistoryRow(null); setTransferView(null); historyRequest.current++; } };
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
-  }, [editor, historyRow, proofBusy]);
+  }, [editor, historyRow, proofBusy, transferView]);
 
   function selectClient(value: string) {
     setParams(previous => {
@@ -93,11 +101,14 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
   }
 
   const openEditor = useCallback((action: PaymentAction, row?: PaymentFollowup, composeMonth?: string) => {
-    setFormError(''); setMessage(''); setProofBusy(false);
+    setFormError(''); setMessage(''); setProofBusy(false); setReceiverLoading((row?.kind || (scope === 'tax' ? 'thue_gtgt' : 'bhxh')) === 'bhxh' && (action === 'save' || action === 'notify'));
     const selectedClient = row?.client_id || (data?.clients.some(c => c.id === clientId && !c.archived) ? clientId : '');
     const selectedMonth = composeMonth || (row ? bhxhReminderMonth(row.period) : today.slice(0, 7));
     const suggestion = bhxhSuggestedAmount(bhxhPeriods, selectedClient, selectedMonth, 'reminder');
+    const transfer = row?.transfer_details?.agency_id ? row.transfer_details : null;
     setEditor({ action, requestId: crypto.randomUUID(), existing: !!row, form: {
+      ...emptyReceiver, ...(transfer ? { receiver_agency_id: transfer.agency_id, receiver_account_id: transfer.account_id,
+        receiver_version: transfer.agency_version, transfer_memo: transfer.memo, receiver_touched: true, transfer_memo_manual: true } : {}),
       id: row?.id || crypto.randomUUID(), version: row?.version || 0,
       client_id: selectedClient,
       kind: row?.kind || (scope === 'tax' ? 'thue_gtgt' : 'bhxh'), period: row?.period || `Tháng ${bhxhMonthLabel(`${selectedMonth}-01`)}`,
@@ -111,7 +122,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     // A changed payload is a new request; an unchanged retry keeps its original ID.
     setEditor(previous => {
       if (!previous) return null;
-      const next = { ...previous.form, ...patch };
+      const next = { ...previous.form, ...patch, ...(patch.client_id !== undefined && patch.client_id !== previous.form.client_id ? emptyReceiver : {}) };
       if (patch.amount !== undefined) next.amount_manual = true;
       else if ((patch.client_id !== undefined || patch.period !== undefined || patch.kind !== undefined) && !next.amount_manual) {
         next.amount = next.kind === 'bhxh' ? bhxhSuggestedAmount(bhxhPeriods, next.client_id, bhxhReminderMonth(next.period), 'reminder') : '';
@@ -134,11 +145,12 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
   }, [compose, clientId, data, scope, openEditor, setParams]);
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!editor || submitting.current || !profile.id || proofBusy) return;
+    if (!editor || submitting.current || !profile.id || proofBusy || receiverLoading) return;
     const { form, action, requestId } = editor;
     setFormError('');
     if (action === 'save' && (!form.client_id || !form.period.trim() || !form.due_on || !form.next_reminder_on)) return setFormError('Điền khách hàng, kỳ, hạn đóng và ngày nhắc.');
     if ((action === 'save' || (action === 'notify' && form.kind === 'bhxh')) && form.amount !== '' && (!/^\d{1,15}$/.test(form.amount))) return setFormError('Số tiền là đồng nguyên, không âm, tối đa 15 chữ số; để trống nếu chưa rõ.');
+    if (form.kind === 'bhxh' && (action === 'save' || action === 'notify') && form.receiver_agency_id && (!form.receiver_account_id || !form.transfer_memo.trim() || form.transfer_memo.includes('{{') || !data?.clients.find(row => row.id === form.client_id)?.ins_code)) return setFormError('Kiểm tra mã đơn vị, tài khoản nhận và điền đủ cú pháp chuyển khoản.');
     if (action === 'paid' && form.kind === 'bhxh' && !form.proof_file) return setFormError('Đính kèm ảnh bằng chứng đóng tiền trước khi xác nhận.');
     if ((action === 'cancel' || action === 'reopen') && !form.event_note.trim()) return setFormError('Nhập lý do để lưu vào lịch sử.');
     submitting.current = true; setSaving(true);
@@ -211,7 +223,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-3"><p>Hạn đóng: <strong className={urgency === 'overdue' ? 'text-red-700' : ''}>{recurringDateLabel(row.due_on)}</strong></p><p>Nhắc tiếp: <strong>{recurringDateLabel(row.next_reminder_on || undefined)}</strong></p><p>Khách hẹn: <strong>{recurringDateLabel(row.promised_on || undefined)}</strong></p><p>{row.status === 'paid' ? <>Ngày đã đóng: <strong>{recurringDateLabel(row.paid_on || undefined)}</strong></> : <>Đã báo / nhắc: <strong>{row.notification_count} lần</strong>{row.last_notified_at && ` · ${new Date(row.last_notified_at).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`}</>}</p></div>
         {(contact?.contact_name || contact?.contact_phone) && <p className="text-xs text-gray-500">Liên hệ: {[contact.contact_name, contact.contact_phone].filter(Boolean).join(' · ')}</p>}
         {row.notes && <p className="whitespace-pre-wrap text-sm text-gray-600 break-words">{row.notes}</p>}
-        {row.proof_file && <button className={`${button} text-blue-700`} onClick={() => setProofView(row.proof_file!)}>Xem bằng chứng đóng tiền</button>}{row.payment_reference && <p className="text-xs text-green-800 break-words">Chứng từ / tham chiếu: {row.payment_reference}</p>}
+        {row.kind === 'bhxh' && row.transfer_details?.agency_id && <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm space-y-2"><p className="break-words"><strong>Thông tin đóng tiền:</strong> {row.transfer_details.account_name} · {row.transfer_details.bank_short_name} · {row.transfer_details.account_no}</p><p className="break-words">Cú pháp: {row.transfer_details.memo}</p><button className={`${button} bg-white text-blue-800`} onClick={() => setTransferView(row)}>Thông tin gửi khách / QR</button></div>}{row.proof_file && <button className={`${button} text-blue-700`} onClick={() => setProofView(row.proof_file!)}>Xem bằng chứng đóng tiền</button>}{row.payment_reference && <p className="text-xs text-green-800 break-words">Chứng từ / tham chiếu: {row.payment_reference}</p>}
         <div className="flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-3"><button onClick={() => void openHistory(row)} className={button}><History size={14} /> Lịch sử</button>{isOpen(row) ? <>
           <button onClick={() => openEditor('save', row)} className={button}><Pencil size={14} /> Sửa</button>
           <button onClick={() => openEditor('cancel', row)} className={`${button} text-gray-500`}>Ngừng theo dõi</button>
@@ -234,6 +246,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
           {editor.action === 'notify' && <label className="block text-sm font-medium">Số tiền nhắc khách (đồng)<input aria-label="Số tiền nhắc khách (đồng)" inputMode="numeric" pattern="[0-9]{1,15}" maxLength={15} value={form.amount} onChange={event => update({ amount: event.target.value })} className={field} /></label>}
           <p className="text-xs text-gray-600">{reminderSuggestion === '' ? 'Chưa có phát sinh C12 cho kỳ này để gợi ý. Bạn có thể nhập số tiền riêng.' : <>Phát sinh C12 kỳ {bhxhMonthLabel(`${bhxhReminderMonth(form.period)}-01`)}: <strong>{followupAmountLabel(Number(reminderSuggestion))}</strong>. <button type="button" className="text-blue-700 underline" onClick={() => update({ amount: reminderSuggestion })}>Dùng số phát sinh</button></>}</p>
         </div>}
+        {form.kind === 'bhxh' && (editor.action === 'save' || editor.action === 'notify') && <BhxhReceiverFields key={form.id} clientId={form.client_id} clientName={formClient?.name || ''} unitCode={formClient?.ins_code || ''} period={form.period} amount={form.amount} value={form} onChange={patch => update(patch)} onReady={receiverReady} />}
         {!terminal && <label className="block text-sm font-medium">{editor.action === 'save' ? 'Ngày cần nhắc / kiểm tra *' : 'Ngày nhắc tiếp theo *'}<input required type="date" min={editor.action === 'save' ? undefined : today} value={form.next_reminder_on} onChange={event => update({ next_reminder_on: event.target.value })} className={field} /></label>}
         {editor.action === 'notify' && <p className="bg-blue-50 p-3 rounded-lg text-xs text-blue-900">Ghi nhận bạn đã liên hệ khách và đặt lần kiểm tra tiếp. Hệ thống tiếp tục nhắc cho đến khi xác nhận đã đóng hoặc ngừng theo dõi.</p>}
         {editor.action === 'promise' && <label className="block text-sm font-medium">Khách hẹn đóng ngày *<input required type="date" min={today} value={form.promised_on} onChange={event => update({ promised_on: event.target.value, next_reminder_on: event.target.value })} className={field} /></label>}
@@ -241,11 +254,12 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         {editor.action === 'paid' && form.kind === 'bhxh' && <BhxhProofInput key={form.id} value={form.proof_file} onChange={path => update({ proof_file: path })} onBusy={setProofBusy} />}
         {editor.action === 'save' && <label className="block text-sm font-medium">Ghi chú khoản đóng<textarea rows={3} maxLength={5000} value={form.notes} onChange={event => update({ notes: event.target.value })} className={field} /></label>}
         <label className="block text-sm font-medium">{editor.action === 'cancel' || editor.action === 'reopen' ? 'Lý do *' : 'Ghi chú lần cập nhật'}<textarea required={editor.action === 'cancel' || editor.action === 'reopen'} rows={2} maxLength={5000} value={form.event_note} onChange={event => update({ event_note: event.target.value })} placeholder="VD: đã nhắn Zalo, khách báo sẽ chuyển ngày…" className={field} /></label>
-      </fieldset>{formError && <p role="alert" className="text-sm text-red-700 whitespace-pre-wrap">{formError}</p>}<div className="flex justify-end gap-3"><button disabled={saving || proofBusy} type="button" onClick={() => setEditor(null)} className="px-4 py-2 bg-gray-100 rounded-lg text-sm">Hủy</button><button disabled={saving || proofBusy} className={`px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-50 ${editor.action === 'paid' ? 'bg-green-600' : 'bg-blue-600'}`}>{saving ? 'Đang lưu…' : editor.action === 'paid' ? 'Xác nhận đã đóng' : 'Lưu theo dõi'}</button></div></form>
+      </fieldset>{formError && <p role="alert" className="text-sm text-red-700 whitespace-pre-wrap">{formError}</p>}<div className="flex justify-end gap-3"><button disabled={saving || proofBusy} type="button" onClick={() => setEditor(null)} className="px-4 py-2 bg-gray-100 rounded-lg text-sm">Hủy</button><button disabled={saving || proofBusy || receiverLoading} className={`px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-50 ${editor.action === 'paid' ? 'bg-green-600' : 'bg-blue-600'}`}>{saving ? 'Đang lưu…' : editor.action === 'paid' ? 'Xác nhận đã đóng' : 'Lưu theo dõi'}</button></div></form>
     </section></div>}
     {historyRow && <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-3"><section role="dialog" aria-modal="true" aria-labelledby="followup-history-title" className="bg-white rounded-xl w-full max-w-xl max-h-[92vh] overflow-y-auto p-5 space-y-4"><div className="flex justify-between gap-2"><h2 id="followup-history-title" className="font-bold text-lg">Lịch sử theo dõi</h2><button aria-label="Đóng lịch sử" onClick={() => { setHistoryRow(null); historyRequest.current++; }}><X size={20} /></button></div><p className="text-sm text-gray-600">{historyRow.client_name} · {followupKindLabel(historyRow.kind)} · {historyRow.period}</p>
-      {historyError ? <p role="alert" className="text-red-700 text-sm">{historyError}</p> : history === null ? <p className="text-sm text-gray-500">Đang tải lịch sử…</p> : history.map(event => <article key={event.id} className="border-l-2 border-blue-200 pl-4 space-y-1"><h3 className="text-sm font-semibold text-gray-800">{FOLLOWUP_ACTION_LABELS[event.action]}</h3><p className="text-xs text-gray-500">{event.actor_name} · {new Date(event.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p><p className="text-xs text-gray-600">{followupKindLabel(event.snapshot.kind)} · {event.snapshot.period} · {followupAmountLabel(event.snapshot.amount)}<br />Hạn {recurringDateLabel(event.snapshot.due_on)} · {PAYMENT_STATUSES[event.snapshot.status]}{event.snapshot.next_reminder_on && ` · Nhắc ${recurringDateLabel(event.snapshot.next_reminder_on)}`}{event.snapshot.promised_on && ` · Hẹn ${recurringDateLabel(event.snapshot.promised_on)}`}{event.snapshot.paid_on && ` · Đã đóng ${recurringDateLabel(event.snapshot.paid_on)}`}</p>{event.snapshot.proof_file && <button className={`${button} text-blue-700`} onClick={() => setProofView(event.snapshot.proof_file!)}>Xem bằng chứng tại lần xác nhận này</button>}{event.snapshot.payment_reference && <p className="text-xs text-green-800 break-words">Chứng từ: {event.snapshot.payment_reference}</p>}{event.note && <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{event.note}</p>}{event.action === 'save' && event.snapshot.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap break-words">{event.snapshot.notes}</p>}</article>)}
+      {historyError ? <p role="alert" className="text-red-700 text-sm">{historyError}</p> : history === null ? <p className="text-sm text-gray-500">Đang tải lịch sử…</p> : history.map(event => <article key={event.id} className="border-l-2 border-blue-200 pl-4 space-y-1"><h3 className="text-sm font-semibold text-gray-800">{FOLLOWUP_ACTION_LABELS[event.action]}</h3><p className="text-xs text-gray-500">{event.actor_name} · {new Date(event.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p><p className="text-xs text-gray-600">{followupKindLabel(event.snapshot.kind)} · {event.snapshot.period} · {followupAmountLabel(event.snapshot.amount)}<br />Hạn {recurringDateLabel(event.snapshot.due_on)} · {PAYMENT_STATUSES[event.snapshot.status]}{event.snapshot.next_reminder_on && ` · Nhắc ${recurringDateLabel(event.snapshot.next_reminder_on)}`}{event.snapshot.promised_on && ` · Hẹn ${recurringDateLabel(event.snapshot.promised_on)}`}{event.snapshot.paid_on && ` · Đã đóng ${recurringDateLabel(event.snapshot.paid_on)}`}</p>{event.snapshot.transfer_details?.agency_id && <p className="text-xs text-blue-900 break-words">Người nhận: {event.snapshot.transfer_details.account_name} · {event.snapshot.transfer_details.bank_short_name} · {event.snapshot.transfer_details.account_no}<br />Cú pháp: {event.snapshot.transfer_details.memo}</p>}{event.snapshot.proof_file && <button className={`${button} text-blue-700`} onClick={() => setProofView(event.snapshot.proof_file!)}>Xem bằng chứng tại lần xác nhận này</button>}{event.snapshot.payment_reference && <p className="text-xs text-green-800 break-words">Chứng từ: {event.snapshot.payment_reference}</p>}{event.note && <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{event.note}</p>}{event.action === 'save' && event.snapshot.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap break-words">{event.snapshot.notes}</p>}</article>)}
     </section></div>}
+    {transferView?.transfer_details?.agency_id && <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-3"><section role="dialog" aria-modal="true" aria-labelledby="transfer-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-5 space-y-3"><header className="flex justify-between gap-3"><h2 id="transfer-title" className="font-bold text-lg">Thông tin đóng BHXH gửi khách</h2><button aria-label="Đóng thông tin đóng tiền" onClick={() => setTransferView(null)}><X size={20} /></button></header><BhxhTransferInfo key={`${transferView.id}:${transferView.version}`} client={transferView.client_name} period={transferView.period} amount={transferView.amount} details={transferView.transfer_details as TransferDetails} /></section></div>}
     {proofView && <TaskProofViewer task={{ proof_file: proofView }} onClose={() => setProofView('')} title="Bằng chứng đóng BHXH" imageAlt="Ảnh bằng chứng đóng BHXH" />}
   </div>;
 }

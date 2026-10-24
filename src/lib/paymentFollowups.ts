@@ -1,3 +1,4 @@
+import type { TransferDetails } from './bhxhAgencies';
 export const PAYMENT_KINDS = [
   ['bhxh', 'BHXH'], ['thue_gtgt', 'Thuế GTGT'], ['thue_tncn', 'Thuế TNCN'],
   ['thue_tndn', 'Thuế TNDN'], ['thue_khac', 'Thuế khác'],
@@ -8,13 +9,13 @@ export type PaymentAction = 'save' | 'notify' | 'promise' | 'paid' | 'reopen' | 
 export const PAYMENT_STATUSES: Record<PaymentStatus, string> = {
   pending: 'Chưa báo khách', notified: 'Đã báo · chờ đóng', promised: 'Khách hẹn đóng', paid: 'Đã đóng', cancelled: 'Ngừng theo dõi',
 };
-export interface FollowupClient { id: string; name: string; tax_code: string; contact_name: string | null; contact_phone: string | null; archived: boolean }
+export interface FollowupClient { id: string; name: string; tax_code: string; ins_code?: string | null; contact_name: string | null; contact_phone: string | null; archived: boolean }
 export interface PaymentFollowup {
   id: string; client_id: string; kind: PaymentKind; period: string; amount: number | null;
   due_on: string; next_reminder_on: string | null; status: PaymentStatus;
   promised_on: string | null; paid_on: string | null; payment_reference: string;
   last_notified_at: string | null; notification_count: number; notes: string; version: number;
-  proof_file?: string; client_name: string; tax_code: string; client_archived: boolean;
+  transfer_details?: TransferDetails; proof_file?: string; client_name: string; tax_code: string; client_archived: boolean;
 }
 export interface FollowupPortal {
   today: string; clients: FollowupClient[]; records: PaymentFollowup[];

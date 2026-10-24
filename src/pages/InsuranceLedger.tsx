@@ -9,6 +9,7 @@ import { bhxhMoney, bhxhMonthLabel, previewBhxhPeriod, withCurrentBhxhDrafts, bh
 import type { BhxhEvent, BhxhPayment, BhxhPeriod, BhxhPortal } from '../lib/bhxhLedger';
 import type { C12Draft } from '../lib/c12Parser';
 import PaymentFollowups from './PaymentFollowups';
+import BhxhAgencies from './BhxhAgencies';
 import BhxhProofInput from '../components/BhxhProofInput';
 import { TaskProofViewer } from '../components/tasks/TaskProofViewer';
 
@@ -46,7 +47,7 @@ export default function InsuranceLedger() {
   const busy = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const today = data?.today || vietnamToday();
-  const tab = ['c12', 'payments', 'reminders'].includes(params.get('tab') || '') ? params.get('tab')! : 'c12';
+  const tab = ['c12', 'payments', 'reminders', 'agencies'].includes(params.get('tab') || '') ? params.get('tab')! : 'c12';
   const clientId = params.get('client') || '';
   const month = params.get('month') || '';
   function query(key: string, value: string) {
@@ -168,9 +169,9 @@ export default function InsuranceLedger() {
   const formClient = data?.clients.find(client => client.id === form?.client_id);
   const unitMismatch = !!(form?.draft?.unitCode && formClient?.ins_code && formClient.ins_code.trim().toUpperCase() !== form.draft.unitCode);
   return <div className="p-3 sm:p-6 max-w-6xl mx-auto space-y-5">
-    <header className="flex flex-wrap justify-between gap-3 items-start"><div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ShieldCheck className="text-emerald-600" /> Theo dõi BHXH</h1><p className="mt-1 text-sm text-gray-500">Sổ C12 và quá trình nộp tiền theo từng khách hàng.</p></div>{tab !== 'reminders' && <button disabled={loading} className={button} onClick={() => void load()}><RefreshCw size={16} /> Làm mới</button>}</header>
-    <nav aria-label="Phân hệ BHXH" className="flex flex-wrap gap-2">{[['c12', 'Công nợ C12'], ['payments', 'Quá trình đóng'], ['reminders', 'Nhắc khách']].map(([key, label]) => <button key={key} onClick={() => query('tab', key)} aria-pressed={tab === key} className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === key ? 'bg-emerald-600 text-white' : 'border bg-white text-gray-600'}`}>{label}</button>)}</nav>
-    {tab === 'reminders' ? error ? <p role="alert" className="text-sm text-red-700">{error}</p> : data ? <PaymentFollowups scope="bhxh" embedded bhxhPeriods={data.periods} /> : <p className="text-sm text-gray-500">Đang tải dữ liệu BHXH…</p> : <>
+    <header className="flex flex-wrap justify-between gap-3 items-start"><div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ShieldCheck className="text-emerald-600" /> Theo dõi BHXH</h1><p className="mt-1 text-sm text-gray-500">Sổ C12 và quá trình nộp tiền theo từng khách hàng.</p></div>{!['reminders', 'agencies'].includes(tab) && <button disabled={loading} className={button} onClick={() => void load()}><RefreshCw size={16} /> Làm mới</button>}</header>
+    <nav aria-label="Phân hệ BHXH" className="flex flex-wrap gap-2">{[['c12', 'Công nợ C12'], ['payments', 'Quá trình đóng'], ['reminders', 'Nhắc khách'], ['agencies', 'Cơ sở BHXH']].map(([key, label]) => <button key={key} onClick={() => query('tab', key)} aria-pressed={tab === key} className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === key ? 'bg-emerald-600 text-white' : 'border bg-white text-gray-600'}`}>{label}</button>)}</nav>
+    {tab === 'agencies' ? <BhxhAgencies clients={data?.clients || []} /> : tab === 'reminders' ? error ? <p role="alert" className="text-sm text-red-700">{error}</p> : data ? <PaymentFollowups scope="bhxh" embedded bhxhPeriods={data.periods} /> : <p className="text-sm text-gray-500">Đang tải dữ liệu BHXH…</p> : <>
       {error && <p role="alert" className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</p>}
       {message && <p role="status" className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg text-sm">{message}</p>}
       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-950"><strong>Cuối kỳ = Đầu kỳ + Phát sinh − Đã nộp.</strong> Tiền đã nộp được cộng từ Quá trình đóng theo tháng thực nộp. Số âm là đóng thừa. Không có số cuối của tháng liền trước thì hiển thị “Thiếu thông tin”.</div>

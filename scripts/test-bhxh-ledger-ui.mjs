@@ -11,6 +11,7 @@ const require=createRequire(path.join(os.tmpdir(),'anan-recurrence-qa','package.
 const {PGlite}=require('@electric-sql/pglite');
 const {chromium,expect:baseExpect}=require('@playwright/test');
 const expect=baseExpect.configure({timeout:15000});
+const appOrigin=process.env.QA_APP_ORIGIN||'http://127.0.0.1:5173';
 const db=new PGlite();
 const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0];
 await db.exec(`create role anon; create role authenticated;
@@ -68,7 +69,7 @@ try {
  await context.route(url=>url.hostname!=='127.0.0.1'&&!url.pathname.includes('/rest/v1/')&&!url.pathname.includes('/storage/v1/'),route=>route.abort());
  const page=await context.newPage(); const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
- await page.goto(`http://127.0.0.1:5173/insurance?client=${client}`);
+ await page.goto(`${appOrigin}/insurance?client=${client}`);
  await expect(page.getByRole('heading',{name:'Theo dõi BHXH',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Thêm kỳ C12'}).click();
  let dialog=page.getByRole('dialog');
@@ -176,11 +177,11 @@ try {
   await expect(page.getByRole('dialog')).toHaveCount(0);
   assert.equal(await scalar('select count(*)::int from bhxh_payments'),1,'Importing C12 never invents actual payments');
  }
- await page.goto(`http://127.0.0.1:5173/tax-followups?client=${client}`);
+ await page.goto(`${appOrigin}/tax-followups?client=${client}`);
  await expect(page.getByRole('heading',{name:'Theo dõi thuế',exact:true})).toBeVisible();
  await expect(page.locator('article')).toHaveCount(1);
  await expect(page.locator('article')).toContainText('Thuế GTGT');
- await page.goto(`http://127.0.0.1:5173/payment-followups?client=${client}`);
+ await page.goto(`${appOrigin}/payment-followups?client=${client}`);
  await expect(page).toHaveURL(/insurance.*tab=reminders/);
  await expect(page.locator('article')).toHaveCount(1);
  await expect(page.locator('article')).toContainText('BHXH');
@@ -192,7 +193,7 @@ try {
  const previousMonth=previousBhxhMonth(`${currentMonth}-01`);
  const priorRecord={id:crypto.randomUUID(),version:0,client_id:autoClient,period_on:previousMonth,charges:'100',opening_override:'50',opening_reason:'Khởi tạo QA',notes:'',source_filename:''};
  let savedPrior=await scalar('select save_bhxh_ledger($1,$2,$3,$4,$5::jsonb)',[staff,crypto.randomUUID(),'period','save',JSON.stringify(priorRecord)]);
- await page.goto(`http://127.0.0.1:5173/insurance?client=${autoClient}&month=${previousMonth.slice(0,7)}`);
+ await page.goto(`${appOrigin}/insurance?client=${autoClient}&month=${previousMonth.slice(0,7)}`);
  await page.getByRole('button',{name:'Xem tháng hiện tại'}).click();
  await expect(page.getByLabel('Lọc tháng BHXH')).toHaveValue(currentMonth);
  let autoCard=page.locator('article');
@@ -239,7 +240,7 @@ try {
  await dialog.getByRole('button',{name:'Dùng số gợi ý'}).click();
  await expect(dialog.getByLabel('Số tiền nộp *')).toHaveValue('170');
  await dialog.getByRole('button',{name:'Đóng biểu mẫu BHXH'}).click();
- await page.goto(`http://127.0.0.1:5173/insurance?client=${autoClient}&month=${currentMonth}`);
+ await page.goto(`${appOrigin}/insurance?client=${autoClient}&month=${currentMonth}`);
  await page.locator('article').getByRole('button',{name:'Nhắc khách kỳ này'}).click();
  dialog=page.getByRole('dialog');
  await expect(dialog.getByLabel('Số tiền cần đóng (đồng)')).toHaveValue('40');
@@ -263,7 +264,7 @@ try {
  await dialog.getByRole('button',{name:'Xác nhận đã đóng',exact:true}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
  assert.equal(await scalar('select count(*)::int from bhxh_payments'),1,'Reminder confirmation still does not invent a real payment');
- await page.goto(`http://127.0.0.1:5173/insurance?client=${client}&tab=payments`);
+ await page.goto(`${appOrigin}/insurance?client=${client}&tab=payments`);
  await page.getByRole('button',{name:'Xem bằng chứng đóng tiền',exact:true}).click();
  await expect(page.getByRole('img',{name:'Ảnh bằng chứng đóng BHXH'})).toBeVisible();
  await page.getByRole('dialog').getByRole('button',{name:'Đóng ảnh'}).click();

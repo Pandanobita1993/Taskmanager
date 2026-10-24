@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 const qaRequire = createRequire(path.join(os.tmpdir(),'anan-recurrence-qa','package.json'));
 const { PGlite } = qaRequire('@electric-sql/pglite');
 const { chromium, expect } = qaRequire('@playwright/test');
+const appOrigin=process.env.QA_APP_ORIGIN||'http://127.0.0.1:5173';
 const db = new PGlite();
 const scalar = async (sql,args=[]) => Object.values((await db.query(sql,args)).rows[0])[0];
 await db.exec(`create role anon; create role authenticated;
@@ -62,7 +63,7 @@ try {
  const page = await context.newPage();
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
- await page.goto(`http://127.0.0.1:5173/tax-followups?client=${client}`);
+ await page.goto(`${appOrigin}/tax-followups?client=${client}`);
  await page.getByRole('button',{name:'Thêm khoản theo dõi'}).click();
  let dialog=page.getByRole('dialog');
  await expect(dialog.getByLabel('Khách hàng *')).toHaveValue(client);
@@ -121,7 +122,7 @@ try {
  await dialog.getByLabel('Lý do *').fill('Khách gửi nhầm chứng từ');
  await dialog.getByRole('button',{name:'Lưu theo dõi'}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
- await page.goto('http://127.0.0.1:5173/');
+ await page.goto(`${appOrigin}/`);
  await expect(page.getByRole('link').filter({hasText:'1 khoản cần kiểm tra / nhắc khách'})).toBeVisible();
  await page.getByRole('link').filter({hasText:'1 khoản cần kiểm tra / nhắc khách'}).click();
  await expect(page).toHaveURL(/filter=attention/);

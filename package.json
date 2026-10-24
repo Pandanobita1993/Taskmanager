@@ -14,6 +14,8 @@
     "test:payment-followups:ui": "node scripts/test-payment-followups-ui.mjs",
     "test:bhxh": "node scripts/test-bhxh-ledger.mjs",
     "test:bhxh:shared": "node scripts/test-bhxh-shared-payments.mjs",
+    "test:bhxh:agencies": "node scripts/test-bhxh-agencies.mjs",
+    "test:bhxh:agencies:ui": "node scripts/test-bhxh-agencies-ui.mjs",
     "test:bhxh:ui": "node scripts/test-bhxh-ledger-ui.mjs",
     "preview": "vite preview"
   },
@@ -24,6 +26,7 @@
     "date-fns": "^4.4.0",
     "lucide-react": "^1.52.0",
     "pdfjs-dist": "^6.4.299",
+    "qrcode": "1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
@@ -32,6 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
