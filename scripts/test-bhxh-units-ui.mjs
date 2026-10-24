@@ -95,10 +95,10 @@ try {
  await expect(dialog.getByLabel('Mã đơn vị nhắc đóng')).toHaveValue(legal.id);await expect(dialog.getByLabel('Số tiền cần đóng (đồng)')).toHaveValue('700');
  await expect(dialog.getByLabel('Tài khoản nhận',{exact:true})).toHaveValue(second.id);
  await expect(dialog.getByLabel('Cú pháp chuyển khoản',{exact:true})).toHaveValue(new RegExp('LEGAL123'));
- await dialog.getByRole('checkbox',{name:'Tạo QR tài khoản + số tiền; tôi sẽ gửi kèm cú pháp để khách dán vào nội dung.'}).check();await dialog.getByRole('button',{name:'Tạo QR thanh toán',exact:true}).click();
+ const expectedQrMemo=await dialog.getByLabel('Cú pháp chuyển khoản',{exact:true}).inputValue();await dialog.getByRole('button',{name:'Tạo QR thanh toán',exact:true}).click();
  const image=dialog.getByRole('img',{name:'QR và thông tin đóng BHXH'});await expect(image).toBeVisible();
  const pixels=await image.evaluate(async img=>{await img.decode();const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;const c=canvas.getContext('2d');c.drawImage(img,0,0);const d=c.getImageData(0,0,canvas.width,Math.min(560,canvas.height));return {data:[...d.data],width:d.width,height:d.height};});
- const qr=jsQR(Uint8ClampedArray.from(pixels.data),pixels.width,pixels.height);assert.ok(qr?.data.includes(second.account_no));assert.ok(qr.data.includes('700'));
+ const qr=jsQR(Uint8ClampedArray.from(pixels.data),pixels.width,pixels.height);assert.ok(qr?.data.includes(second.account_no));assert.ok(qr.data.includes('700'));assert.ok(qr.data.includes(expectedQrMemo));
  await dialog.getByLabel('Hạn đóng *',{exact:true}).fill(today);await dialog.getByRole('button',{name:'Lưu theo dõi',exact:true}).click();await expect(dialog).toHaveCount(0);
  const saved=(await scalar('select bhxh_followup_portal($1)',[staff])).records[0];assert.equal(saved.unit_id,legal.id);assert.equal(saved.transfer_details.unit_code,'LEGAL123');
  await page.goto(`${origin}/insurance?tab=reminders&client=${client}`);

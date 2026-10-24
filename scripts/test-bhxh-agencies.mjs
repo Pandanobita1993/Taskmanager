@@ -86,11 +86,12 @@ try {
  await assert.rejects(portal(staff),/nhân viên/);
  assert.equal(asciiUpper('Bảo hiểm xã hội cơ sở Đắk Lắk'),'BAO HIEM XA HOI CO SO DAK LAK');
  assert.deepEqual(renderTransferMemo(template,'','00123','Tháng 10/2026').missing,['ma_don_vi']);
- assert.equal(memoFitsQr(memo),false,'Long BHXH syntax must never be truncated into QR');
+ assert.equal(memoFitsQr(memo),true,'Full BHXH syntax must fit in QR');
  // Published VietQR API example is an independent reference vector, including CRC.
  assert.equal(buildVietQr('970415','113366668888','79000','Ung Ho Quy Vac Xin'),'00020101021238560010A0000007270126000697041501121133666688880208QRIBFTTA53037045405790005802VN62220818Ung Ho Quy Vac Xin63043ACF');
  assert.equal(qrCrc('123456789'),'29B1','CRC-16/CCITT-FALSE reference vector');
- await assert.rejects(async()=>buildVietQr('970415','00123456789','1000',memo),/vượt giới hạn/);
+ assert.ok(buildVietQr('970415','00123456789','1000',memo).includes(memo));
+ assert.throws(()=>buildVietQr('970415','00123456789','1000','A'.repeat(96)),/vượt giới hạn/);
  const accountOnly=buildVietQr('970415','00123456789','1200000','');
  assert.ok(accountOnly.includes('00123456789')); assert.ok(!accountOnly.includes('DONG BHXH'));
  assert.throws(()=>buildVietQr('970415','00123456789','0',''),/lớn hơn 0/);

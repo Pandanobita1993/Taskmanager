@@ -35,13 +35,13 @@ Mỗi khoản nhắc lưu bản chụp thông tin nhận tiền, có tên, mã c
 
 Mã VietQR chuyển khoản ngân hàng được tạo tại trình duyệt bằng thư viện `qrcode` (MIT). Không gọi dịch vụ tạo QR, không cần API key và không truyền thông tin khách / số tiền / cú pháp cho bên thứ ba. Chuỗi TLV NAPAS sử dụng GUID `A000000727`, dịch vụ `QRIBFTTA`, tiền tệ `704`, quốc gia `VN` và CRC-16/CCITT-FALSE.
 
-QR chỉ tạo khi số tiền dương, tối đa 13 chữ số và số tài khoản 6–19 chữ số. Cú pháp không dấu dài tối đa 25 ký tự được đưa nguyên vào QR. Cú pháp dài hơn hoặc có chữ có dấu được giữ đầy đủ trong văn bản; người dùng cần chọn rõ **QR tài khoản + số tiền**. Ảnh xuất ra ghi rõ QR không kèm nội dung và hướng dẫn dán nguyên cú pháp trước khi xác nhận. Không cắt cú pháp, bỏ mã cơ sở, bỏ kỳ hoặc tự sửa ký tự để ép vào QR. Không tự xác nhận giao dịch hay hạch toán sau khi khách quét.
+QR chỉ tạo khi số tiền dương, tối đa 13 chữ số và số tài khoản 6–19 chữ số. Cú pháp ASCII dài tối đa 95 ký tự được đưa nguyên vào QR, gồm mã đơn vị, mã cơ sở và kỳ MM YYYY. Giới hạn này đến từ trường TLV 62 dài tối đa 99 ký tự, trừ 4 ký tự tiêu đề trường con 08; không áp giới hạn 25 ký tự của API tạo ảnh bên ngoài. Cú pháp dài hơn hoặc có chữ có dấu được giữ đầy đủ trong văn bản; người dùng cần chọn rõ **QR tài khoản + số tiền**. Ảnh xuất ra ghi rõ QR không kèm nội dung và hướng dẫn dán nguyên cú pháp trước khi xác nhận. Không cắt cú pháp, bỏ mã cơ sở, bỏ kỳ hoặc tự sửa ký tự để ép vào QR. Không tự xác nhận giao dịch hay hạch toán sau khi khách quét.
 
 Nguồn và tài liệu kỹ thuật:
 
 - [Danh sách ngân hàng và mã BIN VietQR](https://www.vietqr.io/api-bank), [dữ liệu API](https://api.vietqr.io/v2/banks): chụp ngày 24/10/2026 tại `src/lib/vietnamBanks.json`, 76 tổ chức. Danh mục có thể thay đổi; cập nhật cùng cả file JSON và phần seed SQL trong một phiên bản để tên / BIN phía trình duyệt và server khớp nhau.
 - [Danh mục tỉnh / thành phố theo Quyết định 19/2025/QĐ-TTg](https://chinhphu.vn/?classid=1&docid=214409&orggroupid=3&pageid=27160), [Phụ lục chính thức](https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/19ttg.signed.pdf): 34 mã tỉnh / thành phố, lưu chuỗi để giữ số 0 đầu.
-- [Đặc tả API VietQR, giới hạn và ví dụ chuỗi QR](https://www.vietqr.io/generate): giới hạn 13 chữ số tiền và 25 ký tự nội dung. Ví dụ công khai là vector kiểm thử độc lập của bộ mã hóa / CRC.
+- [Đặc tả API VietQR, giới hạn và ví dụ chuỗi QR](https://www.vietqr.io/generate): API bên ngoài có giới hạn 13 chữ số tiền và 25 ký tự nội dung; app tạo QR cục bộ nên không áp giới hạn nội dung của API đó. Ví dụ công khai là vector kiểm thử độc lập của bộ mã hóa / CRC.
 - [Thư viện tạo ảnh QR](https://github.com/soldair/node-qrcode).
 
 Cú pháp mặc định ở đây theo mẫu người dùng yêu cầu. Có thể thay riêng theo thông báo thực tế của từng cơ sở; không suy ra một mẫu pháp lý áp dụng cho mọi cơ sở.

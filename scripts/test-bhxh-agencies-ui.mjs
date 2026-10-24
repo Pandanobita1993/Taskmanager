@@ -95,15 +95,15 @@ try {
  await expect(dialog.getByLabel('Tài khoản nhận',{exact:true})).toHaveValue(agency.accounts[1].id);
  await expect(dialog.getByLabel('Số tiền cần đóng (đồng)')).toHaveValue('1230000');
  const period=`${today.slice(5,7)}/${today.slice(0,4)}`;
- const memo=`BHXH 103 00 QA1234A 00123 DONG BHXH ${period}`;
+ const memo=`BHXH 103 00 QA1234A 00123 DONG BHXH ${period.replace("/", " ")}`;
  await expect(dialog.getByLabel('Cú pháp chuyển khoản',{exact:true})).toHaveValue(memo);
  await dialog.getByLabel('Tài khoản nhận',{exact:true}).selectOption(agency.accounts[0].id);
  await expect(dialog.getByLabel('Nội dung gửi khách')).toHaveValue(new RegExp('Số tài khoản: 00123456789'));
  await dialog.getByLabel('Tài khoản nhận',{exact:true}).selectOption(agency.accounts[1].id);
  await dialog.getByRole('button',{name:'Sao chép thông tin đóng tiền'}).click();
  assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).includes(`Cú pháp: ${memo}`));
- await expect(dialog.getByRole('button',{name:'Tạo QR thanh toán',exact:true})).toBeDisabled();
- await dialog.getByRole('checkbox',{name:'Tạo QR tài khoản + số tiền; tôi sẽ gửi kèm cú pháp để khách dán vào nội dung.'}).check();
+ await expect(dialog.getByRole('button',{name:'Tạo QR thanh toán',exact:true})).toBeEnabled();
+
  await dialog.getByRole('button',{name:'Tạo QR thanh toán',exact:true}).click();
  const image=dialog.getByRole('img',{name:'QR và thông tin đóng BHXH'});await expect(image).toBeVisible();
  const pixels=await image.evaluate(async img=>{
@@ -114,7 +114,7 @@ try {
  const decoded=jsQR(new Uint8ClampedArray(pixels.pixels),pixels.width,pixels.height);
  assert.ok(decoded,'Downloaded QR image must be independently decodable');
  assert.ok(decoded.data.includes('970415'));assert.ok(decoded.data.includes('00987654321'));assert.ok(decoded.data.includes('1230000'));
- assert.ok(!decoded.data.includes('DONG BHXH'),'Long memo is preserved in text and intentionally omitted from this QR');
+ assert.ok(decoded.data.includes(memo),'Full BHXH memo must be present in the decoded image');
  await expect(dialog.getByRole('link',{name:'Tải ảnh QR kèm thông tin'})).toHaveAttribute('download',/\.png$/);
  await image.screenshot({path:path.join(output,'qr-transfer-card.png')});
  await dialog.getByLabel('Hạn đóng *',{exact:true}).fill(today);

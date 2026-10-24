@@ -11,7 +11,9 @@ export function qrCrc(value: string) {
   }
   return crc.toString(16).toUpperCase().padStart(4, '0');
 }
-export function memoFitsQr(memo: string) { return /^[\x20-\x7e]{1,25}$/.test(memo); }
+// Field 62 has a two-digit length: 99 characters minus the 4-character header of child 08.
+export const QR_MEMO_MAX_LENGTH = 95;
+export function memoFitsQr(memo: string) { return /^[\x20-\x7e]{1,95}$/.test(memo); }
 export function buildVietQr(bankBin: string, accountNo: string, amount: string, memo: string) {
   if (!/^\d{6}$/.test(bankBin) || !/^[A-Za-z0-9]{1,19}$/.test(accountNo)) throw new Error('QR cần mã BIN 6 số và số tài khoản 1–19 ký tự chữ / số.');
   if (!/^[1-9]\d{0,12}$/.test(amount)) throw new Error('Số tiền QR phải lớn hơn 0 và tối đa 13 chữ số.');
