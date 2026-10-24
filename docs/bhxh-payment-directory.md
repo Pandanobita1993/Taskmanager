@@ -21,13 +21,13 @@ Thông tin gửi khách có các dòng:
 Mã đơn vị: [mã đơn vị]
 Số tiền cần đóng: [số tiền ở lệnh nhắc]
 Đóng cho kỳ: [kỳ ở lệnh nhắc]
-Cú pháp: BHXH 103 00 [mã đơn vị] [mã cơ sở] DONG BHXH [MM-YYYY]
+Cú pháp: BHXH 103 00 [mã đơn vị] [mã cơ sở] DONG BHXH [MM YYYY]
 Tên tài khoản nhận: [tên không dấu, viết hoa]
 Số tài khoản: [tài khoản đã chọn]
 Ngân hàng: [tên đầy đủ và chi nhánh nếu có]
 ```
 
-Mẫu cú pháp lưu riêng ở từng cơ sở. Biến hỗ trợ: `{{ma_don_vi}}`, `{{ma_co_quan}}`, `{{ky}}`, `{{thang}}`, `{{nam}}`. Với kỳ tháng, `{{ky}}` xuất `MM-YYYY`. Chưa có mã đơn vị / chưa điền hết biến thì không cho lưu thông tin nhận tiền.
+Mẫu cú pháp lưu riêng ở từng cơ sở. Biến hỗ trợ: `{{ma_don_vi}}`, `{{ma_co_quan}}`, `{{ky}}`, `{{thang}}`, `{{nam}}`. Với kỳ tháng, `{{ky}}` xuất `MM YYYY`. Chưa có mã đơn vị / chưa điền hết biến thì không cho lưu thông tin nhận tiền.
 
 Mỗi khoản nhắc lưu bản chụp thông tin nhận tiền, có tên, mã cơ sở, ngân hàng, tên / số tài khoản, mã đơn vị và cú pháp. Thay đổi danh mục không viết lại các lời nhắc đã lưu. Nếu cập nhật thông tin nhận tiền khi nhắc lần sau, lịch sử vẫn giữ bản chụp trước đó. Ngừng sử dụng cơ sở không xóa thông tin đã gửi khách.
 
