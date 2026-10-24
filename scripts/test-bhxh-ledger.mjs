@@ -104,6 +104,13 @@ assert.equal(parseC12Money('(1.234.567)'),-1234567); assert.equal(parseC12Money(
 assert.equal(parseC12Money('12.34'),null); assert.equal(parseC12Money('0'),0);
 assert.throws(()=>parseC12Lines(['hello']),/Không nhận diện/);
 assert.throws(()=>parseC12Lines(['C12-TS','Tháng 1 năm 2026','Tháng 2 năm 2026']),/nhiều kỳ/);
+const headerAndSignature=['Mẫu C12-TS','Tháng 08 năm 2026',
+ 'a) Kết quả đơn vị đã đóng đến hết tháng 03 năm 2025',
+ 'Địa danh, ngày 02 tháng 09 năm 2026'];
+assert.equal(parseC12Lines(headerAndSignature).period,'2026-08','A signing month or historical coverage month is not a second reporting period');
+assert.equal(parseC12Lines([...headerAndSignature,'Tháng 08 năm 2026']).period,'2026-08','Repeated headers for the same month are accepted');
+assert.equal(parseC12Lines(['Mẫu C12-TS','Địa danh, ngày 02 tháng 09 năm 2026']).period,null,'A footer date cannot substitute for a missing reporting period');
+assert.equal(parseC12Lines(['C12-TS','Kỳ báo cáo: Tháng 8 năm 2026']).period,'2026-08');
 assert.throws(()=>parseC12Lines(['C12-TS','Mã đơn vị: QA1234A','Mã đơn vị: QA4321B']),/nhiều mã/);
 assert.deepEqual(c12TextLines([{str:'Total',transform:[1,0,0,1,30,200]},{str:'B',transform:[1,0,0,1,10,200]}]),['B Total']);
 const missingTotal=c12TextLines([{str:'B Phát sinh trong kỳ',transform:[1,0,0,1,10,200]},

@@ -42,7 +42,12 @@ export function parseC12Lines(lines: string[]): C12Draft {
   const text = folded(lines.join('\n'));
   const warnings: string[] = [];
   if (!/c\s*12\s*[-–]?\s*ts\b/.test(text)) throw new Error('Không nhận diện được mẫu C12-TS. Hãy chọn đúng C12 PDF có lớp chữ hoặc nhập thủ công.');
-  const periods = [...text.matchAll(/thang\s+(\d{1,2})\s+nam\s+(\d{4})/g)].map(match => {
+  // The reporting month is a heading. Signing dates and coverage notes elsewhere
+  // in C12 also contain "tháng ... năm ...", but are not additional periods.
+  const periods = lines
+    .map(line => folded(line).trim().match(/^(?:ky\s+(?:bao cao|thong bao)\s*:\s*)?thang\s+(\d{1,2})\s+nam\s+(\d{4})\s*$/))
+    .filter((match): match is RegExpMatchArray => match !== null)
+    .map(match => {
     const month = Number(match[1]); const year = Number(match[2]);
     return month >= 1 && month <= 12 && year >= 1900 && year <= 2200 ? `${year}-${String(month).padStart(2, '0')}` : null;
   }).filter(Boolean);
