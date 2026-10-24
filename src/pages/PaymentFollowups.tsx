@@ -92,7 +92,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     });
   }
 
-  function openEditor(action: PaymentAction, row?: PaymentFollowup, composeMonth?: string) {
+  const openEditor = useCallback((action: PaymentAction, row?: PaymentFollowup, composeMonth?: string) => {
     setFormError(''); setMessage(''); setProofBusy(false);
     const selectedClient = row?.client_id || (data?.clients.some(c => c.id === clientId && !c.archived) ? clientId : '');
     const selectedMonth = composeMonth || (row ? bhxhReminderMonth(row.period) : today.slice(0, 7));
@@ -106,7 +106,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
       next_reminder_on: action === 'save' ? row?.next_reminder_on || today : action === 'reopen' ? today : addFollowupDays(today, 3),
       promised_on: today, paid_on: today, payment_reference: '', notes: row?.notes || '', event_note: '',
     } });
-  }
+  }, [data?.clients, clientId, today, bhxhPeriods, scope]);
   function update(patch: Partial<FollowupForm>) {
     // A changed payload is a new request; an unchanged retry keeps its original ID.
     setEditor(previous => {
@@ -131,7 +131,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     }, 0);
     return () => window.clearTimeout(timer);
     // The compose command is consumed once; ordinary refreshes never reopen the form.
-  }, [compose, clientId, data, scope]);
+  }, [compose, clientId, data, scope, openEditor, setParams]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!editor || submitting.current || !profile.id || proofBusy) return;
