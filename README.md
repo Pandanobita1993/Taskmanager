@@ -93,6 +93,10 @@ Sau migration nhắc khách đã có, chạy **`supabase-bhxh-ledger-migration.s
 
 Số tổng nợ trên đầu trang lấy số dư dương của **kỳ mới nhất từng khách** trong phạm vi khách / tìm kiếm, không cộng dồn số dư của nhiều kỳ. Khách thiếu thông tin được thống kê riêng; số tiền nộp trong bộ lọc không gồm lần nộp đã hủy. Dữ liệu sổ BHXH độc lập với phí dịch vụ và tiền thực nhận của công ty.
 
+Khi mở sổ, khách đang hoạt động đã có kỳ của **tháng liền trước** sẽ tự có thẻ tháng hiện tại ở trạng thái **Chờ nhập phát sinh**, tính theo ngày Việt Nam từ máy chủ. Đầu kỳ lấy số cuối kỳ trước (kể cả 0 hoặc số âm); chưa xác định được thì vẫn để thiếu thông tin. Phát sinh chưa nhập không được coi là 0, và chưa tính số dư cuối kỳ. Bấm **Nhập phát sinh**, nhập số thực tế rồi lưu để ghi nhận chính thức kỳ mới. Kỳ đã lưu được giữ nguyên, không sinh trùng khi mở lại sổ. Nếu đang lọc tháng cũ, nút **Xem tháng hiện tại** chuyển sang kỳ mới. Không tự tạo bù các tháng bị khuyết, không mở kỳ tương lai cho khách và không tạo kỳ mới cho khách lưu trữ.
+
+Thẻ chờ nhập chỉ là bản nháp hiển thị, không ghi một khoản phát sinh giả vào dữ liệu. Các nhân viên phụ trách cùng khách đều thấy bản nháp từ dữ liệu kỳ trước; sau khi một người lưu, các máy khác làm mới sẽ thấy kỳ đã ghi nhận. Tổng nợ dùng kỳ đã cập nhật gần nhất của từng khách, chưa cộng thẻ chờ nhập. Tính năng chuyển kỳ này dùng cấu trúc hiện có, không cần chạy thêm SQL hay cài lịch nền.
+
 ### Đọc C12 PDF không dùng API trả phí
 
 Chọn **Đọc C12 PDF** để PDF.js trích văn bản trực tiếp trong trình duyệt. Giới hạn 10 MB / 12 trang; file không tải lên server, chỉ tên file được lưu làm tham chiếu sau khi người dùng xác nhận. Thư viện và worker được đóng gói cùng website, chỉ tải khi chọn file.

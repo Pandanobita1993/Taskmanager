@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { parseC12Lines, parseC12Money, c12TextLines } from '../src/lib/c12Parser.ts';
-import { previousBhxhMonth, previewBhxhPeriod } from '../src/lib/bhxhLedger.ts';
+import { previousBhxhMonth, previewBhxhPeriod, withCurrentBhxhDrafts } from '../src/lib/bhxhLedger.ts';
 const require = createRequire(path.join(os.tmpdir(),'anan-recurrence-qa','package.json'));
 const { PGlite } = require('@electric-sql/pglite');
 const db = new PGlite();
@@ -80,6 +80,38 @@ await assert.rejects(save('period',{...may,period_on:'2025-06-01'}),/Không th�
 assert.ok((await history('payment',paid.id)).some(row=>row.actor_name==='Colleague'));
 await assert.rejects(history('payment',paid.id,crypto.randomUUID()),/phạm vi/);
 const snapshot=await portal();
+const draftPortal={...snapshot,today:'2025-06-15'};
+const originalSnapshot=JSON.stringify(draftPortal);
+const generated=withCurrentBhxhDrafts(draftPortal);
+const current=generated.find(row=>row.client_id===client&&row.period_on==='2025-06-01');
+assert.equal(current.opening_balance,-10,'The current month carries the prior closing, including a credit');
+assert.equal(current.charges,null,'Unknown current charges must not become zero');
+assert.equal(current.closing_balance,null,'No fabricated closing before charges are entered');
+assert.equal(current.is_current_draft,true);
+assert.equal(current.version,0);
+assert.equal(JSON.stringify(draftPortal),originalSnapshot,'Generating a draft never mutates or writes source data');
+assert.equal(withCurrentBhxhDrafts({...draftPortal,periods:generated}).filter(row=>row.period_on==='2025-06-01').length,1,'Refreshes do not duplicate a current-month draft');
+assert.equal(withCurrentBhxhDrafts({...draftPortal,today:'2025-07-01'}).some(row=>row.is_current_draft),false,'A missing June cannot be skipped by copying May into July');
+assert.equal(withCurrentBhxhDrafts({...draftPortal,clients:draftPortal.clients.map(c=>({...c,archived:true}))}).some(row=>row.is_current_draft),false,'Archived customers do not get new draft periods');
+const priorRow=draftPortal.periods.find(row=>row.id===may.id);
+for(const closing of [0,100,null]) {
+ const view=withCurrentBhxhDrafts({...draftPortal,periods:[{...priorRow,closing_balance:closing}]});
+ const row=view.find(row=>row.is_current_draft);
+ assert.equal(row.opening_balance,closing,'Zero, a debt, and missing opening remain distinct');
+ assert.equal(row.opening_source,closing===null?'missing':'previous');
+}
+const existingCurrent={...priorRow,id:crypto.randomUUID(),period_on:'2025-06-01',charges:0,closing_balance:0};
+const existingView=withCurrentBhxhDrafts({...draftPortal,periods:[...draftPortal.periods,existingCurrent]});
+assert.equal(existingView.filter(row=>row.period_on==='2025-06-01').length,1);
+assert.equal(existingView.find(row=>row.id===existingCurrent.id).charges,0,'A saved current period is never overwritten');
+const paidDraft=withCurrentBhxhDrafts({...draftPortal,payments:[
+ {...partial,id:crypto.randomUUID(),paid_on:'2025-06-05',amount:20,is_void:false},
+ {...partial,id:crypto.randomUUID(),paid_on:'2025-06-06',amount:30,is_void:false},
+ {...partial,id:crypto.randomUUID(),paid_on:'2025-06-07',amount:90,is_void:true},
+ {...partial,id:crypto.randomUUID(),paid_on:'2025-05-31',amount:80,is_void:false},
+]}).find(row=>row.is_current_draft);
+assert.equal(paidDraft.paid_total,50);assert.equal(paidDraft.payment_count,2);
+assert.equal(withCurrentBhxhDrafts({...draftPortal,today:'2026-01-01',periods:[{...priorRow,period_on:'2025-12-01'}]}).find(row=>row.is_current_draft).period_on,'2026-01-01','Year rollover uses the immediately previous calendar month');
 const preview=previewBhxhPeriod(snapshot.periods,snapshot.payments,client,'2025-05-01','','30');
 assert.equal(preview.closing,snapshot.periods.find(row=>row.id===may.id).closing_balance,'UI preview agrees with SQL');
 assert.equal(previousBhxhMonth('2026-01-01'),'2025-12-01');
