@@ -1,3 +1,4 @@
+import { matchesClientSearch } from '../lib/clientSearch';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarClock, Plus, Pencil, Pause, Play, RefreshCw, X } from 'lucide-react';
@@ -85,7 +86,7 @@ export default function RecurringTasks() {
   }
 
   const clients = data?.clients || [];
-  const visibleClients = clients.filter((c: any) => `${c.name} ${c.tax_code}`.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')));
+  const visibleClients = clients.filter((c: any) => matchesClientSearch(`${c.name} ${c.tax_code}`, search));
   const templates = [...(data?.templates || [])].sort((a: any, b: any) => b.created_at.localeCompare(a.created_at) || a.client_name.localeCompare(b.client_name, 'vi') || a.id.localeCompare(b.id));
   const visible = templates.filter((row: any) => filter === 'all' || (filter === 'active' ? row.is_active : !row.is_active));
   const existing = form?.id ? templates.find((row: any) => row.id === form.id) : null;

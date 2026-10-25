@@ -1,3 +1,4 @@
+import { matchesClientSearch } from '../lib/clientSearch';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save, Check, FileText } from 'lucide-react';
@@ -279,8 +280,7 @@ export default function NewTask() {
   // Tìm kiếm theo từ khóa tên hoặc MST
   const filteredClients = baseClientList.filter(c => {
     if (!clientSearch.trim()) return true;
-    const term = clientSearch.toLowerCase();
-    return c.name?.toLowerCase().includes(term) || c.tax_code?.toLowerCase().includes(term);
+    return matchesClientSearch(`${c.name || ''} ${c.tax_code || ''}`, clientSearch);
   });
 
   const handleQuickAddClient = async (e: React.FormEvent) => {
