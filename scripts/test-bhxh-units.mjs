@@ -1,4 +1,4 @@
-import { withCurrentBhxhDrafts, previewBhxhPeriod, bhxhSuggestedAmount } from '../src/lib/bhxhLedger.ts';
+import { withCurrentBhxhDrafts, previewBhxhPeriod, bhxhSuggestedAmount, missingCurrentBhxhC12 } from '../src/lib/bhxhLedger.ts';
 import { matchBhxhImport } from '../src/lib/bhxhUnits.ts';
 import { clientDetailUpdates } from '../src/lib/clientDetails.ts';
 import assert from 'node:assert/strict';
@@ -130,6 +130,17 @@ try {
  assert.equal(drafts.find(r=>r.unit_id===units[1].id).opening_balance,2510);
  assert.equal(drafts.find(r=>r.unit_id===replacement.id).opening_balance,null,'Unknown opening never comes from another code');
  assert.equal(drafts.some(r=>r.unit_id===units[2].id),false,'Retired codes do not open new months');
+ const statusPortal={...draftPortal,periods:withCurrentBhxhDrafts(draftPortal)};
+ assert.equal(missingCurrentBhxhC12(statusPortal).length,3,'Unsaved current drafts still need charges');
+ assert.equal(missingCurrentBhxhC12({...statusPortal,periods:[]}).length,3,'Codes without any previous C12 are counted too');
+ const currentZero={...prior.find(r=>r.unit_id===units[0].id),period_on:'2026-10-01',charges:0,closing_balance:null};
+ assert.deepEqual(missingCurrentBhxhC12({...statusPortal,periods:[...statusPortal.periods,currentZero]}).map(r=>r.unit_id).sort(),[units[1].id,replacement.id].sort(),'Zero charges count as updated even with unknown opening; other codes remain pending');
+ assert.equal(missingCurrentBhxhC12({...statusPortal,periods:[{...currentZero,charges:null}]}).length,3,'Unknown charges are still pending');
+ assert.equal(missingCurrentBhxhC12({...statusPortal,periods:[{...currentZero,period_on:'2026-11-01'}]}).length,3,'A different month does not complete the current month');
+ for(const patch of [{archived:true},{participating:false}]) {
+  assert.equal(missingCurrentBhxhC12({...statusPortal,clients:statusPortal.clients.map(c=>c.id===client?{...c,...patch}:c)}).length,0,'Archived or non-participating clients are excluded');
+ }
+ assert.equal(missingCurrentBhxhC12({...statusPortal,clients:statusPortal.clients.map(c=>({...c,units:c.units?.map(u=>({...u,code:'  '}))}))}).length,0,'Blank codes cannot have C12 updates');
  assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09','reminder',units[1].id),'3000');
  assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09','payment',units[1].id),'2510');
  assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09','payment'),'','No selection cannot suggest another code’s balance');

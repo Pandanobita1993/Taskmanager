@@ -22,6 +22,16 @@ export interface BhxhEvent {
 }
 export const bhxhMoney = (value: number | null) => value == null ? 'Thiếu thông tin' : `${new Intl.NumberFormat('vi-VN').format(value)} đ`;
 export const bhxhMonthLabel = (value: string) => `${value.slice(5, 7)}/${value.slice(0, 4)}`;
+export function missingCurrentBhxhC12(portal: BhxhPortal) {
+  const current = portal.today.slice(0, 7);
+  const updated = new Set(portal.periods
+    .filter(row => row.period_on.slice(0, 7) === current && row.charges != null && !row.is_current_draft)
+    .map(row => `${row.client_id}:${row.unit_id || ''}`));
+  return portal.clients.filter(client => !client.archived && client.participating !== false)
+    .flatMap(client => (client.units || [])
+      .filter(unit => unit.is_active && unit.code.trim() && !updated.has(`${client.id}:${unit.id}`))
+      .map(unit => ({ client_id: client.id, client_name: client.name, unit_id: unit.id })));
+}
 export function bhxhReminderMonth(value: string) {
   const match = value.trim().match(/^(?:Tháng\s+)?(0?[1-9]|1[0-2])\s*\/\s*(\d{4})$/i);
   return match ? `${match[2]}-${match[1].padStart(2, '0')}` : /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : '';
