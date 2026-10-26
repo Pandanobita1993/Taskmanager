@@ -246,14 +246,14 @@ try {
  await page.goto(`${appOrigin}/insurance?client=${autoClient}&month=${currentMonth}`);
  await page.locator('article').getByRole('button',{name:'Nhắc khách kỳ này'}).click();
  dialog=page.getByRole('dialog');
- await expect(dialog.getByLabel('Số tiền cần đóng (đồng)')).toHaveValue('40');
+ await expect(dialog.getByLabel('Số tiền cần đóng (đồng)')).toHaveValue('210');
  await dialog.getByLabel('Số tiền cần đóng (đồng)').fill('45');
  await dialog.getByLabel('Hạn đóng *',{exact:true}).fill(today);
  await dialog.getByRole('button',{name:'Lưu theo dõi'}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.locator('article').getByRole('button',{name:'Đã báo / nhắc khách'}).click();
  dialog=page.getByRole('dialog');
- await expect(dialog.getByLabel('Số tiền nhắc khách (đồng)',{exact:true})).toHaveValue('40');
+ await expect(dialog.getByLabel('Số tiền nhắc khách (đồng)',{exact:true})).toHaveValue('210');
  await dialog.getByLabel('Số tiền nhắc khách (đồng)',{exact:true}).fill('42');
  await dialog.getByRole('button',{name:'Lưu theo dõi'}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);

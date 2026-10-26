@@ -141,9 +141,9 @@ try {
   assert.equal(missingCurrentBhxhC12({...statusPortal,clients:statusPortal.clients.map(c=>c.id===client?{...c,...patch}:c)}).length,0,'Archived or non-participating clients are excluded');
  }
  assert.equal(missingCurrentBhxhC12({...statusPortal,clients:statusPortal.clients.map(c=>({...c,units:c.units?.map(u=>({...u,code:'  '}))}))}).length,0,'Blank codes cannot have C12 updates');
- assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09','reminder',units[1].id),'3000');
- assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09','payment',units[1].id),'2510');
- assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09','payment'),'','No selection cannot suggest another code’s balance');
+ assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09',units[1].id),'2510','Suggested amount includes opening balance and subtracts actual payments for this code');
+ assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09',units[0].id),'3100','Other codes keep their own closing balance');
+ assert.equal(bhxhSuggestedAmount(uiPortal.periods,client,'2026-09'),'','No selection cannot suggest another code’s balance');
  assert.deepEqual(previewBhxhPeriod(prior,uiPortal.payments,client,'2026-10-01','','100',units[1].id),{opening:2510,paid:0,closing:2610});
  const ambiguous=[units[0],{...units[0],id:crypto.randomUUID(),is_active:false}];
  assert.equal(matchBhxhImport(units,'LEGAL1').id,units[1].id);

@@ -36,9 +36,9 @@ export function bhxhReminderMonth(value: string) {
   const match = value.trim().match(/^(?:Tháng\s+)?(0?[1-9]|1[0-2])\s*\/\s*(\d{4})$/i);
   return match ? `${match[2]}-${match[1].padStart(2, '0')}` : /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : '';
 }
-export function bhxhSuggestedAmount(periods: BhxhPeriod[], clientId: string, month: string, purpose: 'reminder' | 'payment', unitId = '') {
+export function bhxhSuggestedAmount(periods: BhxhPeriod[], clientId: string, month: string, unitId = '') {
   const row = periods.find(period => period.client_id === clientId && (period.unit_id || '') === unitId && period.period_on.slice(0, 7) === month.slice(0, 7));
-  const amount = purpose === 'reminder' ? row?.charges : row?.closing_balance;
+  const amount = row?.closing_balance;
   // Unknown input never silently becomes zero; credits are not an amount to collect.
   return amount == null ? '' : String(Math.max(amount, 0));
 }

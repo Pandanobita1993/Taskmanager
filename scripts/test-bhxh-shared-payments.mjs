@@ -77,11 +77,11 @@ try {
  await assert.rejects(portal(staff), /nhân viên/);
  for (const name of ['bhxh_client_access(uuid,uuid)', 'payment_followup_record_access(uuid,uuid,text)', 'bhxh_validate_proof(text)']) assert.equal(await scalar('select has_function_privilege($1,$2,$3)', ['anon', name, 'EXECUTE']), false);
  const periods = [{ client_id: client, period_on: '2026-10-01', charges: 100, closing_balance: 130 }];
- assert.equal(bhxhSuggestedAmount(periods, client, '2026-10', 'reminder'), '100');
- assert.equal(bhxhSuggestedAmount(periods, client, '2026-10-24', 'payment'), '130');
- assert.equal(bhxhSuggestedAmount(periods, client, '2026-09', 'payment'), '');
- assert.equal(bhxhSuggestedAmount([{ ...periods[0], closing_balance: -10, charges: 0 }], client, '2026-10', 'payment'), '0');
- assert.equal(bhxhSuggestedAmount([{ ...periods[0], closing_balance: null }], client, '2026-10', 'payment'), '');
+ assert.equal(bhxhSuggestedAmount(periods, client, '2026-10'), '130','Reminder includes the opening balance instead of charges alone');
+ assert.equal(bhxhSuggestedAmount(periods, client, '2026-10-24'), '130');
+ assert.equal(bhxhSuggestedAmount(periods, client, '2026-09'), '');
+ assert.equal(bhxhSuggestedAmount([{ ...periods[0], closing_balance: -10, charges: 0 }], client, '2026-10'), '0');
+ assert.equal(bhxhSuggestedAmount([{ ...periods[0], closing_balance: null }], client, '2026-10'), '');
  assert.equal(bhxhReminderMonth('Tháng 9/2026'), '2026-09');
  assert.equal(bhxhReminderMonth('Quý 4/2026'), '');
  console.log('Shared BHXH: all service customers, tax isolation, required uploaded image, legacy preservation, retry, proof history, notify amount and defaults passed.');

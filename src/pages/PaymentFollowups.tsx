@@ -109,7 +109,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     const selectedMonth = composeMonth || (row ? bhxhReminderMonth(row.period) : today.slice(0, 7));
     const units = data?.clients.find(client => client.id === selectedClient)?.units || [];
     const uid = row?.unit_id || (units.some(unit => unit.id === unitId && unit.is_active) ? unitId : '') || soleBhxhUnit(units)?.id || '';
-    const suggestion = bhxhSuggestedAmount(bhxhPeriods, selectedClient, selectedMonth, 'reminder', uid);
+    const suggestion = bhxhSuggestedAmount(bhxhPeriods, selectedClient, selectedMonth, uid);
     const transfer = row?.transfer_details?.agency_id ? row.transfer_details : null;
     setEditor({ action, requestId: crypto.randomUUID(), existing: !!row, form: {
       ...emptyReceiver, ...(transfer ? { receiver_agency_id: transfer.agency_id, receiver_account_id: transfer.account_id,
@@ -134,7 +134,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
       if (changedUnit && next.kind === 'bhxh') next.amount_manual = false;
       if (patch.amount !== undefined) next.amount_manual = true;
       else if ((patch.client_id !== undefined || patch.unit_id !== undefined || patch.period !== undefined || patch.kind !== undefined) && !next.amount_manual) {
-        next.amount = next.kind === 'bhxh' ? bhxhSuggestedAmount(bhxhPeriods, next.client_id, bhxhReminderMonth(next.period), 'reminder', next.unit_id) : '';
+        next.amount = next.kind === 'bhxh' ? bhxhSuggestedAmount(bhxhPeriods, next.client_id, bhxhReminderMonth(next.period), next.unit_id) : '';
       }
       return { ...previous, requestId: crypto.randomUUID(), form: next };
     });
@@ -202,7 +202,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     paid: scoped.filter(row => row.status === 'paid').length,
   };
   const form = editor?.form;
-  const reminderSuggestion = form?.kind === 'bhxh' ? bhxhSuggestedAmount(bhxhPeriods, form.client_id, bhxhReminderMonth(form.period), 'reminder', form.unit_id) : '';
+  const reminderSuggestion = form?.kind === 'bhxh' ? bhxhSuggestedAmount(bhxhPeriods, form.client_id, bhxhReminderMonth(form.period), form.unit_id) : '';
   const formClient = data?.clients.find(c => c.id === form?.client_id);
   const formUnit = formClient?.units?.find(unit => unit.id === form?.unit_id);
   const terminal = editor?.action === 'paid' || editor?.action === 'cancel';
@@ -257,7 +257,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         </> : <p className="bg-gray-50 rounded-lg p-3 text-sm"><strong>{formClient?.name}</strong><br />{followupKindLabel(form.kind)} · {form.period}<br />Hạn đóng: {recurringDateLabel(form.due_on)}</p>}
         {form.kind === 'bhxh' && (editor.action === 'save' || editor.action === 'notify') && <div className="space-y-2">
           {form.kind === 'bhxh' && <p className="text-sm text-emerald-800">{formUnit ? bhxhUnitLabel(formUnit) : 'Chưa chọn mã'}</p>}{editor.action === 'notify' && <label className="block text-sm font-medium">Số tiền nhắc khách (đồng)<input aria-label="Số tiền nhắc khách (đồng)" inputMode="numeric" pattern="[0-9]{1,15}" maxLength={15} value={form.amount} onChange={event => update({ amount: event.target.value })} className={field} /></label>}
-          <p className="text-xs text-gray-600">{reminderSuggestion === '' ? 'Chưa có phát sinh C12 cho kỳ này để gợi ý. Bạn có thể nhập số tiền riêng.' : <>Phát sinh C12 kỳ {bhxhMonthLabel(`${bhxhReminderMonth(form.period)}-01`)}: <strong>{followupAmountLabel(Number(reminderSuggestion))}</strong>. <button type="button" className="text-blue-700 underline" onClick={() => update({ amount: reminderSuggestion })}>Dùng số phát sinh</button></>}</p>
+          <p className="text-xs text-gray-600">{reminderSuggestion === '' ? 'Chưa đủ dữ liệu số dư cuối kỳ C12 để gợi ý. Bạn có thể nhập số tiền riêng.' : <>Còn phải đóng theo số dư cuối kỳ C12 {bhxhMonthLabel(`${bhxhReminderMonth(form.period)}-01`)}: <strong>{followupAmountLabel(Number(reminderSuggestion))}</strong> (đầu kỳ + phát sinh − đã nộp). <button type="button" className="text-blue-700 underline" onClick={() => update({ amount: reminderSuggestion })}>Dùng số cuối kỳ</button></>}</p>
         </div>}
         {form.kind === 'bhxh' && (editor.action === 'save' || editor.action === 'notify') && <BhxhReceiverFields key={form.id} clientId={form.client_id} unitId={form.unit_id} clientName={formClient?.name || ''} unitCode={formUnit?.code || ''} period={form.period} amount={form.amount} value={form} onChange={patch => update(patch)} onReady={receiverReady} />}
         {!terminal && <label className="block text-sm font-medium">{editor.action === 'save' ? 'Ngày cần nhắc / kiểm tra *' : 'Ngày nhắc tiếp theo *'}<input required type="date" min={editor.action === 'save' ? undefined : today} value={form.next_reminder_on} onChange={event => update({ next_reminder_on: event.target.value })} className={field} /></label>}

@@ -1,5 +1,7 @@
 # Nhật ký và bàn giao Task Manager — đọc trước khi tiếp tục
 
+> **Thay đổi yêu cầu ngày 26/10/2026:** Khi thêm hoặc ghi nhận lần nhắc khách BHXH, số tiền gợi ý lấy **số dư cuối kỳ C12 của đúng kỳ và mã** (đầu kỳ + phát sinh − đã nộp), thay cho riêng phát sinh. Thiếu số dư cuối kỳ thì để người dùng nhập; số âm gợi ý 0. Đây là yêu cầu mới, thay thế quy tắc gợi ý phát sinh ghi trong các mục lịch sử ngày 24/10 bên dưới. Xem `docs/bhxh-unit-ledgers.md` và Git mới nhất để tiếp tục.
+
 **Ngày chốt: 24/10/2026, khoảng 17:37, giờ Việt Nam (UTC+7).**
 
 Người dùng đang làm tại máy cơ quan, sẽ **tắt máy cơ quan** và về nhà mở thư mục project trên Google Drive bằng máy khác. Người dùng yêu cầu ghi lại quá trình làm việc để Codex ở máy nhà đọc và tiếp tục. File này là bản bàn giao trong project, không phải bản xuất nguyên văn toàn bộ cuộc chat hay bản sao cơ sở dữ liệu.
