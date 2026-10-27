@@ -91,6 +91,11 @@ try {
   await results.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(output, 'lookup-mobile-results.png'), fullPage: true, animations: 'disabled' });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  await page.getByLabel('Mã số thuế *', { exact: true }).fill('000000000001');
+  await page.getByLabel('Mã xác nhận *', { exact: true }).fill('ABCDE');
+  await page.getByRole('button', { name: 'Tra cứu', exact: true }).click();
+  await expect(results).toContainText('AB1234');
+  assert.equal(calls.filter(call => call.action === 'search').at(-1).MaSoThue, '000000000001');
   await page.getByRole('button', { name: 'Tải lại công cụ', exact: true }).click();
   await expect(page.getByLabel('Mã cơ sở BHXH *', { exact: true })).toHaveValue('09201');
   await expect(results).toHaveCount(0);

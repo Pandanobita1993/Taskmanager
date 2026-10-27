@@ -55,6 +55,8 @@ assert.deepEqual(calls.at(-1).fields, { ...query, docheck: '1', page: '2' });
 assert.equal((await run({ action: 'page', page: 9999, session })).status, 400);
 const otherSession = (await run({ action: 'init' })).data.session;
 assert.equal((await run({ action: 'page', page: 2, session: otherSession })).status, 400);
+assert.equal((await run({ action: 'search', ...query, MaSoThue: '000000000001', tokenRecaptch: 'ABCDE', session: otherSession })).status, 200);
+assert.equal(calls.at(-1).fields.MaSoThue, '000000000001');
 const tampered = session.slice(0, 20) + (session[20] === 'a' ? 'b' : 'a') + session.slice(21);
 assert.equal((await run({ action: 'search', ...query, tokenRecaptch: 'ABCDE', session: tampered })).status, 410);
 const originalNow = Date.now;

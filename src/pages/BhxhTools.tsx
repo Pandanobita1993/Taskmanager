@@ -113,7 +113,7 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
             <option value="">Nhập thông tin riêng</option>{clients.map(client => <option key={client.id} value={client.id} data-search={client.tax_code}>{client.name} · {client.tax_code || 'Chưa có MST'}</option>)}
           </ClientSelect></label>}
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">Mã số thuế *<input required value={query.MaSoThue} inputMode="numeric" maxLength={14} pattern="[0-9]{10}(-?[0-9]{3})?" onChange={event => update({ MaSoThue: event.target.value })} placeholder="VD: 1801821715" className={input} /></label>
+          <label className="block text-sm font-medium">Mã số thuế *<input required value={query.MaSoThue} inputMode="numeric" maxLength={14} pattern="[0-9]{10}([0-9]{2,3}|-[0-9]{3})?" onChange={event => update({ MaSoThue: event.target.value })} placeholder="VD: 1801821715" className={input} /></label>
           <label className="block text-sm font-medium">Mã cơ sở BHXH *<input required value={query.MaBHXH} inputMode="numeric" maxLength={5} minLength={5} pattern="[0-9]{5}" onChange={event => update({ MaBHXH: event.target.value })} placeholder="VD: 09200" className={input} /></label>
         </div>
         <p className="text-xs text-gray-500">Mã cơ sở gồm 5 chữ số, giữ cả số 0 ở đầu; đây là mã cơ quan quản lý, khác với mã đơn vị của doanh nghiệp.</p>

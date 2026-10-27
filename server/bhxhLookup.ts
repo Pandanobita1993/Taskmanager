@@ -138,7 +138,7 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
       } else {
         query = { MaBHXH: field(body, 'MaBHXH', 5, true), MaSoThue: field(body, 'MaSoThue', 14, true), MaDonVi: '', TenDonVi: '' };
         if (!/^\d{5}$/.test(query.MaBHXH)) throw new LookupError('Mã cơ sở BHXH phải gồm 5 chữ số, giữ cả số 0 ở đầu.');
-        if (!/^(?:\d{10}|\d{13}|\d{10}-\d{3})$/.test(query.MaSoThue)) throw new LookupError('Mã số thuế phải có 10 hoặc 13 chữ số (có thể có dấu gạch nối chi nhánh).');
+        if (!/^(?:\d{10}|\d{12}|\d{13}|\d{10}-\d{3})$/.test(query.MaSoThue)) throw new LookupError('Mã số thuế phải có 10, 12 hoặc 13 chữ số (có thể có dấu gạch nối chi nhánh).');
         if (!/^[a-z\d]{5}$/i.test(field(body, 'tokenRecaptch', 5, true))) throw new LookupError('Nhập 5 ký tự trong ảnh mã xác nhận.');
         delete session.query; delete session.pages;
       }
