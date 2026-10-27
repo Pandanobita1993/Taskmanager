@@ -5,7 +5,7 @@ Chạy **toàn bộ** `supabase-bhxh-units-migration.sql` trong SQL Editor của
 ## Sử dụng
 
 - Tab **Mã đơn vị**: mỗi khách tối đa 3 mã đang dùng, mỗi nhóm một mã: người lao động, đại diện pháp luật, người nước ngoài. Mã cũ ở **Chờ phân loại** vẫn tính là một mã; phân loại mã đó trước khi cần thêm đủ ba nhóm.
-- Nhân viên phụ trách BHXH của khách cập nhật mã. Mọi nhân viên đang hoạt động xem được danh sách và theo dõi tiền của khách sử dụng dịch vụ BHXH, như phạm vi BHXH dùng chung hiện có.
+- Sau khi cài `supabase-bhxh-staff-permissions-migration.sql`, nhân viên có nghiệp vụ chính BHXH hoặc kiêm nhiệm BHXH cập nhật mã, C12, tiền nộp và cơ sở cho mọi khách BHXH, kể cả khách của đồng nghiệp. Nhân viên còn lại chỉ xem theo phạm vi dùng chung. Xem `docs/bhxh-staff-permissions.md`.
 - Khi có nhiều mã, chọn mã cụ thể tại C12, ghi tiền nộp, nhắc khách và thiết lập tài khoản nhận mặc định. Không tự coi mã cũ là mã người lao động.
 - Mỗi mã có chuỗi số dư riêng. Đầu kỳ lấy cuối tháng liền trước của cùng mã; thiếu dữ liệu vẫn là “Thiếu thông tin”. Tiền nộp cộng theo tháng **thực nộp** của cùng mã, bao gồm nộp bù.
 - Tab Công nợ C12 thống kê **số C12 tháng hiện tại chưa cập nhật phát sinh**, thay cho tổng nợ / tổng tiền của tất cả khách. Mỗi mã đang dùng và đã có số mã tính là một C12, kể cả mã chưa có số liệu tháng trước. Kỳ đã lưu phát sinh bằng 0 vẫn là đã cập nhật; thiếu đầu kỳ không làm kỳ đó bị tính là chưa nhập phát sinh. Bộ đếm theo bộ lọc khách / mã / tên khách, luôn dùng tháng hiện tại kể cả khi đang xem kỳ khác; không tính khách lưu trữ, khách ngừng dịch vụ hoặc mã đã ngừng.

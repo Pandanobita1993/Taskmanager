@@ -19,7 +19,9 @@
     "test:bhxh:ui": "node scripts/test-bhxh-ledger-ui.mjs",
     "preview": "vite preview",
     "test:bhxh:units": "node scripts/test-bhxh-units.mjs",
-    "test:bhxh:units:ui": "node scripts/test-bhxh-units-ui.mjs"
+    "test:bhxh:units:ui": "node scripts/test-bhxh-units-ui.mjs",
+    "test:bhxh:permissions": "node scripts/test-bhxh-staff-permissions.mjs",
+    "test:bhxh:permissions:ui": "node scripts/test-bhxh-staff-permissions.mjs --ui"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

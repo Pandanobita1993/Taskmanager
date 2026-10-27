@@ -15,6 +15,7 @@ const defaultMemo = 'BHXH 103 00 {{ma_don_vi}} {{ma_co_quan}} DONG BHXH {{ky}}';
 export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
   const [profile] = useState(readCachedProfile);
   const [data, setData] = useState<AgencyPortal | null>(null);
+  const canManageBhxh = data?.can_manage_bhxh !== false;
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,12 +58,13 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
     setReceiver({ client_id: receiver.client_id, unit_id: receiver.unit_id, agency_id: row?.agency_id || '', account_id: row?.account_id || '', version: row?.version || 0, requestId: crypto.randomUUID() });
   }
   function edit(row?: BhxhAgency) {
+    if (!canManageBhxh) return;
     setFormError('');
     setForm({ ...(row || { id: crypto.randomUUID(), version: 0, name: '', agency_code: '', address: '', phone: '', province_code: '', memo_template: defaultMemo, notes: '', is_active: true, accounts: [], areas: [] }), requestId: crypto.randomUUID() });
   }
   function update(patch: Partial<BhxhAgency>) { setForm(previous => previous ? { ...previous, ...patch, requestId: crypto.randomUUID() } : null); }
   async function save(event: FormEvent) {
-    event.preventDefault(); if (!form || busy.current) return;
+    event.preventDefault(); if (!form || busy.current || !canManageBhxh) return;
     busy.current = true; setSaving(true); setFormError('');
     try {
       const { requestId, ...record } = form;
@@ -81,7 +83,7 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
     setReceiver({ client_id, unit_id, agency_id: existing?.agency_id || '', account_id: existing?.account_id || '', version: existing?.version || 0, requestId: crypto.randomUUID() });
   }
   async function saveReceiver(event: FormEvent) {
-    event.preventDefault(); if (!receiver.client_id || !receiver.unit_id || busy.current) return;
+    event.preventDefault(); if (!receiver.client_id || !receiver.unit_id || busy.current || !canManageBhxh) return;
     busy.current = true; setSaving(true); setError('');
     try {
       const { requestId, ...record } = receiver;
@@ -97,25 +99,26 @@ export default function BhxhAgencies({ clients }: { clients: BhxhClient[] }) {
   const visible = (data?.agencies || []).filter(row => (showInactive || row.is_active) && (!province || row.province_code === province)
     && `${row.name} ${row.agency_code} ${row.areas.map(area => `${area.kind} ${area.name}`).join(' ')}`.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')));
   return <div className="space-y-4">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold text-xl flex gap-2 items-center"><Building2 size={22} /> Cơ sở BHXH</h2><p className="text-sm text-gray-500 mt-1">Thông tin liên hệ, tài khoản nhận và từng địa bàn quản lý.</p></div><div className="flex gap-2"><button className={button} disabled={loading || saving} onClick={() => void refreshDirectory()}><RefreshCw size={16} className="inline mr-1" /> Làm mới danh mục</button><button className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm disabled:opacity-50" disabled={!data} onClick={() => edit()}><Plus size={16} className="inline mr-1" /> Thêm cơ sở BHXH</button></div></header>
+    <header className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold text-xl flex gap-2 items-center"><Building2 size={22} /> Cơ sở BHXH</h2><p className="text-sm text-gray-500 mt-1">Thông tin liên hệ, tài khoản nhận và từng địa bàn quản lý.</p></div><div className="flex gap-2"><button className={button} disabled={loading || saving} onClick={() => void refreshDirectory()}><RefreshCw size={16} className="inline mr-1" /> Làm mới danh mục</button><button className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm disabled:opacity-50" disabled={!canManageBhxh || !data} onClick={() => edit()}><Plus size={16} className="inline mr-1" /> Thêm cơ sở BHXH</button></div></header>
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{message}</p>}
+    {!canManageBhxh && <p className="text-sm text-gray-600">Cần nghiệp vụ BHXH hoặc kiêm nhiệm BHXH để cập nhật cơ sở và tài khoản mặc định cho các mã đơn vị.</p>}
     <form onSubmit={saveReceiver} aria-label="Cơ sở mặc định của khách" className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
       <h3 className="font-semibold text-blue-900">Cơ sở quản lý và tài khoản mặc định theo mã đơn vị</h3>
       <p className="text-xs text-blue-900">Chọn cơ sở theo hồ sơ thực tế. Địa bàn được lưu riêng để dùng cho chức năng tìm cơ sở theo địa chỉ / TK3 sau này.</p>
-      <fieldset disabled={saving || !data} className="grid sm:grid-cols-3 gap-3">
+      <fieldset disabled={!canManageBhxh || saving || !data} className="grid sm:grid-cols-3 gap-3">
         <label className="text-sm">Khách BHXH<ClientSelect aria-label="Khách gắn cơ sở" required value={receiver.client_id} onChange={event => chooseClient(event.target.value)} className={input}><option value="">Chọn khách</option>{clients.filter(row => !row.archived && row.participating !== false).map(row => <option key={row.id} value={row.id} data-search={row.tax_code}>{row.name}</option>)}</ClientSelect></label>
         <label className="text-sm">Mã đơn vị<select aria-label="Mã gắn cơ sở" required value={receiver.unit_id || ''} onChange={event => chooseUnit(event.target.value)} className={input}><option value="">Chọn mã đơn vị</option>{clients.find(client => client.id === receiver.client_id)?.units?.filter(unit => unit.is_active && unit.code).map(unit => <option key={unit.id} value={unit.id}>{bhxhUnitLabel(unit)}</option>)}</select></label>
         <label className="text-sm">Cơ sở<select aria-label="Cơ sở mặc định" value={receiver.agency_id || ''} onChange={event => setReceiver(previous => ({ ...previous, agency_id: event.target.value, account_id: '', requestId: crypto.randomUUID() }))} className={input}><option value="">Chưa gắn / bỏ mặc định</option>{activeAgencies.map(row => <option key={row.id} value={row.id}>{row.name} · {row.agency_code}</option>)}</select></label>
         <label className="text-sm">Tài khoản<select aria-label="Tài khoản mặc định" required={!!receiver.agency_id} value={receiver.account_id || ''} onChange={event => setReceiver(previous => ({ ...previous, account_id: event.target.value, requestId: crypto.randomUUID() }))} className={input}><option value="">Chọn tài khoản</option>{receiverAgency?.accounts.map(row => <option key={row.id} value={row.id}>{VIETNAM_BANKS.find(bank => bank.bin === row.bank_bin)?.shortName} · {row.account_no}</option>)}</select></label>
       </fieldset>
       {receiver.agency_id && !receiverAgency && <p className="text-xs text-amber-800">Cơ sở mặc định cũ đã ngừng sử dụng; chọn lại trước khi tạo lệnh nhắc.</p>}
-      <button disabled={saving || !data || !receiver.client_id || !receiver.unit_id} className={`${button} bg-white`}>{saving ? 'Đang lưu…' : 'Lưu mặc định cho mã'}</button>
+      <button disabled={!canManageBhxh || saving || !data || !receiver.client_id || !receiver.unit_id} className={`${button} bg-white`}>{saving ? 'Đang lưu…' : 'Lưu mặc định cho mã'}</button>
     </form>
     <div className="flex flex-wrap gap-3"><input aria-label="Tìm cơ sở hoặc địa bàn" placeholder="Tìm tên, mã cơ sở hoặc địa bàn…" value={search} onChange={event => setSearch(event.target.value)} className={`${input} flex-1 min-w-48`} /><select aria-label="Lọc tỉnh cơ sở" value={province} onChange={event => setProvince(event.target.value)} className={`${input} sm:w-64`}><option value="">Tất cả tỉnh / thành phố</option>{VIETNAM_PROVINCES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></div>
     <label className="text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" checked={showInactive} onChange={event => setShowInactive(event.target.checked)} /> Hiện cơ sở ngừng sử dụng</label>
     {loading && !data ? <p className="text-sm text-gray-500">Đang tải cơ sở BHXH…</p> : data && !visible.length ? <p className="rounded-xl border p-6 text-sm text-gray-500">Chưa có cơ sở phù hợp. Thêm cơ sở để thiết lập thông tin đóng tiền.</p> : visible.map(row => <article key={row.id} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-      <div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-bold text-gray-800">{row.name}{!row.is_active && <span className="text-xs text-gray-500 ml-2">Ngừng sử dụng</span>}</h3><p className="text-xs text-gray-500 mt-1">Mã cơ sở {row.agency_code} · {provinceName(row.province_code)}</p></div><button className={button} onClick={() => edit(row)}><Pencil size={14} className="inline mr-1" /> Sửa cơ sở</button></div>
+      <div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-bold text-gray-800">{row.name}{!row.is_active && <span className="text-xs text-gray-500 ml-2">Ngừng sử dụng</span>}</h3><p className="text-xs text-gray-500 mt-1">Mã cơ sở {row.agency_code} · {provinceName(row.province_code)}</p></div><button disabled={!canManageBhxh} className={button} onClick={() => edit(row)}><Pencil size={14} className="inline mr-1" /> Sửa cơ sở</button></div>
       <p className="text-sm text-gray-600">{row.address} · Điện thoại: {row.phone}</p>
       <div className="space-y-2">{row.accounts.map(account => <p key={account.id} className="rounded-lg bg-gray-50 p-3 text-sm break-words"><strong>{VIETNAM_BANKS.find(bank => bank.bin === account.bank_bin)?.shortName}</strong> · {account.account_no}<span className="block text-xs mt-1">{account.account_name}{account.branch && ` · ${account.branch}`}</span></p>)}</div>
       <div className="flex flex-wrap gap-2">{row.areas.map(area => <span key={area.id} className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800">{area.kind} {area.name}{area.commune_code && ` · ${area.commune_code}`}</span>)}</div>

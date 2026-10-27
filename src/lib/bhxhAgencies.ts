@@ -21,7 +21,7 @@ export interface BhxhAgency {
   accounts: AgencyAccount[]; areas: AgencyArea[];
 }
 export interface ClientReceiver { unit_id?: string; client_id: string; agency_id: string | null; account_id: string | null; version: number }
-export interface AgencyPortal { agencies: BhxhAgency[]; receivers: ClientReceiver[] }
+export interface AgencyPortal { can_manage_bhxh?: boolean; agencies: BhxhAgency[]; receivers: ClientReceiver[] }
 export interface ReceiverForm {
   receiver_agency_id: string; receiver_account_id: string; receiver_version: number; transfer_memo: string; receiver_touched: boolean; transfer_memo_manual: boolean;
 }

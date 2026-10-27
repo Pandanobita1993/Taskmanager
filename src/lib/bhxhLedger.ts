@@ -15,7 +15,7 @@ export interface BhxhPayment {
   notes: string; is_void: boolean; void_reason: string; version: number;
   proof_file?: string; reporter_name?: string;
 }
-export interface BhxhPortal { today: string; clients: BhxhClient[]; periods: BhxhPeriod[]; payments: BhxhPayment[] }
+export interface BhxhPortal { can_manage_bhxh?: boolean; today: string; clients: BhxhClient[]; periods: BhxhPeriod[]; payments: BhxhPayment[] }
 export interface BhxhEvent {
   request_id: string; entity_type: 'period' | 'payment'; action: 'save' | 'void' | 'restore';
   actor_name: string; created_at: string; note: string; snapshot: Record<string, any>;
