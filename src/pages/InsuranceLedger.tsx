@@ -1,6 +1,7 @@
 import ClientSelect from '../components/ClientSelect';
 import { bhxhUnitLabel, bhxhUnitKindLabel, soleBhxhUnit, matchBhxhImport } from '../lib/bhxhUnits';
 import BhxhUnits from './BhxhUnits';
+import BhxhTools from './BhxhTools';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -51,7 +52,7 @@ export default function InsuranceLedger() {
   const fileInput = useRef<HTMLInputElement>(null);
   const today = data?.today || vietnamToday();
   const canManageBhxh = data?.can_manage_bhxh !== false;
-  const tab = ['c12', 'payments', 'reminders', 'agencies', 'units'].includes(params.get('tab') || '') ? params.get('tab')! : 'c12';
+  const tab = ['c12', 'payments', 'reminders', 'agencies', 'units', 'tools'].includes(params.get('tab') || '') ? params.get('tab')! : 'c12';
   const clientId = params.get('client') || '';
   const unitId = params.get('unit') || '';
   const month = params.get('month') || '';
@@ -184,9 +185,9 @@ export default function InsuranceLedger() {
   const formUnit = formClient?.units?.find(unit => unit.id === form?.unit_id);
   const unitMismatch = !!(form?.draft?.unitCode && formUnit?.code && formUnit.code.trim().toUpperCase() !== form.draft.unitCode);
   return <div className="p-3 sm:p-6 max-w-6xl mx-auto space-y-5">
-    <header className="flex flex-wrap justify-between gap-3 items-start"><div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ShieldCheck className="text-emerald-600" /> Theo dõi BHXH</h1><p className="mt-1 text-sm text-gray-500">Sổ C12 và quá trình nộp tiền theo từng mã đơn vị của khách hàng.</p></div>{!['reminders', 'agencies', 'units'].includes(tab) && <button disabled={loading} className={button} onClick={() => void load()}><RefreshCw size={16} /> Làm mới</button>}</header>
-    <nav aria-label="Phân hệ BHXH" className="flex flex-wrap gap-2">{[['c12', 'Công nợ C12'], ['payments', 'Quá trình đóng'], ['reminders', 'Nhắc khách'], ['agencies', 'Cơ sở BHXH'], ['units', 'Mã đơn vị']].map(([key, label]) => <button key={key} onClick={() => query('tab', key)} aria-pressed={tab === key} className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === key ? 'bg-emerald-600 text-white' : 'border bg-white text-gray-600'}`}>{label}</button>)}</nav>
-    {tab === 'units' ? <BhxhUnits onChanged={() => void load(true)} /> : tab === 'agencies' ? <BhxhAgencies clients={data?.clients || []} /> : tab === 'reminders' ? error ? <p role="alert" className="text-sm text-red-700">{error}</p> : data ? <PaymentFollowups scope="bhxh" embedded bhxhPeriods={data.periods} /> : <p className="text-sm text-gray-500">Đang tải dữ liệu BHXH…</p> : <>
+    <header className="flex flex-wrap justify-between gap-3 items-start"><div><h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><ShieldCheck className="text-emerald-600" /> Theo dõi BHXH</h1><p className="mt-1 text-sm text-gray-500">Sổ C12 và quá trình nộp tiền theo từng mã đơn vị của khách hàng.</p></div>{!['reminders', 'agencies', 'units', 'tools'].includes(tab) && <button disabled={loading} className={button} onClick={() => void load()}><RefreshCw size={16} /> Làm mới</button>}</header>
+    <nav aria-label="Phân hệ BHXH" className="flex flex-wrap gap-2">{[['c12', 'Công nợ C12'], ['payments', 'Quá trình đóng'], ['reminders', 'Nhắc khách'], ['agencies', 'Cơ sở BHXH'], ['units', 'Mã đơn vị'], ['tools', 'Công cụ']].map(([key, label]) => <button key={key} onClick={() => query('tab', key)} aria-pressed={tab === key} className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === key ? 'bg-emerald-600 text-white' : 'border bg-white text-gray-600'}`}>{label}</button>)}</nav>
+    {tab === 'tools' ? <BhxhTools clients={data?.clients || []} initialClientId={clientId} /> : tab === 'units' ? <BhxhUnits onChanged={() => void load(true)} /> : tab === 'agencies' ? <BhxhAgencies clients={data?.clients || []} /> : tab === 'reminders' ? error ? <p role="alert" className="text-sm text-red-700">{error}</p> : data ? <PaymentFollowups scope="bhxh" embedded bhxhPeriods={data.periods} /> : <p className="text-sm text-gray-500">Đang tải dữ liệu BHXH…</p> : <>
       {error && <p role="alert" className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</p>}
       {message && <p role="status" className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg text-sm">{message}</p>}
       {!canManageBhxh && <p className="text-sm text-gray-600">Hồ sơ hiện tại chỉ xem sổ BHXH. Cần nghiệp vụ BHXH hoặc kiêm nhiệm BHXH để cập nhật C12 và quá trình đóng của các khách.</p>}

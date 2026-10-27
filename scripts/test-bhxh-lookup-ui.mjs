@@ -1,0 +1,107 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+const require = createRequire(path.join(os.tmpdir(), 'anan-recurrence-qa', 'package.json'));
+const { chromium, expect } = require('@playwright/test');
+const origin = process.env.QA_APP_ORIGIN || 'http://127.0.0.1:5189';
+const output = path.join(os.tmpdir(), 'anan-recurrence-qa', 'bhxh-lookup-ui');
+await fs.mkdir(output, { recursive: true });
+const browser = await chromium.launch({ headless: true, executablePath: process.env.QA_CHROMIUM_PATH || path.join(process.env.LOCALAPPDATA, 'ms-playwright', 'chromium-1228', 'chrome-win64', 'chrome.exe') });
+const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6zAAAAABJRU5ErkJggg==';
+const client = { id: 'qa-client', name: 'Công ty kiểm thử BHXH', tax_code: '1801821715', units: [], archived: false, participating: true };
+const result = { tables: [{ headers: ['Mã đơn vị', 'Tên đơn vị', 'Mã số thuế'], rows: [['AB1234', 'Công ty kiểm thử BHXH', '1801821715']] }], message: '', page: 1, pages: [2], checkedAt: '2026-10-27T03:00:00Z' };
+try {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  await context.addInitScript(() => localStorage.setItem('task_manager_profile', JSON.stringify({ id: 'qa-staff', fullName: 'Nhân viên kiểm thử', department: 'BHXH', office: 'Cần Thơ', additionalRoles: [], isSetupComplete: true })));
+  const external = [], calls = [], errors = [];
+  let mode = 'success', version = 0, shouldFailInit = false;
+  await context.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.includes('/rest/v1/')) {
+      if (url.pathname.endsWith('bhxh_ledger_portal')) return route.fulfill({ json: { today: '2026-10-27', clients: [client], periods: [], payments: [] } });
+      if (url.pathname.endsWith('app_users')) return route.fulfill({ json: { id: 'qa-staff', name: 'Nhân viên kiểm thử', is_active: true, department: 'BHXH' } });
+      return route.fulfill({ json: [] });
+    }
+    if (url.origin !== origin) { external.push(url.href); return route.abort(); }
+    if (url.pathname !== '/api/bhxh-lookup') return route.continue();
+    const data = route.request().postDataJSON(); calls.push(data);
+    const session = `qa-session-${++version}`;
+    if (data.action === 'init') {
+      if (shouldFailInit) return route.fulfill({ status: 503, json: { error: 'API tra cứu chưa được cấu hình khóa phiên BHXH_LOOKUP_SESSION_SECRET trên máy chủ.' } });
+      return route.fulfill({ json: { session, captcha: image } });
+    }
+    assert.match(data.session, /^qa-session-/);
+    if (data.action === 'captcha') return route.fulfill({ json: { session, captcha: image } });
+    if (data.action === 'search') {
+      if (mode === 'wrong') return route.fulfill({ status: 400, json: { session, error: 'Mã xác nhận không hợp lệ.' } });
+      if (mode === 'offline') return route.fulfill({ status: 502, json: { session, error: 'Kết nối tới cổng BHXH bị gián đoạn hoặc quá thời gian. Vui lòng thử lại.' } });
+      if (mode === 'empty') return route.fulfill({ json: { session, result: { ...result, tables: [], message: 'Không tìm thấy dữ liệu', pages: [] } } });
+      return route.fulfill({ json: { session, result } });
+    }
+    if (data.action === 'page') return route.fulfill({ json: { session, result: { ...result, page: data.page, tables: [{ ...result.tables[0], rows: [['CD5678', 'Đơn vị trang 2', '1801821715']] }] } } });
+    throw Error(`Unexpected action ${data.action}`);
+  });
+  const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
+  await page.goto(`${origin}/insurance?tab=tools&client=qa-client`);
+  await expect(page.getByRole('heading', { name: 'Tra cứu đơn vị tham gia BHXH' })).toBeVisible();
+  await expect(page.getByLabel('Mã số thuế *', { exact: true })).toHaveValue('1801821715');
+  await expect(page.getByRole('img', { name: 'Mã xác nhận tra cứu BHXH' })).toBeVisible();
+  await expect(page.getByLabel('Tỉnh/thành *', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Cơ quan BHXH *', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Mã cơ sở BHXH *', { exact: true }).fill('09200');
+  await page.getByLabel('Mã xác nhận *', { exact: true }).fill('ABCDE');
+  await page.getByRole('button', { name: 'Tra cứu', exact: true }).click();
+  const results = page.getByRole('region', { name: 'Kết quả tra cứu BHXH' });
+  await expect(results).toContainText('AB1234');
+  await expect(page.getByLabel('Mã xác nhận *', { exact: true })).toHaveValue('');
+  assert.deepEqual(calls.slice(0, 3).map(call => call.action), ['init', 'search', 'captcha']);
+  assert.deepEqual(calls.find(call => call.action === 'search'), { action: 'search', session: 'qa-session-1', MaBHXH: '09200', MaSoThue: '1801821715', MaDonVi: '', TenDonVi: '', tokenRecaptch: 'ABCDE' });
+  await page.getByRole('button', { name: 'Trang 2', exact: true }).click();
+  await expect(results).toContainText('CD5678');
+  assert.deepEqual(Object.keys(calls.at(-1)).sort(), ['action', 'page', 'session']);
+  await page.screenshot({ path: path.join(output, 'lookup-desktop.png'), fullPage: true, animations: 'disabled' });
+  await page.getByLabel('Mã cơ sở BHXH *', { exact: true }).fill('09201');
+  await expect(results).toHaveCount(0);
+  mode = 'wrong';
+  await page.getByLabel('Mã xác nhận *', { exact: true }).fill('WRONG');
+  await page.getByRole('button', { name: 'Tra cứu', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Mã xác nhận không hợp lệ.');
+  await expect(page.getByLabel('Mã xác nhận *', { exact: true })).toHaveValue('');
+  await expect(results).toHaveCount(0);
+  mode = 'empty';
+  await page.getByLabel('Mã xác nhận *', { exact: true }).fill('ABCDE');
+  await page.getByRole('button', { name: 'Tra cứu', exact: true }).click();
+  await expect(results).toContainText('Không tìm thấy dữ liệu');
+  mode = 'offline';
+  await page.getByLabel('Mã xác nhận *', { exact: true }).fill('ABCDE');
+  await page.getByRole('button', { name: 'Tra cứu', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('bị gián đoạn');
+  await expect(results).toHaveCount(0);
+  mode = 'success';
+  await page.getByRole('button', { name: 'Đổi mã', exact: true }).click();
+  await page.getByLabel('Mã xác nhận *', { exact: true }).fill('ABCDE');
+  await page.getByRole('button', { name: 'Tra cứu', exact: true }).click();
+  await expect(results).toContainText('AB1234');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('aside')).not.toBeInViewport();
+  await page.locator('main > div').last().evaluate(element => { element.scrollTop = 0; });
+  await page.screenshot({ path: path.join(output, 'lookup-mobile.png'), fullPage: true, animations: 'disabled' });
+  await results.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(output, 'lookup-mobile-results.png'), fullPage: true, animations: 'disabled' });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  await page.getByRole('button', { name: 'Tải lại công cụ', exact: true }).click();
+  await expect(page.getByLabel('Mã cơ sở BHXH *', { exact: true })).toHaveValue('09201');
+  await expect(results).toHaveCount(0);
+  shouldFailInit = true;
+  await page.getByRole('button', { name: 'Tải lại công cụ', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('BHXH_LOOKUP_SESSION_SECRET');
+  shouldFailInit = false;
+  await page.getByRole('button', { name: 'Tải lại công cụ', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Đổi mã', exact: true })).toBeEnabled();
+  assert.deepEqual(errors, []); assert.deepEqual(external, []);
+  console.log('PASS: BHXH tools navigation, client autofill, payload/session renewal, result/pages, wrong CAPTCHA, empty/offline states, recovery, desktop/mobile, no external/database writes. Screenshots:', output);
+  await context.close();
+} finally { await browser.close(); }

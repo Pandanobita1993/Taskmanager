@@ -20,6 +20,8 @@
     "preview": "vite preview",
     "test:bhxh:units": "node scripts/test-bhxh-units.mjs",
     "test:bhxh:units:ui": "node scripts/test-bhxh-units-ui.mjs",
+    "test:bhxh:lookup": "node scripts/test-bhxh-lookup.mjs",
+    "test:bhxh:lookup:ui": "node scripts/test-bhxh-lookup-ui.mjs",
     "test:bhxh:permissions": "node scripts/test-bhxh-staff-permissions.mjs",
     "test:bhxh:permissions:ui": "node scripts/test-bhxh-staff-permissions.mjs --ui"
   },
@@ -29,6 +31,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.52.0",
+    "parse5": "^8.0.1",
     "pdfjs-dist": "^6.4.299",
     "qrcode": "1.5.4",
     "react": "^19.2.8",

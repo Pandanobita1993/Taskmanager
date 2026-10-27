@@ -2,6 +2,8 @@
 
 Ứng dụng nội bộ quản lý công việc, hồ sơ và báo cáo cho doanh nghiệp dịch vụ kế toán.
 
+Tra cứu đơn vị tham gia BHXH: vào **Theo dõi BHXH → Công cụ**, nhập MST + mã cơ sở BHXH + CAPTCHA, không cần chọn tỉnh/thành. Cấu hình và kiểm tra triển khai tại [hướng dẫn tra cứu](docs/bhxh-unit-lookup.md).
+
 Quyền cập nhật BHXH dùng chung (27/10/2026): cài `supabase-bhxh-staff-permissions-migration.sql` sau migration mã đơn vị để nhân viên BHXH / kiêm nhiệm BHXH thiết lập mã, C12, quá trình đóng và cơ sở cho mọi khách BHXH. Xem [hướng dẫn cài và kiểm tra](docs/bhxh-staff-permissions.md).
 
 ## Chức năng chính
