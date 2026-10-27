@@ -63,6 +63,7 @@ try {
  const newUnit = { id: request(), client_id: client, kind: 'employees', code: 'SHARED123', is_active: true, version: 0 };
  let savedUnit = await unit(manager, newUnit, createdRequest);
  assert.equal((await unit(manager, newUnit, createdRequest)).id, savedUnit.id, 'Retry protection is preserved');
+ assert.equal(await scalar('select count(*)::int from bhxh_unit_events where request_id=$1', [createdRequest]), 1, 'Retry does not duplicate the audit log');
  savedUnit = await unit(secondary, { ...savedUnit, notes: 'Đồng nghiệp kiêm nhiệm cập nhật' });
  await assert.rejects(unit(manager, { ...savedUnit, version: 1 }), /vừa được cập nhật/);
  const legacyUnit = (await scalar('select bhxh_units_portal($1)', [secondary])).clients.find(c => c.id === legacy).units[0];
@@ -83,6 +84,27 @@ try {
  agency = await directory(secondary, 'agency', { ...agency, accounts: [account] });
  const receiver = { client_id: client, unit_id: savedUnit.id, agency_id: agency.id, account_id: account.id, version: 0 };
  await directory(secondary, 'receiver', receiver);
+ // Shared clients keep each actual operator's identity, rather than the assignee's name.
+ const unitAudit = (await db.query("select * from bhxh_unit_events where unit_id=$1 order by (snapshot->>'version')::int", [savedUnit.id])).rows;
+ assert.deepEqual(unitAudit.map(e => [e.actor_id,e.actor_name,e.snapshot.version]), [[manager,'Đồng nghiệp BHXH',1],[secondary,'Kiêm nhiệm BHXH',2]]);
+ assert.equal(unitAudit[1].payload.notes, 'Đồng nghiệp kiêm nhiệm cập nhật');
+ const periodAudit = (await db.query('select * from bhxh_ledger_events where entity_id=$1', [period.id])).rows;
+ assert.deepEqual(periodAudit.map(e => [e.actor_id,e.actor_name,e.entity_type,e.action,e.snapshot.charges]), [[manager,'Đồng nghiệp BHXH','period','save',700]]);
+ const paymentAudit = (await db.query("select * from bhxh_ledger_events where entity_id=$1 order by (snapshot->>'version')::int", [paid.id])).rows;
+ assert.deepEqual(paymentAudit.map(e => [e.actor_id,e.actor_name,e.action,e.snapshot.is_void]), [[secondary,'Kiêm nhiệm BHXH','save',false],[manager,'Đồng nghiệp BHXH','void',true],[secondary,'Kiêm nhiệm BHXH','restore',false]]);
+ assert.equal(paymentAudit[1].note, 'Đối chiếu chung');
+ assert.equal(paymentAudit[2].note, 'Đã kiểm tra');
+ assert.ok(paymentAudit.every(e => e.snapshot.amount === 50 && e.snapshot.proof_file === proof));
+ const agencyAudit = (await db.query("select * from bhxh_directory_events where entity='agency' and entity_id=$1 order by (snapshot->>'version')::int", [agency.id])).rows;
+ assert.deepEqual(agencyAudit.map(e => [e.actor_id,e.actor_name,e.snapshot.version]), [[manager,'Đồng nghiệp BHXH',1],[secondary,'Kiêm nhiệm BHXH',2]]);
+ const receiverAudit = (await db.query("select * from bhxh_directory_events where entity='receiver' and snapshot->>'unit_id'=$1", [savedUnit.id])).rows;
+ assert.deepEqual(receiverAudit.map(e => [e.actor_id,e.actor_name,e.snapshot.account_id]), [[secondary,'Kiêm nhiệm BHXH',account.id]]);
+ for (const e of [...unitAudit,...periodAudit,...paymentAudit,...agencyAudit,...receiverAudit]) {
+  assert.ok(e.request_id && e.payload && e.snapshot && Number.isFinite(Date.parse(e.created_at)), 'Every successful change records its request, timestamp, input and saved snapshot');
+ }
+ await db.query("update app_users set name='Tên nhân viên đã đổi' where id=$1", [manager]);
+ assert.equal(await scalar('select actor_name from bhxh_unit_events where request_id=$1', [createdRequest]), 'Đồng nghiệp BHXH', 'Renaming a staff profile never rewrites historical actor names');
+ await db.query("update app_users set name='Đồng nghiệp BHXH' where id=$1", [manager]);
  const beforeDenials = await snapshot();
  for (const who of [outsider, inactive]) {
   for (const action of [
