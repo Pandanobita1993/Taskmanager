@@ -20,6 +20,9 @@ export async function fetchBhxh(url: string, init: RequestInit, dependencies: { 
       method: init.method || 'GET', signal: init.signal || undefined,
       headers: { ...Object.fromEntries(new Headers(init.headers)), 'accept-encoding': 'identity' },
       secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT,
+      // The legacy portal negotiates TLS 1.2. Do not offer TLS 1.3 to the
+      // incompatible load balancer, and never allow obsolete TLS 1.0/1.1.
+      minVersion: 'TLSv1.2', maxVersion: 'TLSv1.2',
       rejectUnauthorized: true,
     }, incoming => {
       const headers = new Headers();

@@ -29,6 +29,8 @@ assert.equal(await recovered.text(), 'BHXH response');
 assert.equal(body, form.toString());
 assert.equal(options.secureOptions, constants.SSL_OP_LEGACY_SERVER_CONNECT);
 assert.equal(options.rejectUnauthorized, true);
+assert.equal(options.minVersion, 'TLSv1.2');
+assert.equal(options.maxVersion, 'TLSv1.2');
 assert.equal(options.headers.cookie, 'session=mine');
 assert.equal(options.headers['accept-encoding'], 'identity');
 assert.equal(recovered.headers.getSetCookie().length, 2);
