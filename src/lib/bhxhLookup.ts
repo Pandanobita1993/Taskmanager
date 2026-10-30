@@ -55,7 +55,7 @@ export async function isBhxhExtensionAvailable(): Promise<boolean> {
     const timer = setTimeout(() => {
       window.removeEventListener('message', onMsg);
       resolve(false);
-    }, 250);
+    }, 600);
     const onMsg = (e: MessageEvent) => {
       if (e.data?.source === 'taskflow-bhxh-ext' && (e.data?.id === id || e.data?.action === 'READY')) {
         clearTimeout(timer);
