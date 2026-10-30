@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ExternalLink, RefreshCw, Search } from 'lucide-react';
 import ClientSelect from '../components/ClientSelect';
-import { BHXH_LOOKUP_SOURCE, bhxhLookupRequest } from '../lib/bhxhLookup';
+import { BHXH_LOOKUP_SOURCE, bhxhLookupRequest, isBhxhExtensionAvailable } from '../lib/bhxhLookup';
 import type { LookupQuery, LookupResponse, LookupResult } from '../lib/bhxhLookup';
 import type { BhxhClient } from '../lib/bhxhLedger';
 
@@ -64,6 +64,9 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
     setCaptcha(response.captcha || '');
   }
   useEffect(() => {
+    void isBhxhExtensionAvailable().then(avail => {
+      if (avail) setUsingExtension(true);
+    });
     const timer = window.setTimeout(() => void perform(initialize), 0);
     return () => { window.clearTimeout(timer); controller.current?.abort(); };
   }, []);

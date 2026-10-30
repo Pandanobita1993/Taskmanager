@@ -1,6 +1,7 @@
 // Content Script for TaskFlow BHXH Helper
 (function () {
   document.documentElement.dataset.bhxhExtensionReady = 'true';
+  console.log('[TaskFlow BHXH Extension] Content script loaded and active!');
 
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data || event.data.source !== 'taskflow-bhxh-app') return;
