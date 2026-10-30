@@ -154,8 +154,11 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
     }
     return { status: 200, data: { ...result, session: seal(session, key) } };
   } catch (error) {
+    const networkError = error as { code?: string; cause?: { code?: string }; name?: string };
+    const diagnostic = networkError.cause?.code || networkError.code || networkError.name || '';
+    const connectionCode = /^[A-Z_0-9]{1,80}$/.test(diagnostic) ? ` (mã lỗi: ${diagnostic})` : '';
     return { status: error instanceof LookupError ? error.status : 502, data: {
-      error: error instanceof LookupError ? error.message : 'Kết nối tới cổng BHXH bị gián đoạn hoặc quá thời gian. Vui lòng thử lại.',
+      error: error instanceof LookupError ? error.message : `Kết nối tới cổng BHXH bị gián đoạn hoặc quá thời gian${connectionCode}. Vui lòng thử lại.`,
       ...(session && key ? { session: seal(session, key) } : {}),
     } };
   }
