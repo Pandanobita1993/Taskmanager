@@ -9,7 +9,8 @@ export interface LookupResponse {
 }
 
 export function parseLookupResultBrowser(html: string, page = 1): LookupResult {
-  const parser = new DOMParser();
+  const DOMParserClass = typeof DOMParser !== 'undefined' ? DOMParser : (globalThis as any).DOMParser;
+  const parser = new DOMParserClass();
   const doc = parser.parseFromString(html, 'text/html');
   const tables: LookupTable[] = [];
   const tableElements = doc.querySelectorAll('table');
@@ -56,7 +57,7 @@ export async function isBhxhExtensionAvailable(): Promise<boolean> {
       window.removeEventListener('message', onMsg);
       resolve(false);
     }, 600);
-    const onMsg = (e: MessageEvent) => {
+    const onMsg = (e: any) => {
       if (e.data?.source === 'taskflow-bhxh-ext' && (e.data?.id === id || e.data?.action === 'READY')) {
         clearTimeout(timer);
         window.removeEventListener('message', onMsg);
@@ -92,7 +93,7 @@ function callExtension<T = any>(action: string, payload?: unknown, signal?: Abor
       signal?.removeEventListener('abort', onAbort);
     };
 
-    const onMsg = (event: MessageEvent) => {
+    const onMsg = (event: any) => {
       if (event.data?.source === 'taskflow-bhxh-ext' && event.data?.id === id) {
         cleanup();
         if (event.data.success) {
