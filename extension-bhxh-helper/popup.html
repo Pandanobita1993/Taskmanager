@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>TaskFlow BHXH</title>
+  <style>
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      color: #1f2937;
+      background: #f9fafb;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .captcha-img {
+      max-height: 48px;
+      margin: 8px auto;
+      display: block;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #fff;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      background: #059669;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #047857;
+    }
+    .desc {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Trợ lý tra cứu BHXH</div>
+  </div>
+
+  <div class="status-badge">
+    <span>●</span> Tiện ích đang kích hoạt (IP Việt Nam)
+  </div>
+
+  <div class="card">
+    <div style="font-size: 12px; color: #4b5563; margin-bottom: 6px;">Kiểm tra kết nối tới cổng BHXH:</div>
+    <div id="captcha-container">
+      <span style="font-size: 12px; color: #9ca3af;">Bấm nút bên dưới để thử lấy mã</span>
+    </div>
+    <button id="test-btn" class="btn" style="margin-top: 8px;">🔄 Thử tải mã xác nhận BHXH</button>
+  </div>
+
+  <div class="desc">
+    💡 Tiện ích này chạy ngầm tự động để kết nối cổng BHXH cho ứng dụng TaskFlow. Bạn chỉ cần mở TaskFlow trên web và tra cứu bình thường.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

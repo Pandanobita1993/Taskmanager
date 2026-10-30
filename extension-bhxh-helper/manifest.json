@@ -9,6 +9,10 @@
   "host_permissions": [
     "https://baohiemxahoi.gov.vn/*"
   ],
+  "action": {
+    "default_title": "TaskFlow - Trợ lý tra cứu BHXH",
+    "default_popup": "popup.html"
+  },
   "background": {
     "service_worker": "background.js"
   },
