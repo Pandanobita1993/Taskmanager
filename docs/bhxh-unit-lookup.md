@@ -15,6 +15,8 @@ Kết quả và các trang tiếp theo được đọc từ nguồn BHXH, có th
 
 ## Cách hoạt động
 
+- Khắc phục TLS ngày 30/10/2026: một số máy cân bằng tải BHXH yêu cầu handshake TLS cũ. Transport thử TLS mặc định trước, chỉ retry lỗi `ERR_SSL_UNSAFE_LEGACY_RENEGOTIATION_DISABLED` bằng `SSL_OP_LEGACY_SERVER_CONNECT`, riêng tên miền BHXH. Vẫn bắt buộc xác thực chứng chỉ và hostname, không chuyển hướng, không hạ xác thực cho lỗi chứng chỉ hết hạn / sai tên / thiếu chuỗi tin cậy. Timeout và giới hạn phản hồi vẫn áp dụng.
+
 - `POST /api/bhxh-lookup` nhận JSON cho các thao tác `init`, `captcha`, `search`, `page`. API chỉ gọi những đường dẫn cố định của cổng BHXH; không nhận URL đích do người dùng cung cấp.
 - `init` khởi tạo cookie phiên từ trang nguồn, rồi lấy ảnh CAPTCHA trong cùng phiên; không đọc danh mục tỉnh/thành hoặc gọi API danh sách cơ quan.
 - `search` gửi form URL encoded gồm đúng `MaBHXH` (mã cơ sở nhập trực tiếp), `tokenRecaptch`, `MaSoThue`, `MaDonVi=''`, `TenDonVi=''` tới `pListDonViThamGia.aspx`. MST và mã cơ sở bắt buộc. CAPTCHA do nhân viên đọc và nhập; không giải mã tự động hay dùng lại mã trong ảnh chụp DevTools. Sau mỗi lần gửi, giao diện lấy ảnh mới như trang nguồn.

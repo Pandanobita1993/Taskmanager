@@ -20,7 +20,7 @@
     "preview": "vite preview",
     "test:bhxh:units": "node scripts/test-bhxh-units.mjs",
     "test:bhxh:units:ui": "node scripts/test-bhxh-units-ui.mjs",
-    "test:bhxh:lookup": "node scripts/test-bhxh-lookup.mjs",
+    "test:bhxh:lookup": "node scripts/test-bhxh-transport.mjs && node scripts/test-bhxh-lookup.mjs",
     "test:bhxh:lookup:ui": "node scripts/test-bhxh-lookup-ui.mjs",
     "test:bhxh:permissions": "node scripts/test-bhxh-staff-permissions.mjs",
     "test:bhxh:permissions:ui": "node scripts/test-bhxh-staff-permissions.mjs --ui"

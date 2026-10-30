@@ -13,7 +13,10 @@ const fakeFetch = async (url, options) => {
   calls.push({ path, fields, options });
   assert.equal(new URL(url).origin, 'https://baohiemxahoi.gov.vn');
   assert.equal(options.redirect, 'error');
-  if (path.endsWith('don-vi-tham-gia-bhxh.aspx')) return new Response('<html>Tra cứu BHXH</html>', { headers: { 'set-cookie': 'TS01test=firewall; Path=/' } });
+  if (path.endsWith('don-vi-tham-gia-bhxh.aspx')) {
+    assert.equal(options.headers.Cookie, undefined); // The source firewall rejects an empty Cookie header.
+    return new Response('<html>Tra cứu BHXH</html>', { headers: { 'set-cookie': 'TS01test=firewall; Path=/' } });
+  }
   if (path.endsWith('CaptchaImageHandler.ashx')) {
     assert.match(options.headers.Cookie, /TS01test=firewall/);
     return new Response(brokenCaptcha ? '<html>error</html>' : Buffer.from([137, 80, 78, 71]), { headers: { 'content-type': brokenCaptcha ? 'text/html' : 'image/png', 'set-cookie': 'ASP.NET_SessionId=session-A; Path=/' } });

@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import { parseFragment } from 'parse5';
 import type { DefaultTreeAdapterTypes as Tree } from 'parse5';
 import type { LookupQuery, LookupResponse, LookupResult } from '../src/lib/bhxhLookup.ts';
+import { fetchBhxh } from './bhxhTransport.ts';
 
 const ORIGIN = 'https://baohiemxahoi.gov.vn';
 const SOURCE = '/tracuu/pages/don-vi-tham-gia-bhxh.aspx';
@@ -99,10 +100,10 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
     const active = session;
     const deadline = AbortSignal.timeout(20000);
     async function upstream(path: string, fields?: Record<string, string>) {
-      const response = await (options.fetch || fetch)(ORIGIN + path, {
+      const response = await (options.fetch || fetchBhxh)(ORIGIN + path, {
         method: fields ? 'POST' : 'GET', redirect: 'error', signal: deadline,
         headers: { Referer: ORIGIN + SOURCE, 'User-Agent': 'TaskFlow-BHXH-Lookup/1.0',
-          Cookie: Object.entries(active.cookies).map(([name, value]) => `${name}=${value}`).join('; '),
+          ...(Object.keys(active.cookies).length ? { Cookie: Object.entries(active.cookies).map(([name, value]) => `${name}=${value}`).join('; ') } : {}),
           ...(fields ? { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' } : {}),
         }, ...(fields ? { body: new URLSearchParams(fields) } : {}),
       });
