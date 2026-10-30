@@ -18,6 +18,7 @@ export async function fetchBhxh(url: string, init: RequestInit, dependencies: { 
   return new Promise((resolve, reject) => {
     const req = (dependencies.request || request)(url, {
       method: init.method || 'GET', signal: init.signal || undefined,
+      family: 4,
       headers: { ...Object.fromEntries(new Headers(init.headers)), 'accept-encoding': 'identity' },
       secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT,
       // The legacy portal negotiates TLS 1.2. Do not offer TLS 1.3 to the
