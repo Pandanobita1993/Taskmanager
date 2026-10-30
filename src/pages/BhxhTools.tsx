@@ -128,7 +128,14 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
         <button type="button" onClick={() => void perform(initialize)} disabled={busy} className={button}><RefreshCw size={16} /> Tải lại công cụ</button>
       </div>
       {busy && <p role="status" className="text-sm text-gray-500">Đang lấy dữ liệu từ cổng BHXH…</p>}
-      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <span>{error}</span>
+          <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline hover:text-red-900">
+            <ExternalLink size={14} /> Mở trang nguồn tra cứu trực tiếp
+          </a>
+        </div>
+      )}
     </form>
     {result && <section aria-label="Kết quả tra cứu BHXH" aria-busy={busy} className="min-w-0 space-y-3 rounded-xl border bg-white p-4">
       <h3 className="font-semibold">Kết quả tra cứu · Trang {result.page}</h3>

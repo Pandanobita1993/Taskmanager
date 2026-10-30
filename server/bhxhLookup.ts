@@ -102,7 +102,17 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
     async function upstream(path: string, fields?: Record<string, string>) {
       const response = await (options.fetch || fetchBhxh)(ORIGIN + path, {
         method: fields ? 'POST' : 'GET', redirect: 'error', signal: deadline,
-        headers: { Referer: ORIGIN + SOURCE, 'User-Agent': 'TaskFlow-BHXH-Lookup/1.0',
+        headers: {
+          Referer: ORIGIN + SOURCE,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          Accept: fields ? '*/*' : 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Fetch-Dest': fields ? 'empty' : 'image',
+          'Sec-Fetch-Mode': 'cors',
+          'Sec-Fetch-Site': 'same-origin',
           ...(Object.keys(active.cookies).length ? { Cookie: Object.entries(active.cookies).map(([name, value]) => `${name}=${value}`).join('; ') } : {}),
           ...(fields ? { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' } : {}),
         }, ...(fields ? { body: new URLSearchParams(fields) } : {}),
