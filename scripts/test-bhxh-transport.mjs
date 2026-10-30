@@ -32,7 +32,9 @@ assert.equal(options.rejectUnauthorized, true);
 assert.equal(options.headers.cookie, 'session=mine');
 assert.equal(options.headers['accept-encoding'], 'identity');
 assert.equal(recovered.headers.getSetCookie().length, 2);
-for (const code of ['CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID', 'ECONNRESET']) {
+const resetError = Object.assign(new Error('fetch failed'), { cause: { code: 'ECONNRESET' } });
+assert.equal(await (await fetchBhxh(url, {}, { fetch: async () => { throw resetError; }, request: fakeRequest })).text(), 'BHXH response');
+for (const code of ['CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID']) {
   const count = calls;
   const error = Object.assign(new Error(code), { cause: { code } });
   await assert.rejects(fetchBhxh(url, {}, { fetch: async () => { throw error; }, request: fakeRequest }), error);

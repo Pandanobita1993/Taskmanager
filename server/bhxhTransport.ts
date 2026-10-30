@@ -5,14 +5,15 @@ import { Readable } from 'node:stream';
 const ORIGIN = 'https://baohiemxahoi.gov.vn';
 
 // Some BHXH load balancers require the legacy initial TLS handshake. Retry only
-// this specific handshake error, for this origin, without disabling certificate
-// or hostname verification. Other network/TLS failures remain failures.
+// handshake errors or connections reset by the load balancer, for this origin,
+// without disabling certificate or hostname verification. Certificate failures
+// remain failures. All upstream operations are read-only lookups.
 export async function fetchBhxh(url: string, init: RequestInit, dependencies: { fetch?: typeof fetch; request?: typeof request } = {}): Promise<Response> {
   if (new URL(url).origin !== ORIGIN) throw new Error('Unsupported BHXH origin');
   try { return await (dependencies.fetch || fetch)(url, init); }
   catch (error) {
     const cause = (error as { cause?: { code?: string } }).cause;
-    if (cause?.code !== 'ERR_SSL_UNSAFE_LEGACY_RENEGOTIATION_DISABLED' || init.signal?.aborted) throw error;
+    if (!['ERR_SSL_UNSAFE_LEGACY_RENEGOTIATION_DISABLED', 'ECONNRESET'].includes(cause?.code || '') || init.signal?.aborted) throw error;
   }
   return new Promise((resolve, reject) => {
     const req = (dependencies.request || request)(url, {
