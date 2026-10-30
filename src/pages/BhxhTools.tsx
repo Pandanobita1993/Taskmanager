@@ -18,6 +18,7 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const [usingExtension, setUsingExtension] = useState(false);
   const [result, setResult] = useState<LookupResult | null>(null);
   const [searched, setSearched] = useState<LookupQuery | null>(null);
   const session = useRef('');
@@ -35,6 +36,7 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
 
   async function request(payload: Record<string, unknown>, signal: AbortSignal) {
     const response = await bhxhLookupRequest({ ...payload, session: session.current }, signal);
+    if (response.viaExtension) setUsingExtension(true);
     if (response.session) { session.current = response.session; setReady(true); }
     return response;
   }
@@ -101,8 +103,17 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
 
   return <section className="space-y-4" aria-labelledby="bhxh-lookup-title">
     <header className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 id="bhxh-lookup-title" className="text-lg font-bold text-gray-800">Tra cứu đơn vị tham gia BHXH</h2>
-        <p className="mt-1 text-sm text-gray-600">Tra cứu thông tin đơn vị bằng mã số thuế và mã cơ sở BHXH quản lý.</p></div>
+      <div>
+        <div className="flex items-center gap-2">
+          <h2 id="bhxh-lookup-title" className="text-lg font-bold text-gray-800">Tra cứu đơn vị tham gia BHXH</h2>
+          {usingExtension && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+              ✓ Tiện ích mở rộng
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-sm text-gray-600">Tra cứu thông tin đơn vị bằng mã số thuế và mã cơ sở BHXH quản lý.</p>
+      </div>
       <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink size={16} /> Mở trang nguồn</a>
     </header>
     <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-950">Nhập MST, mã cơ sở BHXH và mã xác nhận trong ảnh rồi bấm Tra cứu.</div>
@@ -129,11 +140,18 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
       </div>
       {busy && <p role="status" className="text-sm text-gray-500">Đang lấy dữ liệu từ cổng BHXH…</p>}
       {error && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          <span>{error}</span>
-          <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline hover:text-red-900">
-            <ExternalLink size={14} /> Mở trang nguồn tra cứu trực tiếp
-          </a>
+        <div role="alert" className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>{error}</span>
+            <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline hover:text-red-900">
+              <ExternalLink size={14} /> Mở trang nguồn tra cứu trực tiếp
+            </a>
+          </div>
+          {!usingExtension && (
+            <p className="text-xs text-red-600 border-t border-red-200 pt-2">
+              💡 <strong>Mẹo:</strong> Máy chủ Vercel ở nước ngoài có thể bị tường lửa BHXH chặn IP. Bạn có thể cài đặt <strong>Tiện ích mở rộng TaskFlow</strong> (trong thư mục <code>extension-bhxh-helper</code> của dự án) vào trình duyệt để tra cứu trực tiếp từ IP mạng Việt Nam.
+            </p>
+          )}
         </div>
       )}
     </form>
