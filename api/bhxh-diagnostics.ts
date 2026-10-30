@@ -7,7 +7,7 @@ export default async function handler(_req: IncomingMessage, res: ServerResponse
   res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store');
   const addresses = await lookup('baohiemxahoi.gov.vn', { all: true });
   const probe = (host: string) => new Promise(resolve => {
-    const socket = connect({ host, family: 4, port: 443, servername: 'baohiemxahoi.gov.vn',
+    const socket = connect({ host, port: 443, servername: 'baohiemxahoi.gov.vn',
       secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT, rejectUnauthorized: true,
       minVersion: 'TLSv1.2', maxVersion: 'TLSv1.2', ALPNProtocols: ['http/1.1'] });
     let connected = false, secured = false;
