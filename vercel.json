@@ -1,4 +1,5 @@
 {
+  "regions": ["sin1"],
   "functions": {
     "api/bhxh-lookup.ts": {
       "maxDuration": 30
