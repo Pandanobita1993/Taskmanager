@@ -7,10 +7,6 @@
   },
   "rewrites": [
     {
-      "source": "/api/bhxh-origin/captcha",
-      "destination": "https://baohiemxahoi.gov.vn/UserControls/CaptchaImageHandler.ashx"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
