@@ -126,7 +126,8 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
     }
     const result: LookupResponse = {};
     if (action === 'init') {
-      await upstream(SOURCE);
+      // The image handler issues ASP.NET, load-balancer and firewall cookies
+      // itself; the HTML page is not needed to create a lookup session.
       result.captcha = await captcha();
     } else if (action === 'captcha') {
       result.captcha = await captcha();

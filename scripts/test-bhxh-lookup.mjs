@@ -18,8 +18,11 @@ const fakeFetch = async (url, options) => {
     return new Response('<html>Tra cứu BHXH</html>', { headers: { 'set-cookie': 'TS01test=firewall; Path=/' } });
   }
   if (path.endsWith('CaptchaImageHandler.ashx')) {
-    assert.match(options.headers.Cookie, /TS01test=firewall/);
-    return new Response(brokenCaptcha ? '<html>error</html>' : Buffer.from([137, 80, 78, 71]), { headers: { 'content-type': brokenCaptcha ? 'text/html' : 'image/png', 'set-cookie': 'ASP.NET_SessionId=session-A; Path=/' } });
+    if (options.headers.Cookie) assert.match(options.headers.Cookie, /TS01test=firewall/);
+    const headers = new Headers({ 'content-type': brokenCaptcha ? 'text/html' : 'image/png' });
+    headers.append('set-cookie', 'ASP.NET_SessionId=session-A; Path=/');
+    headers.append('set-cookie', 'TS01test=firewall; Path=/');
+    return new Response(brokenCaptcha ? '<html>error</html>' : Buffer.from([137, 80, 78, 71]), { headers });
   }
   assert.match(options.headers.Cookie, /ASP.NET_SessionId=session-A/);
   assert.ok(path.endsWith('pListDonViThamGia.aspx'));
