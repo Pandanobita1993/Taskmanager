@@ -1,8 +1,10 @@
-// Content Script for TaskFlow BHXH Helper
+// Content Script for TaskFlow BHXH Helper (Chrome, Cốc Cốc, Edge & Firefox)
 (function () {
+  const extApi = typeof browser !== 'undefined' ? browser : typeof chrome !== 'undefined' ? chrome : null;
+
   function isContextValid() {
     try {
-      return Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+      return Boolean(extApi && extApi.runtime && extApi.runtime.id);
     } catch {
       return false;
     }
@@ -15,7 +17,7 @@
   }
 
   function onWindowMessage(event) {
-    if (event.source !== window || !event.data || event.data.source !== 'taskflow-bhxh-app') return;
+    if (!event.data || event.data.source !== 'taskflow-bhxh-app') return;
 
     // If extension was reloaded, detach this orphaned content script silently
     if (!isContextValid()) {
@@ -31,7 +33,7 @@
           source: 'taskflow-bhxh-ext',
           id,
           success: true,
-          version: '1.1.1'
+          version: '1.1.2'
         },
         '*'
       );
@@ -60,18 +62,18 @@
             {
               source: 'taskflow-bhxh-ext',
               id,
-              ...response
+              ...(response || {})
             },
             '*'
           );
         }
       });
     } catch {
-      // Context invalidated mid-call: detach silently so new content script or fallback handles it
+      // Context invalidated mid-call: detach silently
       window.removeEventListener('message', onWindowMessage);
     }
   }
 
   window.addEventListener('message', onWindowMessage);
-  window.postMessage({ source: 'taskflow-bhxh-ext', action: 'READY', version: '1.1.1' }, '*');
+  window.postMessage({ source: 'taskflow-bhxh-ext', action: 'READY', version: '1.1.2' }, '*');
 })();

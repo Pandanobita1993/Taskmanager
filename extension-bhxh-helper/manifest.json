@@ -1,8 +1,14 @@
 {
   "manifest_version": 3,
   "name": "TaskFlow - Trợ lý tra cứu BHXH",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Tiện ích kết nối trực tiếp cổng BHXH Việt Nam từ IP nội địa cho ứng dụng TaskFlow.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bhxh-helper@taskflow.local",
+      "strict_min_version": "113.0"
+    }
+  },
   "permissions": [
     "cookies",
     "declarativeNetRequest",
@@ -19,7 +25,8 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
   },
   "content_scripts": [
     {
