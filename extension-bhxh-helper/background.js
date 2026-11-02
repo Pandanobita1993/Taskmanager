@@ -2,6 +2,27 @@
 const ORIGIN = 'https://baohiemxahoi.gov.vn';
 const REFERER = `${ORIGIN}/tracuu/pages/don-vi-tham-gia-bhxh.aspx`;
 
+async function reinjectContentScripts() {
+  try {
+    if (!chrome.tabs || !chrome.scripting) return;
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        }).catch(() => {});
+      }
+    }
+  } catch {
+    // Ignore tab query errors
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  reinjectContentScripts();
+});
+
 function bufferToBase64(buffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);

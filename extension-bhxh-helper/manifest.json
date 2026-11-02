@@ -1,14 +1,18 @@
 {
   "manifest_version": 3,
   "name": "TaskFlow - Trợ lý tra cứu BHXH",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Tiện ích kết nối trực tiếp cổng BHXH Việt Nam từ IP nội địa cho ứng dụng TaskFlow.",
   "permissions": [
     "cookies",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
-    "https://baohiemxahoi.gov.vn/*"
+    "https://baohiemxahoi.gov.vn/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_title": "TaskFlow - Trợ lý tra cứu BHXH",
