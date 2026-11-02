@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Tiện ích kết nối trực tiếp cổng BHXH Việt Nam từ IP nội địa cho ứng dụng TaskFlow.",
   "permissions": [
-    "cookies"
+    "cookies",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "https://baohiemxahoi.gov.vn/*"

@@ -9,36 +9,38 @@ export interface LookupResponse {
 }
 
 export function parseLookupResultBrowser(html: string, page = 1): LookupResult {
-  const DOMParserClass = typeof DOMParser !== 'undefined' ? DOMParser : (globalThis as any).DOMParser;
-  const parser = new DOMParserClass();
+  const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const tables: LookupTable[] = [];
-  const tableElements = doc.querySelectorAll('table');
-  tableElements.forEach(table => {
+  const tableElements: Element[] = Array.from(doc.querySelectorAll('table'));
+  tableElements.forEach((table: Element) => {
     if (table.querySelector('table')) return;
-    const trElements = Array.from(table.querySelectorAll('tr'));
-    const rows = trElements.map(tr =>
-      Array.from(tr.querySelectorAll('td, th')).map(cell => (cell.textContent || '').replace(/\s+/g, ' ').trim())
-    ).filter(row => row.some(Boolean));
-    const headerRow = trElements.find(tr => tr.querySelectorAll('th').length > 0);
-    const headers = headerRow
-      ? Array.from(headerRow.querySelectorAll('th, td')).map(cell => (cell.textContent || '').replace(/\s+/g, ' ').trim())
+    const trElements: Element[] = Array.from(table.querySelectorAll('tr'));
+    const rows: string[][] = trElements.map((tr: Element) =>
+      Array.from(tr.querySelectorAll('td, th')).map((cell: Element) => (cell.textContent || '').replace(/\s+/g, ' ').trim())
+    ).filter((row: string[]) => row.some(Boolean));
+    const headerRow = trElements.find((tr: Element) => tr.querySelectorAll('th').length > 0);
+    const headers: string[] = headerRow
+      ? Array.from(headerRow.querySelectorAll('th, td')).map((cell: Element) => (cell.textContent || '').replace(/\s+/g, ' ').trim())
       : rows[0] || [];
-    const bodyRows = headerRow ? rows.filter(r => r.join('\0') !== headers.join('\0')) : rows.slice(1);
+    const bodyRows = headerRow ? rows.filter((r: string[]) => r.join('\0') !== headers.join('\0')) : rows.slice(1);
     if (headers.length > 1) {
       tables.push({ headers, rows: bodyRows });
     }
   });
   const pages: number[] = [];
-  const links = doc.querySelectorAll('a, [onclick]');
-  links.forEach(el => {
+  const links: Element[] = Array.from(doc.querySelectorAll('a, [onclick]'));
+  links.forEach((el: Element) => {
     const call = el.getAttribute('onclick') || el.getAttribute('href') || '';
     const match = call.match(/CallNextPageAjaxTraCuuDVTG\s*\(\s*['"]?(\d+)['"]?\s*\)/);
     if (match && Number(match[1]) > 0 && Number(match[1]) <= 10000) {
       pages.push(Number(match[1]));
     }
   });
-  const message = tables.length ? '' : (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  const message = tables.length ? '' : (doc.body?.textContent || '').replace(/\s+/g, ' ').trim();
+  if (!tables.length && !/không (?:có|tìm thấy)|chưa có|0 kết quả/i.test(message)) {
+    throw new Error('Cổng BHXH trả về nội dung chưa nhận diện được. Vui lòng mở trang nguồn để kiểm tra.');
+  }
   return {
     tables,
     message: message || '',
@@ -49,16 +51,17 @@ export function parseLookupResultBrowser(html: string, page = 1): LookupResult {
 }
 
 export async function isBhxhExtensionAvailable(): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   if (document.documentElement.dataset.bhxhExtensionReady === 'true') return true;
   return new Promise(resolve => {
     const id = 'ping-' + Math.random().toString(36).slice(2);
     const timer = setTimeout(() => {
       window.removeEventListener('message', onMsg);
       resolve(false);
-    }, 600);
-    const onMsg = (e: any) => {
-      if (e.data?.source === 'taskflow-bhxh-ext' && (e.data?.id === id || e.data?.action === 'READY')) {
+    }, 80);
+    const onMsg = (e: MessageEvent) => {
+      const data = e.data as { source?: string; id?: string; action?: string } | undefined;
+      if (data?.source === 'taskflow-bhxh-ext' && (data.id === id || data.action === 'READY')) {
         clearTimeout(timer);
         window.removeEventListener('message', onMsg);
         document.documentElement.dataset.bhxhExtensionReady = 'true';
@@ -70,7 +73,7 @@ export async function isBhxhExtensionAvailable(): Promise<boolean> {
   });
 }
 
-function callExtension<T = any>(action: string, payload?: unknown, signal?: AbortSignal): Promise<T> {
+function callExtension<T>(action: string, payload?: unknown, signal?: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(new Error('Yêu cầu đã bị hủy'));
@@ -93,13 +96,14 @@ function callExtension<T = any>(action: string, payload?: unknown, signal?: Abor
       signal?.removeEventListener('abort', onAbort);
     };
 
-    const onMsg = (event: any) => {
-      if (event.data?.source === 'taskflow-bhxh-ext' && event.data?.id === id) {
+    const onMsg = (event: MessageEvent) => {
+      const data = event.data as ({ source?: string; id?: string; success?: boolean; error?: string } & T) | undefined;
+      if (data?.source === 'taskflow-bhxh-ext' && data.id === id) {
         cleanup();
-        if (event.data.success) {
-          resolve(event.data as T);
+        if (data.success) {
+          resolve(data);
         } else {
-          reject(new Error(event.data.error || 'Lỗi xử lý từ tiện ích mở rộng'));
+          reject(new Error(data.error || 'Lỗi xử lý từ tiện ích mở rộng'));
         }
       }
     };
@@ -127,8 +131,9 @@ export async function bhxhLookupRequest(payload: Record<string, unknown>, signal
         const result = parseLookupResultBrowser(res.html, pageNum);
         return { result, viaExtension: true, session: 'ext-active' };
       }
-    } catch (err: any) {
-      return { error: err.message || 'Lỗi tra cứu qua tiện ích mở rộng', viaExtension: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Lỗi tra cứu qua tiện ích mở rộng';
+      return { error: message, viaExtension: true };
     }
   }
 
