@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ExternalLink, RefreshCw, Search } from 'lucide-react';
+import { Building2, CreditCard, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import ClientSelect from '../components/ClientSelect';
 import { BHXH_LOOKUP_SOURCE, bhxhLookupRequest, isBhxhExtensionAvailable } from '../lib/bhxhLookup';
 import type { LookupQuery, LookupResponse, LookupResult } from '../lib/bhxhLookup';
 import type { BhxhClient } from '../lib/bhxhLedger';
+import BhxhBhytTool from './BhxhBhytTool';
 
 const input = 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100';
 const button = 'inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50';
 const emptyQuery: LookupQuery = { MaBHXH: '', MaSoThue: '', MaDonVi: '', TenDonVi: '' };
 
 export default function BhxhTools({ clients, initialClientId = '' }: { clients: BhxhClient[]; initialClientId?: string }) {
+  const [activeTool, setActiveTool] = useState<'unit' | 'bhyt'>('unit');
   const [clientId, setClientId] = useState('');
   const [query, setQuery] = useState<LookupQuery>(emptyQuery);
   const [captcha, setCaptcha] = useState('');
@@ -105,66 +107,104 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
   }
 
   return <section className="space-y-4" aria-labelledby="bhxh-lookup-title">
-    <header className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <div className="flex items-center gap-2">
-          <h2 id="bhxh-lookup-title" className="text-lg font-bold text-gray-800">Tra cứu đơn vị tham gia BHXH</h2>
-          {usingExtension && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-              ✓ Tiện ích mở rộng
-            </span>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-gray-600">Tra cứu thông tin đơn vị bằng mã số thuế và mã cơ sở BHXH quản lý.</p>
-      </div>
-      <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink size={16} /> Mở trang nguồn</a>
-    </header>
-    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-950">Nhập MST, mã cơ sở BHXH và mã xác nhận trong ảnh rồi bấm Tra cứu.</div>
-    <form onSubmit={search} className="space-y-4 rounded-xl border bg-white p-4 sm:p-5">
-      <fieldset disabled={busy} className="space-y-4">
-        {clients.length > 0 && <label className="block text-sm font-medium">Điền từ khách hàng
-          <ClientSelect aria-label="Khách hàng tra cứu BHXH" value={clientId} onChange={event => chooseClient(event.target.value)} className={input}>
-            <option value="">Nhập thông tin riêng</option>{clients.map(client => <option key={client.id} value={client.id} data-search={client.tax_code}>{client.name} · {client.tax_code || 'Chưa có MST'}</option>)}
-          </ClientSelect></label>}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">Mã số thuế *<input required value={query.MaSoThue} inputMode="numeric" maxLength={14} pattern="[0-9]{10}([0-9]{2,3}|-[0-9]{3})?" onChange={event => update({ MaSoThue: event.target.value })} placeholder="VD: 1801821715" className={input} /></label>
-          <label className="block text-sm font-medium">Mã cơ sở BHXH *<input required value={query.MaBHXH} inputMode="numeric" maxLength={5} minLength={5} pattern="[0-9]{5}" onChange={event => update({ MaBHXH: event.target.value })} placeholder="VD: 09200" className={input} /></label>
-        </div>
-        <p className="text-xs text-gray-500">Mã cơ sở gồm 5 chữ số, giữ cả số 0 ở đầu; đây là mã cơ quan quản lý, khác với mã đơn vị của doanh nghiệp.</p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block text-sm font-medium">Mã xác nhận *<input required value={code} onChange={event => setCode(event.target.value)} maxLength={5} minLength={5} pattern="[A-Za-z0-9]{5}" autoComplete="off" spellCheck={false} className={`${input} max-w-44`} /></label>
-          {captcha ? <img src={captcha} alt="Mã xác nhận tra cứu BHXH" className="h-12 max-w-48 rounded border bg-white object-contain" /> : <span className="text-sm text-gray-500">{busy ? 'Đang tải mã xác nhận…' : 'Chưa có ảnh mã xác nhận'}</span>}
-          <button type="button" onClick={() => void perform(refreshCaptcha)} disabled={busy || !ready} className={button}><RefreshCw size={15} /> Đổi mã</button>
-        </div>
-      </fieldset>
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={busy || !captcha || !query.MaBHXH} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Search size={16} /> {busy ? 'Đang kết nối…' : 'Tra cứu'}</button>
-        <button type="button" onClick={() => void perform(initialize)} disabled={busy} className={button}><RefreshCw size={16} /> Tải lại công cụ</button>
-      </div>
-      {busy && <p role="status" className="text-sm text-gray-500">Đang lấy dữ liệu từ cổng BHXH…</p>}
-      {error && (
-        <div role="alert" className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>{error}</span>
-            <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline hover:text-red-900">
-              <ExternalLink size={14} /> Mở trang nguồn tra cứu trực tiếp
-            </a>
+    <div className="flex flex-wrap gap-2 rounded-xl border bg-white p-2">
+      <button
+        type="button"
+        onClick={() => setActiveTool('unit')}
+        aria-pressed={activeTool === 'unit'}
+        className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
+          activeTool === 'unit'
+            ? 'bg-emerald-600 text-white'
+            : 'text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        <Building2 size={16} /> Tra cứu đơn vị tham gia BHXH
+      </button>
+      <button
+        type="button"
+        onClick={() => setActiveTool('bhyt')}
+        aria-pressed={activeTool === 'bhyt'}
+        className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
+          activeTool === 'bhyt'
+            ? 'bg-emerald-600 text-white'
+            : 'text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        <CreditCard size={16} /> Kiểm tra hạn thẻ BHYT (Theo mã đơn vị)
+      </button>
+    </div>
+
+    {activeTool === 'bhyt' ? (
+      <BhxhBhytTool
+        clients={clients}
+        initialClientId={initialClientId}
+        usingExtension={usingExtension}
+        onUsingExtension={() => setUsingExtension(true)}
+      />
+    ) : (
+      <>
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 id="bhxh-lookup-title" className="text-lg font-bold text-gray-800">Tra cứu đơn vị tham gia BHXH</h2>
+              {usingExtension && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                  ✓ Tiện ích mở rộng
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-gray-600">Tra cứu thông tin đơn vị bằng mã số thuế và mã cơ sở BHXH quản lý.</p>
           </div>
-          {!usingExtension && (
-            <p className="text-xs text-red-600 border-t border-red-200 pt-2">
-              💡 <strong>Mẹo:</strong> Máy chủ Vercel ở nước ngoài có thể bị tường lửa BHXH chặn IP. Bạn có thể cài đặt <strong>Tiện ích mở rộng TaskFlow</strong> (trong thư mục <code>extension-bhxh-helper</code> của dự án) vào trình duyệt để tra cứu trực tiếp từ IP mạng Việt Nam.
-            </p>
+          <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink size={16} /> Mở trang nguồn</a>
+        </header>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-950">Nhập MST, mã cơ sở BHXH và mã xác nhận trong ảnh rồi bấm Tra cứu.</div>
+        <form onSubmit={search} className="space-y-4 rounded-xl border bg-white p-4 sm:p-5">
+          <fieldset disabled={busy} className="space-y-4">
+            {clients.length > 0 && <label className="block text-sm font-medium">Điền từ khách hàng
+              <ClientSelect aria-label="Khách hàng tra cứu BHXH" value={clientId} onChange={event => chooseClient(event.target.value)} className={input}>
+                <option value="">Nhập thông tin riêng</option>{clients.map(client => <option key={client.id} value={client.id} data-search={client.tax_code}>{client.name} · {client.tax_code || 'Chưa có MST'}</option>)}
+              </ClientSelect></label>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium">Mã số thuế *<input required value={query.MaSoThue} inputMode="numeric" maxLength={14} pattern="[0-9]{10}([0-9]{2,3}|-[0-9]{3})?" onChange={event => update({ MaSoThue: event.target.value })} placeholder="VD: 1801821715" className={input} /></label>
+              <label className="block text-sm font-medium">Mã cơ sở BHXH *<input required value={query.MaBHXH} inputMode="numeric" maxLength={5} minLength={5} pattern="[0-9]{5}" onChange={event => update({ MaBHXH: event.target.value })} placeholder="VD: 09200" className={input} /></label>
+            </div>
+            <p className="text-xs text-gray-500">Mã cơ sở gồm 5 chữ số, giữ cả số 0 ở đầu; đây là mã cơ quan quản lý, khác với mã đơn vị của doanh nghiệp.</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block text-sm font-medium">Mã xác nhận *<input required value={code} onChange={event => setCode(event.target.value)} maxLength={5} minLength={5} pattern="[A-Za-z0-9]{5}" autoComplete="off" spellCheck={false} className={`${input} max-w-44`} /></label>
+              {captcha ? <img src={captcha} alt="Mã xác nhận tra cứu BHXH" className="h-12 max-w-48 rounded border bg-white object-contain" /> : <span className="text-sm text-gray-500">{busy ? 'Đang tải mã xác nhận…' : 'Chưa có ảnh mã xác nhận'}</span>}
+              <button type="button" onClick={() => void perform(refreshCaptcha)} disabled={busy || !ready} className={button}><RefreshCw size={15} /> Đổi mã</button>
+            </div>
+          </fieldset>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={busy || !captcha || !query.MaBHXH} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Search size={16} /> {busy ? 'Đang kết nối…' : 'Tra cứu'}</button>
+            <button type="button" onClick={() => void perform(initialize)} disabled={busy} className={button}><RefreshCw size={16} /> Tải lại công cụ</button>
+          </div>
+          {busy && <p role="status" className="text-sm text-gray-500">Đang lấy dữ liệu từ cổng BHXH…</p>}
+          {error && (
+            <div role="alert" className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>{error}</span>
+                <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline hover:text-red-900">
+                  <ExternalLink size={14} /> Mở trang nguồn tra cứu trực tiếp
+                </a>
+              </div>
+              {!usingExtension && (
+                <p className="text-xs text-red-600 border-t border-red-200 pt-2">
+                  💡 <strong>Mẹo:</strong> Máy chủ Vercel ở nước ngoài có thể bị tường lửa BHXH chặn IP. Bạn có thể cài đặt <strong>Tiện ích mở rộng TaskFlow</strong> (trong thư mục <code>extension-bhxh-helper</code> của dự án) vào trình duyệt để tra cứu trực tiếp từ IP mạng Việt Nam.
+                </p>
+              )}
+            </div>
           )}
-        </div>
-      )}
-    </form>
-    {result && <section aria-label="Kết quả tra cứu BHXH" aria-busy={busy} className="min-w-0 space-y-3 rounded-xl border bg-white p-4">
-      <h3 className="font-semibold">Kết quả tra cứu · Trang {result.page}</h3>
-      <p className="text-xs text-gray-500">MST: {searched?.MaSoThue} · Mã cơ sở: {searched?.MaBHXH} · Lúc {new Date(result.checkedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
-      {result.message && <p role="status" className="text-sm text-gray-700">{result.message}</p>}
-      {result.tables.map((table, index) => <div key={index} className="overflow-x-auto rounded-lg border"><table className="w-full text-left text-sm"><thead className="bg-gray-50"><tr>{table.headers.map((header, column) => <th key={column} scope="col" className="border-b px-3 py-2 whitespace-nowrap">{header}</th>)}</tr></thead><tbody>{table.rows.length ? table.rows.map((row, rowIndex) => <tr key={rowIndex} className="border-b last:border-0">{row.map((cell, column) => <td key={column} className="min-w-28 px-3 py-2 align-top whitespace-pre-wrap break-words">{cell}</td>)}</tr>) : <tr><td colSpan={table.headers.length} className="p-3 text-gray-500">Không tìm thấy đơn vị phù hợp.</td></tr>}</tbody></table></div>)}
-      {result.pages.length > 0 && <nav aria-label="Trang kết quả BHXH" className="flex flex-wrap gap-2">{[...new Set([1, result.page, ...result.pages])].sort((a, b) => a - b).map(number => <button key={number} type="button" disabled={busy || result.page === number} aria-current={result.page === number ? 'page' : undefined} onClick={() => page(number)} className={`${button} ${result.page === number ? 'bg-emerald-50 text-emerald-800' : ''}`}>Trang {number}</button>)}</nav>}
-      <p className="text-xs text-gray-500">Nguồn: <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="underline">Cổng thông tin điện tử BHXH Việt Nam</a>.</p>
-    </section>}
+        </form>
+        {result && <section aria-label="Kết quả tra cứu BHXH" aria-busy={busy} className="min-w-0 space-y-3 rounded-xl border bg-white p-4">
+          <h3 className="font-semibold">Kết quả tra cứu · Trang {result.page}</h3>
+          <p className="text-xs text-gray-500">MST: {searched?.MaSoThue} · Mã cơ sở: {searched?.MaBHXH} · Lúc {new Date(result.checkedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+          {result.message && <p role="status" className="text-sm text-gray-700">{result.message}</p>}
+          {result.tables.map((table, index) => <div key={index} className="overflow-x-auto rounded-lg border"><table className="w-full text-left text-sm"><thead className="bg-gray-50"><tr>{table.headers.map((header, column) => <th key={column} scope="col" className="border-b px-3 py-2 whitespace-nowrap">{header}</th>)}</tr></thead><tbody>{table.rows.length ? table.rows.map((row, rowIndex) => <tr key={rowIndex} className="border-b last:border-0">{row.map((cell, column) => <td key={column} className="min-w-28 px-3 py-2 align-top whitespace-pre-wrap break-words">{cell}</td>)}</tr>) : <tr><td colSpan={table.headers.length} className="p-3 text-gray-500">Không tìm thấy đơn vị phù hợp.</td></tr>}</tbody></table></div>)}
+          {result.pages.length > 0 && <nav aria-label="Trang kết quả BHXH" className="flex flex-wrap gap-2">{[...new Set([1, result.page, ...result.pages])].sort((a, b) => a - b).map(number => <button key={number} type="button" disabled={busy || result.page === number} aria-current={result.page === number ? 'page' : undefined} onClick={() => page(number)} className={`${button} ${result.page === number ? 'bg-emerald-50 text-emerald-800' : ''}`}>Trang {number}</button>)}</nav>}
+          <p className="text-xs text-gray-500">Nguồn: <a href={BHXH_LOOKUP_SOURCE} target="_blank" rel="noopener noreferrer" className="underline">Cổng thông tin điện tử BHXH Việt Nam</a>.</p>
+        </section>}
+      </>
+    )}
   </section>;
 }

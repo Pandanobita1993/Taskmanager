@@ -87,24 +87,33 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
 
-  if (action === 'SEARCH' || action === 'PAGE') {
+  if (action === 'SEARCH' || action === 'PAGE' || action === 'BHYT_SEARCH') {
     (async () => {
       try {
         await syncBhxhHeaders();
         const body = new URLSearchParams();
-        body.append('MaBHXH', payload?.MaBHXH || '');
-        body.append('MaSoThue', payload?.MaSoThue || '');
-        body.append('MaDonVi', '');
-        body.append('TenDonVi', '');
+        let url = `${ORIGIN}/UserControls/Publishing/TraCuuDonViThamGia/pListDonViThamGia.aspx`;
 
-        if (action === 'PAGE') {
-          body.append('docheck', '1');
-          body.append('page', String(payload?.page || 1));
-        } else {
+        if (action === 'BHYT_SEARCH') {
+          url = `${ORIGIN}/UserControls/BHXH/BaoHiemYTe/TheBHYT/pListTheBHYTThe.aspx`;
+          body.append('txtMaThe', payload?.txtMaThe || '');
+          body.append('txtHoTen', payload?.txtHoTen || '');
+          body.append('txtNgaySinh', payload?.txtNgaySinh || '');
           body.append('tokenRecaptch', payload?.tokenRecaptch || '');
+        } else {
+          body.append('MaBHXH', payload?.MaBHXH || '');
+          body.append('MaSoThue', payload?.MaSoThue || '');
+          body.append('MaDonVi', '');
+          body.append('TenDonVi', '');
+
+          if (action === 'PAGE') {
+            body.append('docheck', '1');
+            body.append('page', String(payload?.page || 1));
+          } else {
+            body.append('tokenRecaptch', payload?.tokenRecaptch || '');
+          }
         }
 
-        const url = `${ORIGIN}/UserControls/Publishing/TraCuuDonViThamGia/pListDonViThamGia.aspx`;
         const res = await fetchRetry(url, {
           method: 'POST',
           credentials: 'include',

@@ -1,12 +1,14 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { parseFragment } from 'parse5';
 import type { DefaultTreeAdapterTypes as Tree } from 'parse5';
-import type { LookupQuery, LookupResponse, LookupResult } from '../src/lib/bhxhLookup.ts';
+import { classifyBhytResult } from '../src/lib/bhxhLookup.ts';
+import type { BhytLookupResult, LookupQuery, LookupResponse, LookupResult } from '../src/lib/bhxhLookup.ts';
 import { fetchBhxh } from './bhxhTransport.ts';
 
 const ORIGIN = 'https://baohiemxahoi.gov.vn';
 const SOURCE = '/tracuu/pages/don-vi-tham-gia-bhxh.aspx';
 const DIRECTORY = '/UserControls/Publishing/TraCuuDonViThamGia/';
+const BHYT_PATH = '/UserControls/BHXH/BaoHiemYTe/TheBHYT/pListTheBHYTThe.aspx';
 const MAX_RESPONSE = 2_000_000;
 const TTL = 20 * 60 * 1000;
 interface Session { cookies: Record<string, string>; expires: number; query?: LookupQuery; pages?: number[] }
@@ -48,6 +50,23 @@ export function parseLookupResult(html: string, page = 1): LookupResult {
     throw new LookupError('Cổng BHXH trả về nội dung chưa nhận diện được. Vui lòng mở trang nguồn để kiểm tra.', 502);
   }
   return { tables, message: message || '', pages, page, checkedAt: new Date().toISOString() };
+}
+export function parseBhytLookupResult(html: string): BhytLookupResult {
+  const root = parseFragment(html);
+  const tables = elements(root, 'table').filter(table => !elements(table, 'table').some(other => other !== table)).map(table => {
+    const rows = elements(table, 'tr').map(row => row.childNodes.filter((node): node is Tree.Element =>
+      'tagName' in node && ['td', 'th'].includes(node.tagName)).map(cleanText)).filter(row => row.some(Boolean));
+    const headerRow = elements(table, 'tr').find(row => elements(row, 'th').length > 0);
+    const headers = headerRow ? elements(headerRow).filter(node => ['th', 'td'].includes(node.tagName)).map(cleanText) : rows[0] || [];
+    return { headers, rows: headerRow ? rows.filter(row => row.join('\0') !== headers.join('\0')) : rows.slice(1) };
+  }).filter(table => table.headers.length > 1);
+  const rawLines = elements(root).filter(node => ['tr', 'p', 'li', 'div'].includes(node.tagName) && !elements(node).some(child => child !== node && ['div', 'p', 'table', 'tr', 'ul'].includes(child.tagName))).map(cleanText);
+  const fullText = plain(html);
+  try {
+    return classifyBhytResult(fullText, rawLines, tables);
+  } catch (err) {
+    throw new LookupError(err instanceof Error ? err.message : 'Cổng BHXH trả về nội dung chưa nhận diện được.', 502);
+  }
 }
 function sessionKey(secret: string) {
   if (secret.length < 32) throw new LookupError('API tra cứu chưa được cấu hình khóa phiên BHXH_LOOKUP_SESSION_SECRET trên máy chủ.', 503);
@@ -95,7 +114,7 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
   try {
     key = sessionKey(options.secret);
     const action = field(body, 'action', 20, true);
-    if (!['init', 'captcha', 'search', 'page'].includes(action)) throw new LookupError('Thao tác tra cứu không hợp lệ.');
+    if (!['init', 'captcha', 'search', 'page', 'bhyt_search'].includes(action)) throw new LookupError('Thao tác tra cứu không hợp lệ.');
     session = action === 'init' ? { cookies: {}, expires: Date.now() + TTL } : unseal(body.session, key);
     const active = session;
     const deadline = AbortSignal.timeout(20000);
@@ -141,6 +160,19 @@ export async function runBhxhLookup(body: RequestBody, options: { secret: string
       result.captcha = await captcha();
     } else if (action === 'captcha') {
       result.captcha = await captcha();
+    } else if (action === 'bhyt_search') {
+      const txtMaThe = field(body, 'txtMaThe', 20, true);
+      const txtHoTen = field(body, 'txtHoTen', 120, true);
+      const txtNgaySinh = field(body, 'txtNgaySinh', 20, true);
+      const tokenRecaptch = field(body, 'tokenRecaptch', 5, true);
+      if (!/^[A-Za-z0-9]{10,15}$/.test(txtMaThe)) throw new LookupError('Mã số BHXH (10 số) hoặc Mã thẻ BHYT (15 ký tự) chưa đúng định dạng.');
+      if (!/^(?:\d{4}|\d{2}\/\d{2}\/\d{4})$/.test(txtNgaySinh)) throw new LookupError('Ngày/năm sinh phải theo định dạng DD/MM/YYYY hoặc YYYY (4 chữ số).');
+      if (!/^[a-z\d]{5}$/i.test(tokenRecaptch)) throw new LookupError('Nhập 5 ký tự trong ảnh mã xác nhận.');
+      const response = await upstream(BHYT_PATH, { txtMaThe, txtHoTen, txtNgaySinh, tokenRecaptch });
+      const raw = response.bytes.toString('utf8');
+      const error = jsonError(raw);
+      if (error?.Error) throw new LookupError(plain(error.Title || 'Cổng BHXH chưa thực hiện được yêu cầu.'));
+      result.bhytResult = parseBhytLookupResult(raw);
     } else {
       let query: LookupQuery; let page = 1;
       if (action === 'page') {
