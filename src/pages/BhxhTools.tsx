@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Building2, CreditCard, ExternalLink, RefreshCw, Search } from 'lucide-react';
+import { Building2, CreditCard, ExternalLink, FileSpreadsheet, RefreshCw, Search } from 'lucide-react';
 import ClientSelect from '../components/ClientSelect';
 import { BHXH_LOOKUP_SOURCE, bhxhLookupRequest, isBhxhExtensionAvailable } from '../lib/bhxhLookup';
 import type { LookupQuery, LookupResponse, LookupResult } from '../lib/bhxhLookup';
 import type { BhxhClient } from '../lib/bhxhLedger';
 import BhxhBhytTool from './BhxhBhytTool';
+import BhxhDossierTool from './BhxhDossierTool';
 
 const input = 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:bg-gray-100';
 const button = 'inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50';
 const emptyQuery: LookupQuery = { MaBHXH: '', MaSoThue: '', MaDonVi: '', TenDonVi: '' };
 
 export default function BhxhTools({ clients, initialClientId = '' }: { clients: BhxhClient[]; initialClientId?: string }) {
-  const [activeTool, setActiveTool] = useState<'unit' | 'bhyt'>('unit');
+  const [activeTool, setActiveTool] = useState<'unit' | 'bhyt' | 'dossier'>('unit');
   const [clientId, setClientId] = useState('');
   const [query, setQuery] = useState<LookupQuery>(emptyQuery);
   const [captcha, setCaptcha] = useState('');
@@ -132,9 +133,23 @@ export default function BhxhTools({ clients, initialClientId = '' }: { clients: 
       >
         <CreditCard size={16} /> Kiểm tra hạn thẻ BHYT (Theo mã đơn vị)
       </button>
+      <button
+        type="button"
+        onClick={() => setActiveTool('dossier')}
+        aria-pressed={activeTool === 'dossier'}
+        className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
+          activeTool === 'dossier'
+            ? 'bg-emerald-600 text-white'
+            : 'text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        <FileSpreadsheet size={16} /> Hồ sơ & Báo cáo BHXH (3 đối tượng & TK3-TS)
+      </button>
     </div>
 
-    {activeTool === 'bhyt' ? (
+    {activeTool === 'dossier' ? (
+      <BhxhDossierTool clients={clients} initialClientId={initialClientId} />
+    ) : activeTool === 'bhyt' ? (
       <BhxhBhytTool
         clients={clients}
         initialClientId={initialClientId}
