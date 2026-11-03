@@ -33,7 +33,7 @@
           source: 'taskflow-bhxh-ext',
           id,
           success: true,
-          version: '1.1.2'
+          version: '1.1.3'
         },
         '*'
       );
@@ -41,31 +41,45 @@
     }
 
     try {
-      chrome.runtime.sendMessage({ action, payload }, (response) => {
-        const lastErr = chrome.runtime && chrome.runtime.lastError;
-        if (lastErr) {
-          if (/Extension context invalidated/i.test(lastErr.message || '')) {
+      const api = extApi || (typeof chrome !== 'undefined' ? chrome : null);
+      if (!api || !api.runtime || !api.runtime.id) {
+        window.removeEventListener('message', onWindowMessage);
+        return;
+      }
+
+      api.runtime.sendMessage({ action, payload }, (response) => {
+        try {
+          if (!isContextValid()) {
             window.removeEventListener('message', onWindowMessage);
             return;
           }
-          window.postMessage(
-            {
-              source: 'taskflow-bhxh-ext',
-              id,
-              success: false,
-              error: lastErr.message
-            },
-            '*'
-          );
-        } else {
-          window.postMessage(
-            {
-              source: 'taskflow-bhxh-ext',
-              id,
-              ...(response || {})
-            },
-            '*'
-          );
+          const lastErr = api.runtime?.lastError;
+          if (lastErr) {
+            if (/Extension context invalidated/i.test(lastErr.message || '')) {
+              window.removeEventListener('message', onWindowMessage);
+              return;
+            }
+            window.postMessage(
+              {
+                source: 'taskflow-bhxh-ext',
+                id,
+                success: false,
+                error: lastErr.message
+              },
+              '*'
+            );
+          } else {
+            window.postMessage(
+              {
+                source: 'taskflow-bhxh-ext',
+                id,
+                ...(response || {})
+              },
+              '*'
+            );
+          }
+        } catch {
+          window.removeEventListener('message', onWindowMessage);
         }
       });
     } catch {
@@ -75,5 +89,5 @@
   }
 
   window.addEventListener('message', onWindowMessage);
-  window.postMessage({ source: 'taskflow-bhxh-ext', action: 'READY', version: '1.1.2' }, '*');
+  window.postMessage({ source: 'taskflow-bhxh-ext', action: 'READY', version: '1.1.3' }, '*');
 })();
