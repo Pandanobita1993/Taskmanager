@@ -27,6 +27,7 @@ import {
   calculateEmployeeContribution,
   exportMonthlyBhxhReportExcel,
   exportTk3TsExcel,
+  exportTk3TsWordDoc,
   parseDossierFromExcelFile
 } from '../lib/bhxhDossierExcel';
 import type {
@@ -141,7 +142,7 @@ export default function BhxhDossierTool({
   const [agencyPortal, setAgencyPortal] = useState<AgencyPortal | null>(null);
   const [selectedKey, setSelectedKey] = useState('');
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [showTk3Panel, setShowTk3Panel] = useState(false);
+  const [showTk3Panel, setShowTk3Panel] = useState(true);
   const [editingEmp, setEditingEmp] = useState<BhxhDossierEmployee | null>(null);
   const [folderFiles, setFolderFiles] = useState<LocalExcelFileEntry[] | null>(null);
   const [scanningFolder, setScanningFolder] = useState(false);
@@ -268,18 +269,17 @@ export default function BhxhDossierTool({
       contractNote: 'Báo tăng lao động theo hợp đồng lao động',
       businessAddress: '',
       contactAddress: '',
-      phone: '',
       email: '',
+      phone: '',
       legalRepName: '',
-      legalRepTitle: 'Giám đốc',
       legalRepCccd: '',
-      licenseNo: '',
-      licenseIssuedDate: '',
-      licenseIssuedBy: 'Sở Tài chính / Sở KH&ĐT',
+      unitType: 'Công ty TNHH',
       businessField: '',
-      paymentMethod: 'Đóng hằng tháng',
-      bankAccountNo: '',
-      bankName: '',
+      participantCategory: 'Người lao động',
+      paymentMethod: 'Hằng tháng',
+      changeRequestContent: 'Đăng ký tham gia BHXH, BHYT, BHTN lần đầu',
+      signLocation: 'Cần Thơ',
+      signDate: new Date().toISOString().slice(0, 10),
       employees: [],
       updatedAt: new Date().toISOString()
     };
@@ -440,11 +440,25 @@ export default function BhxhDossierTool({
       const { fileName, savedToFolder } = await exportTk3TsExcel(currentDossier);
       setStatusMsg(
         savedToFolder
-          ? `✓ Đã xuất Mẫu TK3-TS "${fileName}" và lưu trực tiếp vào thư mục trên máy!`
-          : `✓ Đã xuất và tải xuống Mẫu TK3-TS "${fileName}" để gửi khách ký nộp BHXH Cơ sở!`
+          ? `✓ Đã xuất Mẫu TK3-TS Excel "${fileName}" (QĐ 366/QĐ-BHXH) và lưu trực tiếp vào thư mục trên máy!`
+          : `✓ Đã xuất và tải xuống Mẫu TK3-TS Excel "${fileName}" (QĐ 366/QĐ-BHXH)!`
       );
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Lỗi khi xuất Mẫu TK3-TS.');
+      setErrorMsg(err instanceof Error ? err.message : 'Lỗi khi xuất Mẫu TK3-TS Excel.');
+    }
+  }
+
+  async function handleExportTk3Word() {
+    setErrorMsg('');
+    try {
+      const { fileName, savedToFolder } = await exportTk3TsWordDoc(currentDossier);
+      setStatusMsg(
+        savedToFolder
+          ? `✓ Đã xuất Mẫu TK3-TS Word "${fileName}" (QĐ 366/QĐ-BHXH) và lưu trực tiếp vào thư mục trên máy!`
+          : `✓ Đã xuất và tải xuống Mẫu TK3-TS Word "${fileName}" (QĐ 366/QĐ-BHXH) để gửi khách ký nộp BHXH Cơ sở!`
+      );
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Lỗi khi xuất Mẫu TK3-TS Word.');
     }
   }
 
@@ -663,111 +677,198 @@ export default function BhxhDossierTool({
           </label>
         </div>
 
-        {/* Nút mở rộng thông tin TK3-TS (dành cho khách hàng mới / điều chỉnh đơn vị) */}
+        {/* Form nhập Mẫu TK3-TS (Ban hành kèm theo QĐ số 366/QĐ-BHXH ngày 29/04/2026) */}
         <div className="border-t pt-3">
           <button
             type="button"
             onClick={() => setShowTk3Panel((v) => !v)}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:underline"
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-800 hover:underline"
           >
-            <Building2 size={15} />
+            <Building2 size={16} />
             {showTk3Panel
-              ? '▼ Ẩn thông tin bổ sung Mẫu TK3-TS (Khách hàng mới / Điều chỉnh thông tin đơn vị)'
-              : '▶ Mở thiết lập thông tin Mẫu TK3-TS (Địa chỉ, GPKD, Người ĐDPL, SĐT, Email... để xuất TK3-TS cho khách ký)'}
+              ? '▼ Thu gọn Form nhập Mẫu TK3-TS (QĐ số 366/QĐ-BHXH ngày 29/04/2026 — Mục [01] đến [14])'
+              : '▶ Mở Form nhập Mẫu TK3-TS (QĐ số 366/QĐ-BHXH ngày 29/04/2026 — Mục [01] đến [14])'}
           </button>
 
           {showTk3Panel && (
-            <div className="mt-3 grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 sm:grid-cols-3">
-              <label className="block text-xs font-medium sm:col-span-2">
-                [04] Địa chỉ đăng ký kinh doanh
-                <input
-                  value={currentDossier.businessAddress}
-                  onChange={(e) => updateDossier({ businessAddress: e.target.value })}
-                  placeholder="Địa chỉ trên GPKD..."
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                [06] Số điện thoại liên hệ
-                <input
-                  value={currentDossier.phone}
-                  onChange={(e) => updateDossier({ phone: e.target.value })}
-                  placeholder="SĐT công ty / kế toán..."
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium sm:col-span-2">
-                [05] Địa chỉ nhận thông báo (nếu khác địa chỉ ĐKKD)
-                <input
-                  value={currentDossier.contactAddress}
-                  onChange={(e) => updateDossier({ contactAddress: e.target.value })}
-                  placeholder="Để trống nếu giống địa chỉ ĐKKD"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                [07] Email nhận thông báo
-                <input
-                  value={currentDossier.email}
-                  onChange={(e) => updateDossier({ email: e.target.value })}
-                  placeholder="email@company.com"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                [09] Người đại diện theo pháp luật
-                <input
-                  value={currentDossier.legalRepName}
-                  onChange={(e) => updateDossier({ legalRepName: e.target.value })}
-                  placeholder="Họ và tên Giám đốc / ĐDPL"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                Chức danh ĐDPL
-                <input
-                  value={currentDossier.legalRepTitle}
-                  onChange={(e) => updateDossier({ legalRepTitle: e.target.value })}
-                  placeholder="VD: Giám đốc"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                Số CCCD/Hộ chiếu ĐDPL
-                <input
-                  value={currentDossier.legalRepCccd}
-                  onChange={(e) => updateDossier({ legalRepCccd: e.target.value })}
-                  placeholder="Số CCCD của ĐDPL"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                [08] Số GPKD / QĐ thành lập
-                <input
-                  value={currentDossier.licenseNo}
-                  onChange={(e) => updateDossier({ licenseNo: e.target.value })}
-                  placeholder="Thường trùng Mã số thuế"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                Ngày cấp GPKD
-                <input
-                  value={currentDossier.licenseIssuedDate}
-                  onChange={(e) => updateDossier({ licenseIssuedDate: e.target.value })}
-                  placeholder="VD: 15/03/2024"
-                  className={input}
-                />
-              </label>
-              <label className="block text-xs font-medium">
-                Cơ quan cấp GPKD
-                <input
-                  value={currentDossier.licenseIssuedBy}
-                  onChange={(e) => updateDossier({ licenseIssuedBy: e.target.value })}
-                  placeholder="VD: Sở KH&ĐT..."
-                  className={input}
-                />
-              </label>
+            <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
+                <div>
+                  <p className="text-xs font-bold uppercase text-emerald-950">
+                    TỜ KHAI ĐƠN VỊ ĐĂNG KÝ, ĐIỀU CHỈNH THÔNG TIN THAM GIA BHXH, BHYT — MẪU TK3-TS
+                  </p>
+                  <p className="text-[11px] italic text-gray-600">
+                    (Ban hành kèm theo QĐ số 366/QĐ-BHXH ngày 29/04/2026 của BHXH Việt Nam)
+                  </p>
+                </div>
+                <span className="text-xs font-medium text-emerald-800">
+                  Mã đơn vị: <strong>{currentDossier.unitCode || '…………………..'}</strong>
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="block text-xs font-medium sm:col-span-2">
+                  [01]. Tên đơn vị
+                  <input
+                    value={currentDossier.companyName}
+                    onChange={(e) => updateDossier({ companyName: e.target.value })}
+                    placeholder="Tên công ty / đơn vị..."
+                    className={input}
+                  />
+                </label>
+                <label className="block text-xs font-medium">
+                  [02]. Mã số thuế
+                  <input
+                    value={currentDossier.taxCode}
+                    onChange={(e) => updateDossier({ taxCode: e.target.value })}
+                    placeholder="Mã số thuế..."
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-3">
+                  [03]. Địa chỉ trụ sở chính
+                  <input
+                    value={currentDossier.businessAddress}
+                    onChange={(e) => updateDossier({ businessAddress: e.target.value })}
+                    placeholder="Nhập địa chỉ trụ sở chính trên GPKD..."
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-3">
+                  [04]. Địa chỉ liên hệ (để trống nếu giống địa chỉ trụ sở chính)
+                  <input
+                    value={currentDossier.contactAddress}
+                    onChange={(e) => updateDossier({ contactAddress: e.target.value })}
+                    placeholder="Nhập địa chỉ liên hệ..."
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-2">
+                  [05]. Địa chỉ thư điện tử (Email)
+                  <input
+                    value={currentDossier.email}
+                    onChange={(e) => updateDossier({ email: e.target.value })}
+                    placeholder="VD: ketoan@congty.vn"
+                    className={input}
+                  />
+                </label>
+                <label className="block text-xs font-medium">
+                  [06]. Số điện thoại liên hệ
+                  <input
+                    value={currentDossier.phone}
+                    onChange={(e) => updateDossier({ phone: e.target.value })}
+                    placeholder="VD: 0909..."
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-2">
+                  [07]. Người đại diện (Họ và tên người đại diện pháp luật)
+                  <input
+                    value={currentDossier.legalRepName}
+                    onChange={(e) => updateDossier({ legalRepName: e.target.value })}
+                    placeholder="Họ và tên Giám đốc / Người đại diện..."
+                    className={input}
+                  />
+                </label>
+                <label className="block text-xs font-medium">
+                  [08]. Số định danh cá nhân (CCCD của Người đại diện)
+                  <input
+                    value={currentDossier.legalRepCccd}
+                    onChange={(e) => updateDossier({ legalRepCccd: e.target.value })}
+                    placeholder="12 chữ số CCCD..."
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium">
+                  [09]. Loại hình đơn vị
+                  <input
+                    value={currentDossier.unitType || ''}
+                    onChange={(e) => updateDossier({ unitType: e.target.value })}
+                    placeholder="VD: Công ty TNHH / Công ty Cổ phần..."
+                    className={input}
+                  />
+                </label>
+                <label className="block text-xs font-medium">
+                  [10]. Ngành kinh tế
+                  <input
+                    value={currentDossier.businessField || ''}
+                    onChange={(e) => updateDossier({ businessField: e.target.value })}
+                    placeholder="VD: Thương mại dịch vụ / Xây dựng..."
+                    className={input}
+                  />
+                </label>
+                <label className="block text-xs font-medium">
+                  [11]. Đối tượng tham gia
+                  <input
+                    value={currentDossier.participantCategory || ''}
+                    onChange={(e) => updateDossier({ participantCategory: e.target.value })}
+                    placeholder="VD: Người lao động / Người quản lý DN..."
+                    className={input}
+                  />
+                </label>
+
+                <div className="block text-xs font-medium sm:col-span-3">
+                  <span>[12]. Phương thức đóng khác:</span>
+                  <div className="mt-1.5 flex flex-wrap gap-6 rounded-lg border bg-white px-3 py-2">
+                    {(['Hằng tháng', '03 tháng', '06 tháng'] as const).map((method) => (
+                      <label key={method} className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="radio"
+                          name="tk3-payment-method"
+                          checked={(currentDossier.paymentMethod || 'Hằng tháng') === method}
+                          onChange={() => updateDossier({ paymentMethod: method })}
+                        />
+                        <span>{method}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="block text-xs font-medium sm:col-span-3">
+                  [13]. Đăng ký tham gia tại cơ quan BHXH
+                  <input
+                    value={currentDossier.agencyName}
+                    onChange={(e) => updateDossier({ agencyName: e.target.value })}
+                    placeholder="VD: Bảo hiểm xã hội Cơ sở Hậu Nghĩa / BHXH TP. Cần Thơ..."
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-3">
+                  [14]. Nội dung thay đổi, yêu cầu
+                  <textarea
+                    rows={2}
+                    value={currentDossier.changeRequestContent || ''}
+                    onChange={(e) => updateDossier({ changeRequestContent: e.target.value })}
+                    placeholder="VD: Đăng ký tham gia BHXH, BHYT, BHTN lần đầu cho đơn vị (hoặc nội dung điều chỉnh thông tin...)"
+                    className={input}
+                  />
+                </label>
+
+                <label className="block text-xs font-medium sm:col-span-2">
+                  Địa danh ký tờ khai (in ở góc phải dưới)
+                  <input
+                    value={currentDossier.signLocation || 'Cần Thơ'}
+                    onChange={(e) => updateDossier({ signLocation: e.target.value })}
+                    placeholder="VD: Cần Thơ"
+                    className={input}
+                  />
+                </label>
+                <label className="block text-xs font-medium">
+                  Ngày ký tờ khai
+                  <input
+                    type="date"
+                    value={currentDossier.signDate || new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => updateDossier({ signDate: e.target.value })}
+                    className={input}
+                  />
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -785,11 +886,19 @@ export default function BhxhDossierTool({
             </button>
             <button
               type="button"
-              onClick={() => void handleExportTk3Excel()}
+              onClick={() => void handleExportTk3Word()}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
             >
               <FileText size={17} />
-              Xuất Mẫu TK3-TS (Cho khách mới ký nộp BHXH Cơ sở)
+              Xuất Mẫu TK3-TS Word (.doc) chuẩn QĐ 366
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportTk3Excel()}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-600 bg-white px-3.5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              <FileSpreadsheet size={17} />
+              Xuất Mẫu TK3-TS Excel (.xlsx)
             </button>
           </div>
           <span className="text-xs text-gray-500">

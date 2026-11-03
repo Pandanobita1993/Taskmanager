@@ -41,21 +41,20 @@ export interface BhxhUnitDossier {
   agencyName: string;
   agencyCode: string;
   contractNote: string;
-  // TK3-TS fields for new/updated units
-  businessAddress: string;
-  contactAddress: string;
-  phone: string;
-  email: string;
-  legalRepName: string;
-  legalRepTitle: string;
-  legalRepCccd: string;
-  licenseNo: string;
-  licenseIssuedDate: string;
-  licenseIssuedBy: string;
-  businessField: string;
-  paymentMethod: string;
-  bankAccountNo: string;
-  bankName: string;
+  // TK3-TS fields (QĐ 366/QĐ-BHXH ngày 29/04/2026)
+  businessAddress: string;      // [03]. Địa chỉ trụ sở chính
+  contactAddress: string;       // [04]. Địa chỉ liên hệ
+  email: string;                // [05]. Địa chỉ thư điện tử
+  phone: string;                // [06]. Số điện thoại liên hệ
+  legalRepName: string;         // [07]. Người đại diện
+  legalRepCccd: string;         // [08]. Số định danh cá nhân
+  unitType: string;             // [09]. Loại hình đơn vị
+  businessField: string;        // [10]. Ngành kinh tế
+  participantCategory: string;  // [11]. Đối tượng tham gia
+  paymentMethod: string;        // [12]. Phương thức đóng khác ('Hằng tháng' | '03 tháng' | '06 tháng')
+  changeRequestContent: string; // [14]. Nội dung thay đổi, yêu cầu
+  signLocation: string;         // Địa danh ký (VD: Cần Thơ)
+  signDate: string;             // Ngày ký (YYYY-MM-DD)
   employees: BhxhDossierEmployee[];
   updatedAt: string;
 }
@@ -164,7 +163,7 @@ function styleRange(
       if (!ws[addr]) {
         ws[addr] = { t: 's', v: '' };
       }
-      ws[addr].s = { ...(ws[addr].s || {}), ...style };
+      ws[addr].s = { ...ws[addr].s, ...style };
     }
   }
 }
@@ -1055,174 +1054,175 @@ export async function exportMonthlyBhxhReportExcel(
 export async function exportTk3TsExcel(
   dossier: BhxhUnitDossier
 ): Promise<{ fileName: string; savedToFolder: boolean }> {
-  const now = new Date();
-  const day = String(now.getDate()).padStart(2, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const year = String(now.getFullYear());
+  const dateObj = dossier.signDate ? new Date(`${dossier.signDate}T00:00:00`) : new Date();
+  const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+  const day = String(validDate.getDate()).padStart(2, '0');
+  const month = String(validDate.getMonth() + 1).padStart(2, '0');
+  const year = String(validDate.getFullYear());
+  const location = (dossier.signLocation || 'Cần Thơ').trim();
+
+  const method = dossier.paymentMethod || 'Hằng tháng';
+  const chkMonthly = method === 'Hằng tháng' ? '☑ Hằng tháng' : '☐ Hằng tháng';
+  const chk3Months = method === '03 tháng' ? '☑ 03 tháng' : '☐ 03 tháng';
+  const chk6Months = method === '06 tháng' ? '☑ 06 tháng' : '☐ 06 tháng';
+
+  const defaultParticipant =
+    dossier.participantCategory ||
+    (dossier.targetKind === 'legal_representative'
+      ? 'Người quản lý doanh nghiệp / Đại diện pháp luật'
+      : dossier.targetKind === 'foreign_workers'
+        ? 'Người lao động nước ngoài'
+        : 'Người lao động Việt Nam');
 
   const rows: (string | number)[][] = [
-    ['BẢO HIỂM XÃ HỘI VIỆT NAM', '', '', '', 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM'],
-    ['', '', '', '', 'Độc lập - Tự do - Hạnh phúc'],
-    ['', '', '', '', 'Mẫu TK3-TS'],
-    ['', '', '', '', '(Ban hành kèm theo QĐ số: 490/QĐ-BHXH ngày 28/03/2023 của BHXH Việt Nam)'],
+    ['', '', '', '', 'Mẫu TK3-TS', '', '', ''],
+    ['', '', '', '', '(Ban hành kèm theo QĐ số 366/QĐ-BHXH ngày 29/04/2026 của BHXH Việt Nam)', '', '', ''],
+    ['CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM', '', '', '', '', '', '', ''],
+    ['Độc lập - Tự do - Hạnh phúc', '', '', '', '', '', '', ''],
     [],
     ['TỜ KHAI', '', '', '', '', '', '', ''],
-    ['ĐƠN VỊ THAM GIA, ĐIỀU CHỈNH THÔNG TIN BHXH, BHYT', '', '', '', '', '', '', ''],
-    [`Kính gửi: ${dossier.agencyName || 'Bảo hiểm xã hội Cơ sở ................................'}`, '', '', '', '', '', '', ''],
+    ['ĐƠN VỊ ĐĂNG KÝ, ĐIỀU CHỈNH THÔNG TIN THAM GIA BẢO HIỂM XÃ HỘI, BẢO HIỂM Y TẾ', '', '', '', '', '', '', ''],
+    [`Mã đơn vị: ${dossier.unitCode || '…………………..'}`, '', '', '', '', '', '', ''],
     [],
-    ['I. THÔNG TIN CỦA ĐƠN VỊ (Dành cho đơn vị đăng ký tham gia lần đầu hoặc điều chỉnh thông tin)', '', '', '', '', '', '', ''],
-    [`[01]. Tên đơn vị: ${(dossier.companyName || '').toUpperCase()}`, '', '', '', '', '', '', ''],
     [
-      `[02]. Mã số đơn vị (nếu đã được cấp): ${dossier.unitCode || 'Đăng ký cấp mã lần đầu'}`,
+      `[01]. Tên đơn vị: ${dossier.companyName || ''}`,
       '',
       '',
       '',
-      `[03]. Mã số thuế: ${dossier.taxCode || ''}`,
+      '',
+      `[02]. Mã số thuế: ${dossier.taxCode || ''}`,
+      '',
+      ''
+    ],
+    [`[03]. Địa chỉ trụ sở chính: ${dossier.businessAddress || ''}`, '', '', '', '', '', '', ''],
+    [`[04]. Địa chỉ liên hệ: ${dossier.contactAddress || dossier.businessAddress || ''}`, '', '', '', '', '', '', ''],
+    [
+      `[05]. Địa chỉ thư điện tử: ${dossier.email || ''}`,
+      '',
+      '',
+      '',
+      `[06]. Số điện thoại liên hệ: ${dossier.phone || ''}`,
       '',
       '',
       ''
     ],
-    [`[04]. Địa chỉ đăng ký kinh doanh: ${dossier.businessAddress || ''}`, '', '', '', '', '', '', ''],
-    [`[05]. Địa chỉ nhận thông báo / giao dịch: ${dossier.contactAddress || dossier.businessAddress || ''}`, '', '', '', '', '', '', ''],
     [
-      `[06]. Số điện thoại: ${dossier.phone || ''}`,
+      `[07]. Người đại diện: ${dossier.legalRepName || ''}`,
       '',
       '',
       '',
-      `[07]. Địa chỉ Email: ${dossier.email || ''}`,
+      `[08]. Số định danh cá nhân: ${dossier.legalRepCccd || ''}`,
       '',
       '',
       ''
     ],
+    [`[09]. Loại hình đơn vị: ${dossier.unitType || ''}`, '', '', '', '', '', '', ''],
+    [`[10]. Ngành kinh tế: ${dossier.businessField || ''}`, '', '', '', '', '', '', ''],
+    [`[11]. Đối tượng tham gia: ${defaultParticipant}`, '', '', '', '', '', '', ''],
     [
-      `[08]. Quyết định thành lập / Giấy phép ĐKKD số: ${dossier.licenseNo || ''}`,
+      '[12]. Phương thức đóng khác:',
       '',
+      chkMonthly,
       '',
+      chk3Months,
       '',
-      `Ngày cấp: ${dossier.licenseIssuedDate || ''}`,
-      '',
-      `Cơ quan cấp: ${dossier.licenseIssuedBy || 'Sở KH&ĐT / Sở Tài chính'}`,
+      chk6Months,
       ''
     ],
-    [
-      `[09]. Người đại diện theo pháp luật: ${dossier.legalRepName || ''}`,
-      '',
-      '',
-      '',
-      `Chức danh: ${dossier.legalRepTitle || 'Giám đốc'}`,
-      '',
-      `Số CCCD/Hộ chiếu: ${dossier.legalRepCccd || ''}`,
-      ''
-    ],
-    [`[10]. Lĩnh vực hoạt động / Ngành nghề chính: ${dossier.businessField || ''}`, '', '', '', '', '', '', ''],
-    [
-      `[11]. Tài khoản ngân hàng số: ${dossier.bankAccountNo || ''}`,
-      '',
-      '',
-      '',
-      `Mở tại Ngân hàng: ${dossier.bankName || ''}`,
-      '',
-      '',
-      ''
-    ],
-    [`[12]. Phương thức đóng khác (nếu có): ${dossier.paymentMethod || 'Đóng hằng tháng'}`, '', '', '', '', '', '', ''],
+    [`[13]. Đăng ký tham gia tại cơ quan BHXH: ${dossier.agencyName || ''}`, '', '', '', '', '', '', ''],
+    [`[14]. Nội dung thay đổi, yêu cầu: ${dossier.changeRequestContent || ''}`, '', '', '', '', '', '', ''],
     [],
-    ['II. NỘI DUNG THAY ĐỔI, YÊU CẦU (Dành cho đơn vị điều chỉnh thông tin)', '', '', '', '', '', '', ''],
-    ['STT', 'Nội dung chỉ tiêu điều chỉnh', '', 'Thông tin cũ', '', 'Thông tin mới', '', 'Ghi chú / Tài liệu kèm theo'],
-    ['1', 'Đăng ký tham gia BHXH, BHYT, BHTN cho đơn vị', '', '', '', (dossier.companyName || '').toUpperCase(), '', 'Giấy phép ĐKKD'],
-    ['2', '', '', '', '', '', '', ''],
-    [],
-    [
-      'Đơn vị cam kết hoàn toàn chịu trách nhiệm trước pháp luật về tính chính xác, trung thực của nội dung kê khai trên và lưu giữ hồ sơ tại đơn vị theo đúng quy định./.'
-    ],
-    [],
-    ['', '', '', '', `..........., ngày ${day} tháng ${month} năm ${year}`],
-    ['Cán bộ tiếp nhận hồ sơ', '', '', '', 'THỦ TRƯỞNG ĐƠN VỊ'],
-    ['(Ký và ghi rõ họ tên)', '', '', '', '(Ký, ghi rõ họ tên và đóng dấu)'],
+    ['', '', '', '', `${location}, ngày ${day} tháng ${month} năm ${year}`, '', '', ''],
+    ['', '', '', '', 'Đơn vị sử dụng lao động', '', '', ''],
+    ['', '', '', '', '(Ký, ghi rõ họ tên, đóng dấu)', '', '', ''],
     [],
     [],
     [],
-    ['', '', '', '', dossier.legalRepName || '']
+    ['', '', '', '', dossier.legalRepName || '', '', '', '']
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
     { s: { r: 0, c: 4 }, e: { r: 0, c: 7 } },
     { s: { r: 1, c: 4 }, e: { r: 1, c: 7 } },
-    { s: { r: 2, c: 4 }, e: { r: 2, c: 7 } },
-    { s: { r: 3, c: 4 }, e: { r: 3, c: 7 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
     { s: { r: 5, c: 0 }, e: { r: 5, c: 7 } },
     { s: { r: 6, c: 0 }, e: { r: 6, c: 7 } },
     { s: { r: 7, c: 0 }, e: { r: 7, c: 7 } },
-    { s: { r: 9, c: 0 }, e: { r: 9, c: 7 } },
+    { s: { r: 9, c: 0 }, e: { r: 9, c: 4 } },
+    { s: { r: 9, c: 5 }, e: { r: 9, c: 7 } },
     { s: { r: 10, c: 0 }, e: { r: 10, c: 7 } },
-    { s: { r: 12, c: 0 }, e: { r: 12, c: 7 } },
-    { s: { r: 13, c: 0 }, e: { r: 13, c: 7 } },
-    { s: { r: 17, c: 0 }, e: { r: 17, c: 7 } },
+    { s: { r: 11, c: 0 }, e: { r: 11, c: 7 } },
+    { s: { r: 12, c: 0 }, e: { r: 12, c: 3 } },
+    { s: { r: 12, c: 4 }, e: { r: 12, c: 7 } },
+    { s: { r: 13, c: 0 }, e: { r: 13, c: 3 } },
+    { s: { r: 13, c: 4 }, e: { r: 13, c: 7 } },
+    { s: { r: 14, c: 0 }, e: { r: 14, c: 7 } },
+    { s: { r: 15, c: 0 }, e: { r: 15, c: 7 } },
+    { s: { r: 16, c: 0 }, e: { r: 16, c: 7 } },
+    { s: { r: 17, c: 0 }, e: { r: 17, c: 1 } },
+    { s: { r: 17, c: 2 }, e: { r: 17, c: 3 } },
+    { s: { r: 17, c: 4 }, e: { r: 17, c: 5 } },
+    { s: { r: 17, c: 6 }, e: { r: 17, c: 7 } },
+    { s: { r: 18, c: 0 }, e: { r: 18, c: 7 } },
     { s: { r: 19, c: 0 }, e: { r: 19, c: 7 } },
-    { s: { r: 21, c: 0 }, e: { r: 21, c: 7 } },
-    { s: { r: 22, c: 1 }, e: { r: 22, c: 2 } },
-    { s: { r: 22, c: 3 }, e: { r: 22, c: 4 } },
-    { s: { r: 22, c: 5 }, e: { r: 22, c: 6 } },
-    { s: { r: 23, c: 1 }, e: { r: 23, c: 2 } },
-    { s: { r: 23, c: 3 }, e: { r: 23, c: 4 } },
-    { s: { r: 23, c: 5 }, e: { r: 23, c: 6 } },
-    { s: { r: 24, c: 1 }, e: { r: 24, c: 2 } },
-    { s: { r: 24, c: 3 }, e: { r: 24, c: 4 } },
-    { s: { r: 24, c: 5 }, e: { r: 24, c: 6 } },
-    { s: { r: 26, c: 0 }, e: { r: 26, c: 7 } },
-    { s: { r: 28, c: 4 }, e: { r: 28, c: 7 } },
-    { s: { r: 29, c: 0 }, e: { r: 29, c: 2 } },
-    { s: { r: 29, c: 4 }, e: { r: 29, c: 7 } },
-    { s: { r: 30, c: 0 }, e: { r: 30, c: 2 } },
-    { s: { r: 30, c: 4 }, e: { r: 30, c: 7 } },
-    { s: { r: 34, c: 4 }, e: { r: 34, c: 7 } }
+    { s: { r: 21, c: 4 }, e: { r: 21, c: 7 } },
+    { s: { r: 22, c: 4 }, e: { r: 22, c: 7 } },
+    { s: { r: 23, c: 4 }, e: { r: 23, c: 7 } },
+    { s: { r: 27, c: 4 }, e: { r: 27, c: 7 } }
   ];
 
-  styleRange(ws, 0, 0, 34, 7, { font: { sz: 11, name: 'Times New Roman' } });
-  styleRange(ws, 0, 0, 1, 7, {
+  styleRange(ws, 0, 0, 27, 7, {
+    font: { sz: 12, name: 'Times New Roman' },
+    alignment: { vertical: 'center', wrapText: true }
+  });
+  styleRange(ws, 0, 4, 0, 7, {
     font: { bold: true, sz: 11, name: 'Times New Roman' },
-    alignment: { horizontal: 'center' }
+    alignment: { horizontal: 'center', vertical: 'center' }
+  });
+  styleRange(ws, 1, 4, 1, 7, {
+    font: { italic: true, sz: 10, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+  });
+  styleRange(ws, 2, 0, 3, 7, {
+    font: { bold: true, sz: 12, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center' }
   });
   styleRange(ws, 5, 0, 6, 7, {
-    font: { bold: true, sz: 14, name: 'Times New Roman' },
-    alignment: { horizontal: 'center' }
+    font: { bold: true, sz: 13, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
   });
   styleRange(ws, 7, 0, 7, 7, {
-    font: { italic: true, bold: true, sz: 11, name: 'Times New Roman' },
-    alignment: { horizontal: 'center' }
+    font: { bold: true, sz: 12, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center' }
   });
-  styleRange(ws, 9, 0, 9, 7, { font: { bold: true, sz: 11, name: 'Times New Roman' } });
-  styleRange(ws, 21, 0, 21, 7, { font: { bold: true, sz: 11, name: 'Times New Roman' } });
-  styleRange(ws, 22, 0, 22, 7, {
-    font: { bold: true, sz: 11, name: 'Times New Roman' },
-    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-    fill: { fgColor: { rgb: 'E2E8F0' } },
-    border: borderThin
+  styleRange(ws, 21, 4, 21, 7, {
+    font: { italic: true, sz: 12, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center' }
   });
-  styleRange(ws, 23, 0, 24, 7, {
-    font: { sz: 11, name: 'Times New Roman' },
-    border: borderThin
+  styleRange(ws, 22, 4, 22, 7, {
+    font: { bold: true, sz: 12, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center' }
   });
-  styleRange(ws, 29, 0, 30, 7, {
-    font: { bold: true, sz: 11, name: 'Times New Roman' },
-    alignment: { horizontal: 'center' }
+  styleRange(ws, 23, 4, 23, 7, {
+    font: { italic: true, sz: 11, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center' }
   });
-  styleRange(ws, 34, 4, 34, 7, {
-    font: { bold: true, sz: 11, name: 'Times New Roman' },
-    alignment: { horizontal: 'center' }
+  styleRange(ws, 27, 4, 27, 7, {
+    font: { bold: true, sz: 12, name: 'Times New Roman' },
+    alignment: { horizontal: 'center', vertical: 'center' }
   });
 
   ws['!cols'] = [
-    { wch: 8 },
-    { wch: 18 },
-    { wch: 18 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 14 },
     { wch: 14 },
     { wch: 16 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 20 }
+    { wch: 14 },
+    { wch: 16 }
   ];
 
   const wb = XLSX.utils.book_new();
@@ -1248,6 +1248,150 @@ export async function exportTk3TsExcel(
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  return { fileName, savedToFolder };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export async function exportTk3TsWordDoc(
+  dossier: BhxhUnitDossier
+): Promise<{ fileName: string; savedToFolder: boolean }> {
+  const dateObj = dossier.signDate ? new Date(`${dossier.signDate}T00:00:00`) : new Date();
+  const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+  const day = String(validDate.getDate()).padStart(2, '0');
+  const month = String(validDate.getMonth() + 1).padStart(2, '0');
+  const year = String(validDate.getFullYear());
+  const location = escapeHtml((dossier.signLocation || 'Cần Thơ').trim());
+
+  const method = dossier.paymentMethod || 'Hằng tháng';
+  const chkMonthly = method === 'Hằng tháng' ? '&#9745; Hằng tháng' : '&#9744; Hằng tháng';
+  const chk3Months = method === '03 tháng' ? '&#9745; 03 tháng' : '&#9744; 03 tháng';
+  const chk6Months = method === '06 tháng' ? '&#9745; 06 tháng' : '&#9744; 06 tháng';
+
+  const defaultParticipant =
+    dossier.participantCategory ||
+    (dossier.targetKind === 'legal_representative'
+      ? 'Người quản lý doanh nghiệp / Đại diện pháp luật'
+      : dossier.targetKind === 'foreign_workers'
+        ? 'Người lao động nước ngoài'
+        : 'Người lao động Việt Nam');
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8" />
+<title>Mẫu TK3-TS</title>
+<style>
+  @page { size: A4 portrait; margin: 2cm 2cm 2cm 2.5cm; }
+  body { font-family: "Times New Roman", Times, serif; font-size: 13pt; line-height: 1.45; color: #000; }
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; padding: 4px 2px; font-size: 13pt; }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .italic { font-style: italic; }
+</style>
+</head>
+<body>
+  <table>
+    <tr>
+      <td style="width: 45%;"></td>
+      <td class="center" style="width: 55%;">
+        <div class="bold">Mẫu TK3-TS</div>
+        <div class="italic" style="font-size: 11pt;">(Ban hành kèm theo QĐ số 366/QĐ-BHXH ngày 29/04/2026 của BHXH Việt Nam)</div>
+      </td>
+    </tr>
+  </table>
+  <div class="center bold" style="margin-top: 8px;">CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+  <div class="center bold" style="text-decoration: underline; margin-bottom: 14px;">Độc lập - Tự do - Hạnh phúc</div>
+
+  <div class="center bold" style="font-size: 14pt; margin-top: 10px;">TỜ KHAI</div>
+  <div class="center bold" style="font-size: 13pt;">ĐƠN VỊ ĐĂNG KÝ, ĐIỀU CHỈNH THÔNG TIN THAM GIA BẢO HIỂM XÃ HỘI, BẢO HIỂM Y TẾ</div>
+  <div class="center bold" style="margin-bottom: 14px;">Mã đơn vị: ${escapeHtml(dossier.unitCode || '…………………..')}</div>
+
+  <table>
+    <tr>
+      <td style="width: 62%;"><b>[01]. Tên đơn vị:</b> ${escapeHtml(dossier.companyName || '')}</td>
+      <td style="width: 38%;"><b>[02]. Mã số thuế:</b> ${escapeHtml(dossier.taxCode || '')}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[03]. Địa chỉ trụ sở chính:</b> ${escapeHtml(dossier.businessAddress || '')}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[04]. Địa chỉ liên hệ:</b> ${escapeHtml(dossier.contactAddress || dossier.businessAddress || '')}</td>
+    </tr>
+    <tr>
+      <td><b>[05]. Địa chỉ thư điện tử:</b> ${escapeHtml(dossier.email || '')}</td>
+      <td><b>[06]. Số điện thoại liên hệ:</b> ${escapeHtml(dossier.phone || '')}</td>
+    </tr>
+    <tr>
+      <td><b>[07]. Người đại diện:</b> ${escapeHtml(dossier.legalRepName || '')}</td>
+      <td><b>[08]. Số định danh cá nhân:</b> ${escapeHtml(dossier.legalRepCccd || '')}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[09]. Loại hình đơn vị:</b> ${escapeHtml(dossier.unitType || '')}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[10]. Ngành kinh tế:</b> ${escapeHtml(dossier.businessField || '')}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[11]. Đối tượng tham gia:</b> ${escapeHtml(defaultParticipant)}</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <b>[12]. Phương thức đóng khác:</b> &nbsp;&nbsp;&nbsp;
+        ${chkMonthly} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        ${chk3Months} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        ${chk6Months}
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[13]. Đăng ký tham gia tại cơ quan BHXH:</b> ${escapeHtml(dossier.agencyName || '')}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>[14]. Nội dung thay đổi, yêu cầu:</b> ${escapeHtml(dossier.changeRequestContent || '')}</td>
+    </tr>
+  </table>
+
+  <table style="margin-top: 24px;">
+    <tr>
+      <td style="width: 45%;"></td>
+      <td class="center" style="width: 55%;">
+        <div class="italic">${location}, ngày ${day} tháng ${month} năm ${year}</div>
+        <div class="bold" style="margin-top: 4px;">Đơn vị sử dụng lao động</div>
+        <div class="italic" style="font-size: 11pt;">(Ký, ghi rõ họ tên, đóng dấu)</div>
+        <br/><br/><br/><br/>
+        <div class="bold">${escapeHtml(dossier.legalRepName || '')}</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const safeCompany = (dossier.unitCode || dossier.companyName || 'DonVi')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .slice(0, 40);
+  const fileName = `Mau_TK3-TS_${safeCompany}.doc`;
+
+  let savedToFolder = false;
+  try {
+    savedToFolder = await saveFileToPreferredDirectory(fileName, html, 'application/msword');
+  } catch {
+    savedToFolder = false;
+  }
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
