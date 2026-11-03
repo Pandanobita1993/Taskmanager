@@ -305,7 +305,7 @@ export default function MyClients() {
             <div key={c.id} className="bg-white/70 backdrop-blur-md p-5 rounded-xl shadow-sm border border-white/50 hover:shadow-md transition">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1 min-w-0 pr-2">
-                  <h3 className="font-bold text-gray-800 line-clamp-1" title={c.name}>{c.name}</h3>
+                  <h3 className="font-bold text-gray-800 break-words leading-snug" title={c.name}>{c.name}</h3>
                   <p className="text-sm text-gray-500">MST: {c.tax_code}</p>
                   <div className="flex flex-wrap gap-3 mt-1 text-xs font-semibold text-blue-700"><Link to={`/insurance?client=${encodeURIComponent(c.id)}`} className="hover:underline">Theo dõi BHXH →</Link><Link to={`/tax-followups?client=${encodeURIComponent(c.id)}`} className="hover:underline">Theo dõi thuế →</Link></div>
                   <div className="flex flex-wrap gap-1 mt-1.5">

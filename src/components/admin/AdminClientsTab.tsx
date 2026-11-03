@@ -160,7 +160,7 @@ export const AdminClientsTab: React.FC<AdminClientsTabProps> = ({
           <thead>
             <tr className="bg-gray-50 border-y border-gray-200">
               <th className="py-3 px-4 font-medium text-gray-600">MST</th>
-              <th className="py-3 px-4 font-medium text-gray-600">Khách hàng</th>
+              <th className="py-3 px-4 font-medium text-gray-600 min-w-[240px]">Khách hàng</th>
               <th className="py-3 px-4 font-medium text-gray-600">Liên hệ</th>
               <th className="py-3 px-4 font-medium text-gray-600">Dịch vụ & Phụ trách</th>
               <th className="py-3 px-4 font-medium text-gray-600">Thao tác</th>
@@ -170,7 +170,7 @@ export const AdminClientsTab: React.FC<AdminClientsTabProps> = ({
             {clients.map(c => (
               <tr key={c.id} className="hover:bg-gray-50">
                 <td className="py-3 px-4">{c.tax_code}</td>
-                <td className="py-3 px-4 font-medium">{c.name}</td>
+                <td className="py-3 px-4 font-medium break-words leading-snug">{c.name}</td>
                 <td className="py-3 px-4">{c.contact_name} - {c.contact_phone}</td>
                 <td className="py-3 px-4">
                   <div className="flex gap-1.5 flex-wrap">
