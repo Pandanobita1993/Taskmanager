@@ -7,6 +7,7 @@ import {
   CreditCard,
   FileSpreadsheet,
   FileText,
+  FolderOpen,
   FolderSearch,
   Pencil,
   Plus,
@@ -36,6 +37,8 @@ import type {
   DossierTargetKind
 } from '../lib/bhxhDossierExcel';
 import {
+  chooseReportsDirectory,
+  getSavedDirectoryName,
   listExcelFilesInPreferredDirectory,
   readTextFileFromPreferredDirectory,
   saveFileToPreferredDirectory
@@ -149,9 +152,25 @@ export default function BhxhDossierTool({
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedSyntax, setCopiedSyntax] = useState(false);
+  const [connectedDirName, setConnectedDirName] = useState<string | null>(null);
 
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const initialSelectedRef = useRef(false);
+
+  useEffect(() => {
+    void getSavedDirectoryName().then((name) => setConnectedDirName(name));
+  }, []);
+
+  async function handleChooseFolder() {
+    try {
+      const name = await chooseReportsDirectory();
+      setConnectedDirName(name);
+      setStatusMsg(`✓ Đã kết nối với thư mục "${name}" trên máy! Các file báo cáo và Mẫu TK3-TS sẽ tự động lưu thẳng vào đây.`);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setErrorMsg(err instanceof Error ? err.message : 'Không thể chọn thư mục.');
+    }
+  }
 
   // Load BHXH agencies directory so we can auto-fill Tên cơ sở BHXH & Mã cơ sở (08008, 07918...)
   useEffect(() => {
@@ -506,6 +525,15 @@ export default function BhxhDossierTool({
             hidden
             onChange={(e) => void handleFileUpload(e)}
           />
+          <button
+            type="button"
+            onClick={() => void handleChooseFolder()}
+            className={`${button} border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100`}
+            title="Bấm để chọn hoặc cấp lại quyền lưu file vào thư mục máy tính"
+          >
+            <FolderOpen size={16} className="text-amber-600" />
+            {connectedDirName ? `Thư mục máy: ${connectedDirName}` : 'Chọn thư mục máy (D:\\Bao Hiem)'}
+          </button>
           <button
             type="button"
             onClick={() => void handleScanConnectedDirectory()}
