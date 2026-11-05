@@ -1014,7 +1014,7 @@ function buildSheetTangGiam(dossier: BhxhUnitDossier, monthYm: string): XLSX.Wor
 export async function exportMonthlyBhxhReportExcel(
   dossier: BhxhUnitDossier,
   monthYm: string
-): Promise<{ fileName: string; savedToFolder: boolean }> {
+): Promise<{ fileName: string; savedToFolder: boolean; savedPath?: string }> {
   const wb = XLSX.utils.book_new();
   const wsReport = buildSheetBaoCao(dossier, monthYm);
   const wsChange = buildSheetTangGiam(dossier, monthYm);
@@ -1028,12 +1028,20 @@ export async function exportMonthlyBhxhReportExcel(
 
   const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
   let savedToFolder = false;
+  let savedPath: string | undefined;
   try {
-    savedToFolder = await saveFileToPreferredDirectory(
+    const res = await saveFileToPreferredDirectory(
       fileName,
       buffer,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      {
+        taxCode: dossier.taxCode,
+        companyName: dossier.companyName,
+        unitCode: dossier.unitCode
+      }
     );
+    savedToFolder = res.success;
+    savedPath = res.relativePath;
   } catch {
     savedToFolder = false;
   }
@@ -1048,12 +1056,12 @@ export async function exportMonthlyBhxhReportExcel(
   a.click();
   URL.revokeObjectURL(url);
 
-  return { fileName, savedToFolder };
+  return { fileName, savedToFolder, savedPath };
 }
 
 export async function exportTk3TsExcel(
   dossier: BhxhUnitDossier
-): Promise<{ fileName: string; savedToFolder: boolean }> {
+): Promise<{ fileName: string; savedToFolder: boolean; savedPath?: string }> {
   const dateObj = dossier.signDate ? new Date(`${dossier.signDate}T00:00:00`) : new Date();
   const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
   const day = String(validDate.getDate()).padStart(2, '0');
@@ -1235,12 +1243,20 @@ export async function exportTk3TsExcel(
 
   const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
   let savedToFolder = false;
+  let savedPath: string | undefined;
   try {
-    savedToFolder = await saveFileToPreferredDirectory(
+    const res = await saveFileToPreferredDirectory(
       fileName,
       buffer,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      {
+        taxCode: dossier.taxCode,
+        companyName: dossier.companyName,
+        unitCode: dossier.unitCode
+      }
     );
+    savedToFolder = res.success;
+    savedPath = res.relativePath;
   } catch {
     savedToFolder = false;
   }
@@ -1255,7 +1271,7 @@ export async function exportTk3TsExcel(
   a.click();
   URL.revokeObjectURL(url);
 
-  return { fileName, savedToFolder };
+  return { fileName, savedToFolder, savedPath };
 }
 
 function escapeHtml(value: string): string {
@@ -1268,7 +1284,7 @@ function escapeHtml(value: string): string {
 
 export async function exportTk3TsWordDoc(
   dossier: BhxhUnitDossier
-): Promise<{ fileName: string; savedToFolder: boolean }> {
+): Promise<{ fileName: string; savedToFolder: boolean; savedPath?: string }> {
   const dateObj = dossier.signDate ? new Date(`${dossier.signDate}T00:00:00`) : new Date();
   const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
   const day = String(validDate.getDate()).padStart(2, '0');
@@ -1385,8 +1401,15 @@ export async function exportTk3TsWordDoc(
   const fileName = `Mau_TK3-TS_${safeCompany}.doc`;
 
   let savedToFolder = false;
+  let savedPath: string | undefined;
   try {
-    savedToFolder = await saveFileToPreferredDirectory(fileName, html, 'application/msword');
+    const res = await saveFileToPreferredDirectory(fileName, html, 'application/msword', {
+      taxCode: dossier.taxCode,
+      companyName: dossier.companyName,
+      unitCode: dossier.unitCode
+    });
+    savedToFolder = res.success;
+    savedPath = res.relativePath;
   } catch {
     savedToFolder = false;
   }
@@ -1399,7 +1422,7 @@ export async function exportTk3TsWordDoc(
   a.click();
   URL.revokeObjectURL(url);
 
-  return { fileName, savedToFolder };
+  return { fileName, savedToFolder, savedPath };
 }
 
 function parseNumber(val: unknown): number {

@@ -161,7 +161,12 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     if (form.kind === 'bhxh' && !form.unit_id) return setFormError('Chọn mã đơn vị BHXH.');
     if ((action === 'save' || (action === 'notify' && form.kind === 'bhxh')) && form.amount !== '' && (!/^\d{1,15}$/.test(form.amount))) return setFormError('Số tiền là đồng nguyên, không âm, tối đa 15 chữ số; để trống nếu chưa rõ.');
     if (form.kind === 'bhxh' && (action === 'save' || action === 'notify') && form.receiver_agency_id && (!form.receiver_account_id || !form.transfer_memo.trim() || form.transfer_memo.includes('{{') || !data?.clients.find(row => row.id === form.client_id)?.units?.find(unit => unit.id === form.unit_id)?.code)) return setFormError('Kiểm tra mã đơn vị, tài khoản nhận và điền đủ cú pháp chuyển khoản.');
-    if (action === 'paid' && form.kind === 'bhxh' && !form.proof_file) return setFormError('Đính kèm ảnh bằng chứng đóng tiền trước khi xác nhận.');
+    if (action === 'paid' && form.kind === 'bhxh') {
+      if (!form.proof_file) return setFormError('Đính kèm ảnh bằng chứng đóng tiền trước khi xác nhận.');
+      if (!form.amount || !/^\d{1,15}$/.test(form.amount) || Number(form.amount) <= 0) {
+        return setFormError('Nhập số tiền thực tế đã đóng (đồng nguyên lớn hơn 0) để tự động cập nhật vào Quá trình đóng BHXH.');
+      }
+    }
     if ((action === 'cancel' || action === 'reopen') && !form.event_note.trim()) return setFormError('Nhập lý do để lưu vào lịch sử.');
     submitting.current = true; setSaving(true);
     try {
@@ -170,8 +175,41 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         p_record: { ...form, amount: form.amount === '' ? null : form.amount },
       });
       if (result.error) throw result.error;
+
+      let autoSyncMsg = '';
+      if (action === 'paid' && form.kind === 'bhxh' && form.unit_id && form.amount && Number(form.amount) > 0) {
+        try {
+          const paymentRecord = {
+            id: crypto.randomUUID(),
+            client_id: form.client_id,
+            unit_id: form.unit_id,
+            paid_on: form.paid_on || today,
+            amount: form.amount,
+            reference: form.payment_reference || '',
+            notes: form.event_note ? `[Tự động từ Nhắc khách]: ${form.event_note}` : '[Tự động từ Nhắc khách]',
+            proof_file: form.proof_file || null,
+            version: 0
+          };
+          const ledgerRes = await supabase.rpc('save_bhxh_ledger', {
+            p_staff_id: profile.id,
+            p_request_id: crypto.randomUUID(),
+            p_entity: 'payment',
+            p_action: 'save',
+            p_record: paymentRecord
+          });
+          if (!ledgerRes.error) {
+            autoSyncMsg = ` và đã tự động ghi nhận vào Quá trình đóng BHXH (Mã đơn vị: ${formUnit?.code || ''})`;
+            window.dispatchEvent(new Event('taskflow-bhxh-ledger-changed'));
+          } else {
+            console.warn('save_bhxh_ledger auto-sync notice:', ledgerRes.error);
+          }
+        } catch (ledgerErr) {
+          console.warn('Could not auto-sync to bhxh_payments:', ledgerErr);
+        }
+      }
+
       setEditor(null);
-      setMessage(action === 'paid' ? 'Đã xác nhận khách đã đóng. Khoản này được lưu vào lịch sử và dừng nhắc.'
+      setMessage(action === 'paid' ? `✓ Đã xác nhận khách đã đóng${autoSyncMsg}. Khoản này được lưu vào lịch sử và dừng nhắc.`
         : action === 'notify' ? 'Đã lưu lần nhắc khách và ngày nhắc tiếp theo. Khoản đóng vẫn được theo dõi.' : 'Đã lưu cập nhật.');
       window.dispatchEvent(new Event('taskflow-payment-followups-changed'));
       await load(true);
@@ -263,7 +301,21 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         {!terminal && <label className="block text-sm font-medium">{editor.action === 'save' ? 'Ngày cần nhắc / kiểm tra *' : 'Ngày nhắc tiếp theo *'}<input required type="date" min={editor.action === 'save' ? undefined : today} value={form.next_reminder_on} onChange={event => update({ next_reminder_on: event.target.value })} className={field} /></label>}
         {editor.action === 'notify' && <p className="bg-blue-50 p-3 rounded-lg text-xs text-blue-900">Ghi nhận bạn đã liên hệ khách và đặt lần kiểm tra tiếp. Hệ thống tiếp tục nhắc cho đến khi xác nhận đã đóng hoặc ngừng theo dõi.</p>}
         {editor.action === 'promise' && <label className="block text-sm font-medium">Khách hẹn đóng ngày *<input required type="date" min={today} value={form.promised_on} onChange={event => update({ promised_on: event.target.value, next_reminder_on: event.target.value })} className={field} /></label>}
-        {editor.action === 'paid' && <><label className="block text-sm font-medium">Ngày thực tế đã đóng *<input required type="date" max={today} value={form.paid_on} onChange={event => update({ paid_on: event.target.value })} className={field} /></label><label className="block text-sm font-medium">Mã chứng từ / thông tin xác nhận<input maxLength={500} value={form.payment_reference} onChange={event => update({ payment_reference: event.target.value })} placeholder="VD: mã giao dịch, khách gửi xác nhận…" className={field} /></label><p className="text-xs text-green-800 bg-green-50 p-3 rounded-lg">Xác nhận đã đóng sẽ dừng nhắc khoản này. Chỉ lưu khi đã kiểm tra được kết quả đóng của khách.</p></>}
+        {editor.action === 'paid' && <>
+          <label className="block text-sm font-medium">Số tiền thực tế đã đóng (đồng) *<input required inputMode="numeric" pattern="[0-9]{1,15}" maxLength={15} value={form.amount} onChange={event => update({ amount: event.target.value })} placeholder="Nhập số tiền khách đã nộp..." className={field} /></label>
+          {form.kind === 'bhxh' && reminderSuggestion !== '' && <p className="text-xs text-gray-600">Gợi ý theo C12: <strong>{followupAmountLabel(Number(reminderSuggestion))}</strong>. {form.amount !== reminderSuggestion && <button type="button" className="text-blue-700 underline" onClick={() => update({ amount: reminderSuggestion })}>Dùng số gợi ý</button>}</p>}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className="block text-sm font-medium">Ngày thực tế đã đóng *<input required type="date" max={today} value={form.paid_on} onChange={event => update({ paid_on: event.target.value })} className={field} /></label>
+            <label className="block text-sm font-medium">Mã chứng từ / giao dịch<input maxLength={500} value={form.payment_reference} onChange={event => update({ payment_reference: event.target.value })} placeholder="VD: FT24..., mã UNC..." className={field} /></label>
+          </div>
+          {form.kind === 'bhxh' ? (
+            <p className="text-xs text-emerald-800 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+              ✓ <strong>Tự động đồng bộ:</strong> Khi xác nhận, hệ thống sẽ tự động cập nhật số tiền này vào mục <strong>Quá trình đóng BHXH</strong> (Mã đơn vị: {formUnit?.code || 'Chưa chọn'}) và giảm trừ công nợ C12 tương ứng.
+            </p>
+          ) : (
+            <p className="text-xs text-green-800 bg-green-50 p-3 rounded-lg">Xác nhận đã đóng sẽ dừng nhắc khoản này.</p>
+          )}
+        </>}
         {editor.action === 'paid' && form.kind === 'bhxh' && <BhxhProofInput key={form.id} value={form.proof_file} onChange={path => update({ proof_file: path })} onBusy={setProofBusy} />}
         {editor.action === 'save' && <label className="block text-sm font-medium">Ghi chú khoản đóng<textarea rows={3} maxLength={5000} value={form.notes} onChange={event => update({ notes: event.target.value })} className={field} /></label>}
         <label className="block text-sm font-medium">{editor.action === 'cancel' || editor.action === 'reopen' ? 'Lý do *' : 'Ghi chú lần cập nhật'}<textarea required={editor.action === 'cancel' || editor.action === 'reopen'} rows={2} maxLength={5000} value={form.event_note} onChange={event => update({ event_note: event.target.value })} placeholder="VD: đã nhắn Zalo, khách báo sẽ chuyển ngày…" className={field} /></label>

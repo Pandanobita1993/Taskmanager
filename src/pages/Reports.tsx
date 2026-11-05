@@ -94,8 +94,8 @@ export default function Reports() {
 
       const fileName = `BaoCao_KetQua_${profile.fullName.replace(/\s+/g, '_')}_${localDateKey()}.xlsx`;
       const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const saved = await saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').catch(() => false);
-      if (!saved) XLSX.writeFile(wb, fileName);
+      const saved = await saveFileToPreferredDirectory(fileName, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet').catch(() => ({ success: false }));
+      if (!saved.success) XLSX.writeFile(wb, fileName);
       setExportNotice(source.warning || 'Đã xuất báo cáo gồm công việc, sheet NhapLieuMISA và GhiNhanCongNo.');
     } catch (error) {
       setExportNotice(error instanceof Error ? error.message : 'Chưa xuất được báo cáo. Vui lòng thử lại.');

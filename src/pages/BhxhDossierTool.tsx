@@ -442,10 +442,10 @@ export default function BhxhDossierTool({
   async function handleExportMonthlyExcel() {
     setErrorMsg('');
     try {
-      const { fileName, savedToFolder } = await exportMonthlyBhxhReportExcel(currentDossier, reportMonth);
+      const { fileName, savedToFolder, savedPath } = await exportMonthlyBhxhReportExcel(currentDossier, reportMonth);
       setStatusMsg(
         savedToFolder
-          ? `✓ Đã xuất file "${fileName}" (gồm 2 Sheet: Báo cáo tiền đóng + Thông tin báo tăng giảm) và tự động lưu vào thư mục trên máy!`
+          ? `✓ Đã xuất file "${fileName}" (gồm 2 Sheet: Báo cáo tiền đóng + Thông tin báo tăng giảm) và tự động lưu vào "${savedPath || 'thư mục máy'}"!`
           : `✓ Đã xuất và tải xuống file "${fileName}" để gửi khách!`
       );
     } catch (err) {
@@ -456,10 +456,10 @@ export default function BhxhDossierTool({
   async function handleExportTk3Excel() {
     setErrorMsg('');
     try {
-      const { fileName, savedToFolder } = await exportTk3TsExcel(currentDossier);
+      const { fileName, savedToFolder, savedPath } = await exportTk3TsExcel(currentDossier);
       setStatusMsg(
         savedToFolder
-          ? `✓ Đã xuất Mẫu TK3-TS Excel "${fileName}" (QĐ 366/QĐ-BHXH) và lưu trực tiếp vào thư mục trên máy!`
+          ? `✓ Đã xuất Mẫu TK3-TS Excel "${fileName}" (QĐ 366/QĐ-BHXH) và lưu trực tiếp vào "${savedPath || 'thư mục máy'}"!`
           : `✓ Đã xuất và tải xuống Mẫu TK3-TS Excel "${fileName}" (QĐ 366/QĐ-BHXH)!`
       );
     } catch (err) {
@@ -470,10 +470,10 @@ export default function BhxhDossierTool({
   async function handleExportTk3Word() {
     setErrorMsg('');
     try {
-      const { fileName, savedToFolder } = await exportTk3TsWordDoc(currentDossier);
+      const { fileName, savedToFolder, savedPath } = await exportTk3TsWordDoc(currentDossier);
       setStatusMsg(
         savedToFolder
-          ? `✓ Đã xuất Mẫu TK3-TS Word "${fileName}" (QĐ 366/QĐ-BHXH) và lưu trực tiếp vào thư mục trên máy!`
+          ? `✓ Đã xuất Mẫu TK3-TS Word "${fileName}" (QĐ 366/QĐ-BHXH) và lưu trực tiếp vào "${savedPath || 'thư mục máy'}"!`
           : `✓ Đã xuất và tải xuống Mẫu TK3-TS Word "${fileName}" (QĐ 366/QĐ-BHXH) để gửi khách ký nộp BHXH Cơ sở!`
       );
     } catch (err) {

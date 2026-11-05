@@ -5,7 +5,8 @@ import BhxhTools from './BhxhTools';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileUp, History, Pencil, Plus, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { FileSpreadsheet, FileUp, History, Pencil, Plus, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { exportBhxhPaymentsExcel } from '../lib/bhxhLedgerExcel';
 import { supabase } from '../lib/supabase';
 import { readCachedProfile } from '../lib/profile';
 import { recurringDateLabel, vietnamToday } from '../lib/recurringTasks';
@@ -42,6 +43,27 @@ export default function InsuranceLedger() {
   const [reading, setReading] = useState(false);
   const [proofBusy, setProofBusy] = useState(false);
   const [proofView, setProofView] = useState('');
+  async function handleExportPayments() {
+    if (!payments.length) return alert('Chưa có lần nộp nào trong bộ lọc này để xuất.');
+    const filteredClient = data?.clients.find(c => c.id === clientId);
+    const filteredUnit = filteredClient?.units?.find(u => u.id === unitId);
+    try {
+      const { fileName, savedToFolder, savedPath } = await exportBhxhPaymentsExcel(
+        payments,
+        filteredClient?.name,
+        filteredClient?.tax_code,
+        filteredUnit?.code,
+        month
+      );
+      setMessage(
+        savedToFolder
+          ? `✓ Đã xuất Excel Quá trình đóng "${fileName}" và tự động lưu vào "${savedPath || 'thư mục máy'}"!`
+          : `✓ Đã xuất và tải xuống file "${fileName}"!`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Lỗi khi xuất Excel quá trình đóng.');
+    }
+  }
   const [search, setSearch] = useState('');
   const [showVoided, setShowVoided] = useState(false);
   const [history, setHistory] = useState<{ title: string; events: BhxhEvent[] | null; error: string } | null>(null);
@@ -79,7 +101,9 @@ export default function InsuranceLedger() {
     const refresh = () => { if (!document.hidden) void load(true); };
     const timer = window.setInterval(refresh, 60000);
     window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh);
-    return () => { window.clearTimeout(initial); window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    window.addEventListener('taskflow-bhxh-ledger-changed', refresh);
+    window.addEventListener('taskflow-payment-followups-changed', refresh);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('taskflow-bhxh-ledger-changed', refresh); window.removeEventListener('taskflow-payment-followups-changed', refresh); };
   }, [load]);
   useEffect(() => {
     if (!form && !history) return;
@@ -211,7 +235,18 @@ export default function InsuranceLedger() {
           })}</table></div>
           {data && !participatingClients.length && <p className="text-sm text-gray-500">Chưa có khách đang dùng dịch vụ BHXH trong bộ lọc.</p>}
         </section>
-        <p className="text-sm text-gray-500">Ghi từng lần nộp thực tế, kể cả nộp nhiều lần trong tháng hoặc nộp bù. Sổ C12 chỉ đọc tổng từ đây. Phí dịch vụ trả cho công ty không nằm trong sổ này.</p><label className="text-xs text-gray-600 flex gap-2 items-center"><input type="checkbox" checked={showVoided} onChange={event => setShowVoided(event.target.checked)} /> Hiện cả lần nộp đã hủy</label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-gray-500">Ghi từng lần nộp thực tế, kể cả nộp nhiều lần trong tháng hoặc nộp bù. Sổ C12 chỉ đọc tổng từ đây.</p>
+          <button
+            type="button"
+            onClick={() => void handleExportPayments()}
+            className={button}
+            title="Xuất bảng kê chi tiết các lần nộp BHXH ra file Excel và lưu vào thư mục máy"
+          >
+            <FileSpreadsheet size={15} className="text-emerald-700" />
+            Xuất Excel quá trình đóng
+          </button>
+        </div><label className="text-xs text-gray-600 flex gap-2 items-center"><input type="checkbox" checked={showVoided} onChange={event => setShowVoided(event.target.checked)} /> Hiện cả lần nộp đã hủy</label>
         {data && !payments.length ? <p className="p-8 bg-white border border-gray-200 rounded-xl text-center text-sm text-gray-500">Chưa có lần nộp trong bộ lọc này.</p> : payments.map(row => <article key={row.id} className={`bg-white border border-gray-200 rounded-xl p-4 space-y-3 ${row.is_void ? 'opacity-70' : ''}`}><div className="flex flex-wrap justify-between gap-2"><h3 className="font-bold text-gray-800">{row.client_name}</h3><p className="text-xs text-emerald-800 mt-1">{bhxhUnitKindLabel(row.unit_kind)} · {row.unit_code || 'Chưa có mã'}</p><strong className={row.is_void ? 'line-through text-gray-500' : 'text-emerald-700'}>{bhxhMoney(row.amount)}</strong></div><p className="text-sm text-gray-600">Ngày thực nộp: {recurringDateLabel(row.paid_on)} · Tính vào tháng {bhxhMonthLabel(row.paid_on)}</p>{row.reference && <p className="text-sm text-gray-600 break-words">Chứng từ: {row.reference}</p>}{row.notes && <p className="text-sm whitespace-pre-wrap text-gray-600 break-words">{row.notes}</p>}<p className="text-xs text-gray-500">Người ghi nhận: {row.reporter_name || 'Xem lịch sử'}</p>{row.proof_file ? <button className={`${button} text-blue-700`} onClick={() => setProofView(row.proof_file!)}>Xem bằng chứng đóng tiền</button> : <p className="text-xs text-amber-800">Bản ghi cũ chưa có ảnh bằng chứng. Bổ sung khi cập nhật.</p>}{row.is_void && <p className="text-sm text-red-700">Đã hủy: {row.void_reason}</p>}<div className="flex flex-wrap justify-end gap-2"><button className={button} onClick={() => void openHistory('payment', row)}><History size={14} /> Lịch sử</button>{!row.is_void && <button disabled={!canManageBhxh} className={button} onClick={() => open('payment', row)}><Pencil size={14} /> Sửa lần nộp</button>}<button disabled={!canManageBhxh} className={`${button} ${row.is_void ? 'text-blue-700' : 'text-red-700'}`} onClick={() => open('payment', row, row.is_void ? 'restore' : 'void')}>{row.is_void ? 'Khôi phục lần nộp' : 'Hủy lần nộp'}</button></div></article>)}
       </>}
     </>}

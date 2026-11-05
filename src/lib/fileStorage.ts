@@ -54,25 +54,167 @@ export async function chooseReportsDirectory(): Promise<string> {
   return handle.name;
 }
 
+export interface TargetFolderSpec {
+  taxCode?: string;
+  companyName?: string;
+  unitCode?: string;
+  subFolders?: string[];
+}
+
+export interface SaveFileResult {
+  success: boolean;
+  relativePath?: string;
+}
+
+function sanitizeFolderName(name: string): string {
+  return (name || '')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+function normalizeKey(str: string): string {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+async function resolveCustomerDirectory(
+  rootDir: DirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> },
+  taxCode?: string,
+  companyName?: string
+): Promise<{ handle: DirectoryHandle; folderName: string }> {
+  const cleanTax = (taxCode || '').trim();
+  const cleanTaxKey = cleanTax.replace(/[^0-9A-Za-z]/g, '').toLowerCase();
+  const cleanCompanyKey = normalizeKey(companyName || '');
+
+  // 1. Try to find an existing directory that matches
+  if (typeof rootDir.values === 'function') {
+    for await (const entry of rootDir.values()) {
+      if (entry.kind !== 'directory') continue;
+      const entryName = entry.name;
+      const entryKey = normalizeKey(entryName);
+
+      // Match by Tax Code (e.g. folder starts with or contains tax code)
+      if (cleanTaxKey && cleanTaxKey.length >= 8) {
+        const entryDigits = entryName.replace(/[^0-9A-Za-z]/g, '').toLowerCase();
+        if (
+          entryDigits.includes(cleanTaxKey) ||
+          (cleanTaxKey.length >= 10 && entryDigits.includes(cleanTaxKey.slice(0, 10)))
+        ) {
+          return { handle: entry as DirectoryHandle, folderName: entryName };
+        }
+      }
+
+      // Match by company name key if both have significant characters
+      if (cleanCompanyKey.length >= 6 && entryKey.length >= 6) {
+        if (entryKey.includes(cleanCompanyKey) || cleanCompanyKey.includes(entryKey)) {
+          return { handle: entry as DirectoryHandle, folderName: entryName };
+        }
+      }
+    }
+  }
+
+  // 2. If no existing folder matches, create new folder following: [MST]-[Tên khách hàng]
+  const safeCompany = sanitizeFolderName(companyName || 'KhachHang');
+  const safeTax = sanitizeFolderName(cleanTax);
+  const newFolderName = safeTax ? `${safeTax}-${safeCompany}`.slice(0, 90) : safeCompany;
+  const createdHandle = await rootDir.getDirectoryHandle(newFolderName, { create: true });
+  return { handle: createdHandle as DirectoryHandle, folderName: newFolderName };
+}
+
+async function resolveUnitDirectory(
+  customerDir: DirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> },
+  unitCode: string
+): Promise<{ handle: DirectoryHandle; folderName: string }> {
+  const cleanUnit = sanitizeFolderName(unitCode);
+  const cleanUnitKey = cleanUnit.toLowerCase();
+
+  if (typeof customerDir.values === 'function') {
+    for await (const entry of customerDir.values()) {
+      if (entry.kind !== 'directory') continue;
+      if (entry.name.trim().toLowerCase() === cleanUnitKey) {
+        return { handle: entry as DirectoryHandle, folderName: entry.name };
+      }
+    }
+  }
+
+  const createdHandle = await customerDir.getDirectoryHandle(cleanUnit, { create: true });
+  return { handle: createdHandle as DirectoryHandle, folderName: cleanUnit };
+}
+
 export async function saveFileToPreferredDirectory(
   fileName: string,
   data: BlobPart,
   mimeType: string,
-): Promise<boolean> {
+  destination?: TargetFolderSpec | string[]
+): Promise<SaveFileResult> {
   const handle = await readHandle();
-  if (!handle) return false;
+  if (!handle) return { success: false };
 
   let permission = await handle.queryPermission?.({ mode: 'readwrite' });
   if (permission !== 'granted') {
     permission = await handle.requestPermission?.({ mode: 'readwrite' });
   }
-  if (permission !== 'granted') return false;
+  if (permission !== 'granted') return { success: false };
 
-  const fileHandle = await handle.getFileHandle(fileName, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(new Blob([data], { type: mimeType }));
-  await writable.close();
-  return true;
+  let targetDir: DirectoryHandle = handle;
+  const pathSegments: string[] = [];
+
+  try {
+    if (Array.isArray(destination)) {
+      for (const seg of destination) {
+        const clean = sanitizeFolderName(seg);
+        if (!clean) continue;
+        targetDir = (await targetDir.getDirectoryHandle(clean, { create: true })) as DirectoryHandle;
+        pathSegments.push(clean);
+      }
+    } else if (destination && (destination.taxCode || destination.companyName || destination.unitCode || destination.subFolders)) {
+      if (destination.taxCode || destination.companyName) {
+        const cust = await resolveCustomerDirectory(
+          targetDir as DirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> },
+          destination.taxCode,
+          destination.companyName
+        );
+        targetDir = cust.handle;
+        pathSegments.push(cust.folderName);
+      }
+
+      if (destination.unitCode) {
+        const unit = await resolveUnitDirectory(
+          targetDir as DirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> },
+          destination.unitCode
+        );
+        targetDir = unit.handle;
+        pathSegments.push(unit.folderName);
+      }
+
+      if (destination.subFolders && destination.subFolders.length > 0) {
+        for (const sub of destination.subFolders) {
+          const clean = sanitizeFolderName(sub);
+          if (!clean) continue;
+          targetDir = (await targetDir.getDirectoryHandle(clean, { create: true })) as DirectoryHandle;
+          pathSegments.push(clean);
+        }
+      }
+    }
+
+    const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(new Blob([data], { type: mimeType }));
+    await writable.close();
+
+    const relativePath = pathSegments.length > 0 ? `${pathSegments.join('/')}/${fileName}` : fileName;
+    return { success: true, relativePath };
+  } catch (err) {
+    console.error('saveFileToPreferredDirectory error:', err);
+    return { success: false };
+  }
 }
 
 export async function getSavedDirectoryName(): Promise<string | null> {
@@ -116,7 +258,7 @@ export async function listExcelFilesInPreferredDirectory(): Promise<LocalExcelFi
   if (typeof iterHandle.values !== 'function') return [];
 
   async function scanDir(dir: DirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> }, prefix: string, depth: number) {
-    if (typeof dir.values !== 'function' || depth > 2) return;
+    if (typeof dir.values !== 'function' || depth > 4) return;
     for await (const entry of dir.values()) {
       if (entry.kind === 'file' && /\.(xlsx|xls|csv)$/i.test(entry.name) && !entry.name.startsWith('~$')) {
         const fileHandle = entry as FileSystemFileHandle;
@@ -127,7 +269,7 @@ export async function listExcelFilesInPreferredDirectory(): Promise<LocalExcelFi
           lastModified: file.lastModified,
           getFile: () => fileHandle.getFile()
         });
-      } else if (entry.kind === 'directory' && depth < 2) {
+      } else if (entry.kind === 'directory' && depth < 4) {
         const subDir = entry as DirectoryHandle & { values?: () => AsyncIterable<FileSystemHandle> };
         await scanDir(subDir, prefix ? `${prefix}/${entry.name}` : entry.name, depth + 1);
       }
