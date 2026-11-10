@@ -12,7 +12,8 @@ import {
   Key,
   ShieldCheck,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 
 export interface SupportClientCredentialsProps {
@@ -64,8 +65,13 @@ export function SupportClientCredentials({
   const handleCopyAll = (e: React.MouseEvent) => {
     e.stopPropagation();
     const lines: string[] = [
-      `=== THÔNG TIN KHÁCH HÀNG: ${client.name || ''} (MST: ${client.tax_code || ''}) ===`,
+      `=== THÔNG TIN BÀN GIAO KHÁCH HÀNG ===`,
+      `- Doanh nghiệp: ${client.name || ''}`,
+      `- Mã số thuế: ${client.tax_code || ''}`,
     ];
+    if (client.contact_name || client.contact_phone) {
+      lines.push(`- Người liên hệ khách hàng: ${client.contact_name || ''} ${client.contact_phone ? `(${client.contact_phone})` : ''}`.trim());
+    }
     if (supportedUserName) {
       lines.push(`- Người phụ trách chính: ${supportedUserName}`);
     } else if (client.accounting_person || client.insurance_person) {
@@ -141,18 +147,18 @@ export function SupportClientCredentials({
             <button
               type="button"
               onClick={handleCopyAll}
-              title="Sao chép toàn bộ thông tin tài khoản"
-              className="px-2 py-1 rounded-md text-[11px] font-medium bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1 transition shadow-2xs"
+              title="Xuất và sao chép toàn bộ thông tin khách hàng để bàn giao"
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white hover:bg-purple-100/80 text-purple-800 border border-purple-300 flex items-center gap-1.5 transition shadow-2xs"
             >
               {copiedField === 'all' ? (
                 <>
                   <Check size={12} className="text-emerald-600" />
-                  <span className="text-emerald-700 font-semibold">Đã chép tất cả</span>
+                  <span className="text-emerald-700 font-semibold">Đã xuất thông tin</span>
                 </>
               ) : (
                 <>
-                  <Copy size={12} />
-                  <span>Chép tất cả</span>
+                  <FileText size={12} className="text-purple-600" />
+                  <span>Xuất thông tin khách hàng</span>
                 </>
               )}
             </button>
