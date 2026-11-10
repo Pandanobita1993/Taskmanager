@@ -10,6 +10,7 @@ import type { TaskUpdateLog } from '../../lib/taskUpdates';
 import { WorkNoteEditor } from '../WorkNote';
 import { workNoteSummary } from '../../lib/workNotes';
 import { statusAfterFiling } from '../../lib/taskStatus';
+import { SupportClientCredentials } from './SupportClientCredentials';
 
 interface TaskEditModalProps {
   task: any;
@@ -148,6 +149,13 @@ export function TaskEditModal({ task, profile, onClose, onSaved }: TaskEditModal
 
         <div className="flex-1 overflow-y-auto grid lg:grid-cols-[1.25fr_0.75fr]">
           <form onSubmit={save} className="p-5 space-y-4 border-b lg:border-b-0 lg:border-r">
+            {task.task_category === 'support' && task.clients && (
+              <SupportClientCredentials
+                client={task.clients}
+                supportedUserName={task.supported_user_name}
+                defaultExpanded={true}
+              />
+            )}
             <label className="block text-sm font-semibold text-gray-700">
               Nội dung công việc *
               <textarea rows={3} value={form.content} onChange={(event) => updateField('content', event.target.value)} className="mt-1 w-full px-3 py-2 border rounded-lg font-normal outline-none focus:ring-2 focus:ring-blue-500" required />

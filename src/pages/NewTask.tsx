@@ -16,6 +16,7 @@ import { localDateKey } from '../lib/date';
 import { uploadTaskProofSafe, fileToDataUrl } from '../lib/proofStorage';
 import { appendWorkNote } from '../lib/workNotes';
 import { statusAfterFiling } from '../lib/taskStatus';
+import { SupportClientCredentials } from '../components/tasks/SupportClientCredentials';
 
 export default function NewTask() {
   const navigate = useNavigate();
@@ -523,6 +524,18 @@ export default function NewTask() {
             onNewClientTaxChange={setNewClientTax}
             onQuickAddSubmit={handleQuickAddClient}
           />}
+
+          {!isOtherTask && taskCategory === 'support' && selectedClientId && (() => {
+            const selectedClient = clients.find(c => c.id === selectedClientId);
+            return selectedClient ? (
+              <SupportClientCredentials
+                client={selectedClient}
+                supportedUserName={supportedUser?.name}
+                defaultExpanded={true}
+                titlePrefix="Thông tin tài khoản khách hàng để xử lý"
+              />
+            ) : null;
+          })()}
 
           {/* 3. CHI TIẾT CÔNG VIỆC CHUYÊN MÔN */}
           {taskType === 'normal' && !isOtherTask && (

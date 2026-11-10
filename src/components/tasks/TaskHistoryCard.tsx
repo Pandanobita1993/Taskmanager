@@ -1,6 +1,7 @@
 import { WorkNoteView } from '../WorkNote';
 import { readWorkNote } from '../../lib/workNotes';
 import { RecurringTaskBadge } from './RecurringTaskBadge';
+import { SupportClientCredentials } from './SupportClientCredentials';
 import { Building2, CalendarDays, Check, Eye, FileText, Pencil, X } from 'lucide-react';
 
 interface TaskHistoryCardProps {
@@ -54,6 +55,14 @@ export function TaskHistoryCard({ task, onEdit, onOpenProof }: TaskHistoryCardPr
             </span>
           )}
         </div>
+
+        {task.task_category === 'support' && task.clients && (
+          <SupportClientCredentials
+            client={task.clients}
+            supportedUserName={task.supported_user_name}
+            defaultExpanded={false}
+          />
+        )}
 
         {task.notes && <div className="text-sm text-gray-600"><span className="font-semibold text-gray-700">Ghi chú công việc: </span><WorkNoteView value={task.notes} /></div>}
         {readWorkNote(task.dossier_progress).images.length > 0 && <div className="text-sm text-gray-600"><span className="font-semibold text-gray-700">Ghi chú hồ sơ: </span><WorkNoteView value={task.dossier_progress} /></div>}

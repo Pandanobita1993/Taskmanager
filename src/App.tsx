@@ -14,6 +14,7 @@ import { WorkNoteEditor, WorkNoteView } from './components/WorkNote';
 import { hasWorkNote, prependWorkNote, workNoteSummary } from './lib/workNotes';
 import { TaskProofViewer } from './components/tasks/TaskProofViewer';
 import { groupTasksByClient } from './lib/taskGrouping';
+import { SupportClientCredentials } from './components/tasks/SupportClientCredentials';
 import { RecurringTaskBadge } from './components/tasks/RecurringTaskBadge';
 import { CalendarClock } from 'lucide-react';
 import { PaymentFollowupReminder } from './components/PaymentFollowupReminder';
@@ -85,7 +86,7 @@ function Dashboard() {
       }
       const { data, error } = await supabase
         .from('tasks')
-        .select(`*, clients(name, tax_code)`)
+        .select(`*, clients(*)`)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setTasks(data || []);
@@ -520,7 +521,8 @@ function Dashboard() {
                     {isExpanded && (
                       <ul className="divide-y divide-gray-100/80 bg-white/90 animate-in fade-in duration-150">
                         {group.tasks.map((task) => (
-                          <li key={task.id} className="p-4 pl-8 sm:pl-12 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-blue-50/25 transition">
+                          <li key={task.id} className="p-4 pl-8 sm:pl-12 flex flex-col gap-3 hover:bg-blue-50/25 transition">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {task.is_urgent && <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">GẤP</span>}
@@ -584,6 +586,14 @@ function Dashboard() {
                                 <X size={14} /> Thất bại
                               </button>
                             </div>
+                            </div>
+                            {task.task_category === 'support' && task.clients && (
+                              <SupportClientCredentials
+                                client={task.clients}
+                                supportedUserName={task.supported_user_name}
+                                defaultExpanded={true}
+                              />
+                            )}
                           </li>
                         ))}
                       </ul>
