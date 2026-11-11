@@ -21,13 +21,14 @@ import type { ReceiverForm } from '../lib/bhxhAgencies';
 import BhxhTransferInfo from '../components/BhxhTransferInfo';
 import type { TransferDetails } from '../lib/bhxhAgencies';
 import type { FollowupEvent, FollowupPortal, PaymentAction, PaymentFollowup, PaymentKind } from '../lib/paymentFollowups';
+import { syncReminderToWorkReport } from '../lib/paymentReportSync';
 
 interface FollowupForm extends ReceiverForm {
   id: string; version: number; client_id: string; unit_id: string; kind: PaymentKind; period: string; amount: string;
   due_on: string; next_reminder_on: string; promised_on: string; paid_on: string;
   payment_reference: string; proof_file: string; amount_manual: boolean; notes: string; event_note: string;
 }
-interface Editor { action: PaymentAction; form: FollowupForm; requestId: string; existing: boolean }
+interface Editor { action: PaymentAction; form: FollowupForm; requestId: string; existing: boolean; notificationCount: number; recordWorkReport: boolean }
 const field = 'mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white disabled:bg-gray-100';
 const button = 'inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50 hover:bg-gray-50';
 const errorMessage = (error: { code?: string; message?: string }) => error.code === 'PGRST202'
@@ -111,7 +112,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
     const uid = row?.unit_id || (units.some(unit => unit.id === unitId && unit.is_active) ? unitId : '') || soleBhxhUnit(units)?.id || '';
     const suggestion = bhxhSuggestedAmount(bhxhPeriods, selectedClient, selectedMonth, uid);
     const transfer = row?.transfer_details?.agency_id ? row.transfer_details : null;
-    setEditor({ action, requestId: crypto.randomUUID(), existing: !!row, form: {
+    setEditor({ action, requestId: crypto.randomUUID(), existing: !!row, notificationCount: row?.notification_count || 0, recordWorkReport: action === 'notify' || (action === 'save' && !row), form: {
       ...emptyReceiver, ...(transfer ? { receiver_agency_id: transfer.agency_id, receiver_account_id: transfer.account_id,
         receiver_version: transfer.agency_version, transfer_memo: transfer.memo, receiver_touched: true, transfer_memo_manual: true } : {}),
       id: row?.id || crypto.randomUUID(), version: row?.version || 0,
@@ -155,7 +156,7 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!editor || submitting.current || !profile.id || proofBusy || receiverLoading) return;
-    const { form, action, requestId } = editor;
+    const { form, action, requestId, existing, notificationCount, recordWorkReport } = editor;
     setFormError('');
     if (action === 'save' && (!form.client_id || !form.period.trim() || !form.due_on || !form.next_reminder_on)) return setFormError('Điền khách hàng, kỳ, hạn đóng và ngày nhắc.');
     if (form.kind === 'bhxh' && !form.unit_id) return setFormError('Chọn mã đơn vị BHXH.');
@@ -208,9 +209,33 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         }
       }
 
+      let reportSyncMsg = '';
+      if (recordWorkReport && ((action === 'save' && !existing) || action === 'notify')) {
+        try {
+          const syncedCount = Number(result.data?.notification_count) || (action === 'notify' ? notificationCount + 1 : notificationCount);
+          const syncRes = await syncReminderToWorkReport({
+            staffId: profile.id,
+            staffName: profile.fullName,
+            action,
+            form,
+            client: formClient,
+            unitCode: formUnit?.code,
+            today,
+            notificationCount: syncedCount,
+          }, supabase);
+          if (syncRes.synced) {
+            reportSyncMsg = syncRes.mode === 'updated'
+              ? ' và đã cập nhật vào Báo cáo công việc hôm nay'
+              : ' và đã ghi nhận vào Báo cáo công việc';
+          }
+        } catch (reportErr) {
+          console.warn('Could not auto-sync reminder to tasks:', reportErr);
+        }
+      }
+
       setEditor(null);
       setMessage(action === 'paid' ? `✓ Đã xác nhận khách đã đóng${autoSyncMsg}. Khoản này được lưu vào lịch sử và dừng nhắc.`
-        : action === 'notify' ? 'Đã lưu lần nhắc khách và ngày nhắc tiếp theo. Khoản đóng vẫn được theo dõi.' : 'Đã lưu cập nhật.');
+        : action === 'notify' ? `Đã lưu lần nhắc khách và ngày nhắc tiếp theo${reportSyncMsg}. Khoản đóng vẫn được theo dõi.` : `Đã lưu cập nhật${reportSyncMsg}.`);
       window.dispatchEvent(new Event('taskflow-payment-followups-changed'));
       await load(true);
     } catch (cause: any) { setFormError(errorMessage(cause)); }
@@ -319,6 +344,19 @@ export default function PaymentFollowups({ scope = 'all', embedded = false, bhxh
         {editor.action === 'paid' && form.kind === 'bhxh' && <BhxhProofInput key={form.id} value={form.proof_file} onChange={path => update({ proof_file: path })} onBusy={setProofBusy} />}
         {editor.action === 'save' && <label className="block text-sm font-medium">Ghi chú khoản đóng<textarea rows={3} maxLength={5000} value={form.notes} onChange={event => update({ notes: event.target.value })} className={field} /></label>}
         <label className="block text-sm font-medium">{editor.action === 'cancel' || editor.action === 'reopen' ? 'Lý do *' : 'Ghi chú lần cập nhật'}<textarea required={editor.action === 'cancel' || editor.action === 'reopen'} rows={2} maxLength={5000} value={form.event_note} onChange={event => update({ event_note: event.target.value })} placeholder="VD: đã nhắn Zalo, khách báo sẽ chuyển ngày…" className={field} /></label>
+        {((editor.action === 'save' && !editor.existing) || editor.action === 'notify') && (
+          <label className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editor.recordWorkReport}
+              onChange={event => setEditor(previous => previous && { ...previous, recordWorkReport: event.target.checked })}
+              className="mt-0.5 rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+            />
+            <span>
+              <strong>Ghi nhận vào Báo cáo công việc:</strong> Tự động lưu 1 công việc đã hoàn thành cho hôm nay ({recurringDateLabel(today)}) để tính vào báo cáo xuất Excel.
+            </span>
+          </label>
+        )}
       </fieldset>{formError && <p role="alert" className="text-sm text-red-700 whitespace-pre-wrap">{formError}</p>}<div className="flex justify-end gap-3"><button disabled={saving || proofBusy} type="button" onClick={() => setEditor(null)} className="px-4 py-2 bg-gray-100 rounded-lg text-sm">Hủy</button><button disabled={saving || proofBusy || receiverLoading} className={`px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-50 ${editor.action === 'paid' ? 'bg-green-600' : 'bg-blue-600'}`}>{saving ? 'Đang lưu…' : editor.action === 'paid' ? 'Xác nhận đã đóng' : 'Lưu theo dõi'}</button></div></form>
     </section></div>}
     {historyRow && <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-3"><section role="dialog" aria-modal="true" aria-labelledby="followup-history-title" className="bg-white rounded-xl w-full max-w-xl max-h-[92vh] overflow-y-auto p-5 space-y-4"><div className="flex justify-between gap-2"><h2 id="followup-history-title" className="font-bold text-lg">Lịch sử theo dõi</h2><button aria-label="Đóng lịch sử" onClick={() => { setHistoryRow(null); historyRequest.current++; }}><X size={20} /></button></div><p className="text-sm text-gray-600">{historyRow.client_name} · {followupKindLabel(historyRow.kind)} · {historyRow.period}{historyRow.kind === 'bhxh' && ` · ${bhxhUnitKindLabel(historyRow.unit_kind)} · ${historyRow.unit_code || 'Chưa có mã'}`}</p>
