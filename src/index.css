@@ -61,6 +61,12 @@ body {
   100% { opacity: 0; transform: translateY(-10px) scale(1.1); }
 }
 
+@keyframes capy-heart {
+  0% { opacity: 0; transform: translateY(6px) scale(0.6); }
+  30% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-22px) scale(0.95); }
+}
+
 .animate-capy-float {
   animation: capy-float 2.8s ease-in-out infinite;
 }
@@ -79,4 +85,8 @@ body {
 
 .animate-capy-steam {
   animation: capy-steam 2s ease-out infinite;
+}
+
+.animate-capy-heart {
+  animation: capy-heart 1.4s ease-out infinite;
 }

@@ -338,3 +338,17 @@ export function dispatchMascotCelebrate(taskTitle?: string) {
 export function dispatchMascotStats(stats: MascotTaskStats) {
   window.dispatchEvent(new CustomEvent(MASCOT_STATS_EVENT, { detail: stats }));
 }
+
+const PETTING_QUOTES = [
+  'Hihi nhột quá bồ ơi! Xoa đầu lấy hên, làm đâu trúng đó nha 🍊',
+  'Cảm ơn bồ đã nựng mình, tiếp thêm 100% năng lượng gánh sổ sách nè! 💛',
+  'Mềm mịn dễ thương đúng chuẩn Capybara chưa bồ? Cố lên nha! ✨',
+  'Xoa đầu một cái là deadline tự động né ra xa luôn đó hihi 🥰',
+  'Hôm nay bồ làm việc chăm chỉ lắm, mình luôn ở đây cổ vũ bồ nè! 🐾',
+];
+
+export function getRandomPetSpeech(staffName?: string): string {
+  const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
+  const quote = PETTING_QUOTES[Math.floor(Math.random() * PETTING_QUOTES.length)];
+  return shortName ? quote.replace(/\bbồ\b/g, shortName) : quote;
+}

@@ -10,6 +10,7 @@ import {
   checkOutMascot,
   getMascotSpeech,
   getMascotUserKey,
+  getRandomPetSpeech,
   loadMascotState,
   renameMascot,
   resolveMascotExpression,
@@ -52,11 +53,14 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
     () => loadMascotState(userKey, profile.fullName).todayRecord?.mood || 'fire'
   );
   const [isCelebrating, setIsCelebrating] = useState(false);
+  const [isPetting, setIsPetting] = useState(false);
+  const [petSpeech, setPetSpeech] = useState('');
   const [celebrateTaskTitle, setCelebrateTaskTitle] = useState<string | undefined>(undefined);
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameInput, setNameInput] = useState(() => loadMascotState(userKey, profile.fullName).petName);
   const [shopNotice, setShopNotice] = useState('');
   const celebrateTimer = useRef<number | null>(null);
+  const petTimer = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -108,13 +112,29 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
       if (celebrateTimer.current) {
         window.clearTimeout(celebrateTimer.current);
       }
+      if (petTimer.current) {
+        window.clearTimeout(petTimer.current);
+      }
     };
   }, [userKey, profile.fullName]);
 
   const expression = resolveMascotExpression(state, stats, isCelebrating);
-  const speech = getMascotSpeech(state, stats, isCelebrating, profile.fullName, celebrateTaskTitle);
+  const speech = isPetting && petSpeech
+    ? petSpeech
+    : getMascotSpeech(state, stats, isCelebrating, profile.fullName, celebrateTaskTitle);
   const isCheckedIn = Boolean(state.todayRecord);
   const isCheckedOut = Boolean(state.todayRecord?.checkOutTime);
+
+  const handlePet = () => {
+    setIsPetting(true);
+    setPetSpeech(getRandomPetSpeech(profile.fullName));
+    setShowBubble(true);
+    if (petTimer.current) window.clearTimeout(petTimer.current);
+    petTimer.current = window.setTimeout(() => {
+      setIsPetting(false);
+      setPetSpeech('');
+    }, 2800);
+  };
 
   const handleCheckIn = () => {
     const updated = checkInMascot(userKey, selectedMood, profile.fullName);
@@ -442,6 +462,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               accessory={state.equippedAccessory}
               size={118}
               withBadgeBg={false}
+              isPetting={isPetting}
             />
           </div>
           <div className="md:hidden">
@@ -450,6 +471,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               accessory={state.equippedAccessory}
               size={72}
               withBadgeBg={false}
+              isPetting={isPetting}
             />
           </div>
 
@@ -463,22 +485,33 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
           )}
         </button>
 
-        {/* Compact Status Pill directly under the Capybara */}
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="bg-[#FFFBEB] hover:bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm whitespace-nowrap transition flex items-center gap-1.5"
-        >
-          {!isCheckedIn ? (
-            <span>☀️ Điểm danh</span>
-          ) : (
-            <>
-              <span>🍊 {state.tangerines}</span>
-              <span>·</span>
-              <span>🔥 {state.streak}</span>
-            </>
-          )}
-        </button>
+        {/* Compact Status & Petting Row directly under the Capybara */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="bg-[#FFFBEB] hover:bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm whitespace-nowrap transition flex items-center gap-1.5"
+          >
+            {!isCheckedIn ? (
+              <span>☀️ Điểm danh</span>
+            ) : (
+              <>
+                <span>🍊 {state.tangerines}</span>
+                <span>·</span>
+                <span>🔥 {state.streak}</span>
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handlePet}
+            className="bg-[#FFFBEB] hover:bg-rose-50 border border-amber-300 hover:border-rose-300 text-xs px-1.5 py-0.5 rounded-full shadow-sm transition hover:scale-110"
+            title="Xoa đầu bé Capybara"
+            aria-label="Xoa đầu bé Capybara"
+          >
+            🧡
+          </button>
+        </div>
         </div>
       </div>
     </div>
