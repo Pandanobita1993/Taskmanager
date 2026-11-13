@@ -18,6 +18,8 @@ import { SupportClientCredentials } from './components/tasks/SupportClientCreden
 import { RecurringTaskBadge } from './components/tasks/RecurringTaskBadge';
 import { CalendarClock } from 'lucide-react';
 import { PaymentFollowupReminder } from './components/PaymentFollowupReminder';
+import { MascotCompanion } from './components/mascot/MascotCompanion';
+import { dispatchMascotCelebrate, dispatchMascotStats } from './lib/mascot';
 
 const NewTask = lazy(() => import('./pages/NewTask'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -127,6 +129,19 @@ function Dashboard() {
   const urgentTasks = myTasks.filter(t => t.is_urgent && (t.status === 'received' || t.status === 'in_progress'));
   const completedTasks = myTasks.filter(t => t.status === 'completed');
   const failedTasks = myTasks.filter(t => t.status === 'failed');
+
+  useEffect(() => {
+    const todayKey = localDateKey();
+    const completedTodayCount = completedTasks.filter((t) => {
+      const completedDate = t.completed_at ? localDateKey(new Date(t.completed_at)) : '';
+      return completedDate === todayKey;
+    }).length;
+    dispatchMascotStats({
+      pendingCount: pendingTasks.length,
+      urgentCount: urgentTasks.length,
+      completedTodayCount,
+    });
+  }, [pendingTasks.length, urgentTasks.length, completedTasks.length]);
 
   const openResolveModal = (task: any, status: 'completed' | 'failed', origin: 'normal_task' | 'dossier_drawer' = 'normal_task') => {
     setActiveTask(task);
@@ -263,6 +278,10 @@ function Dashboard() {
       setActiveTask(null);
       setDossierModalTask(null);
       fetchTasks();
+
+      if (newStatus === 'completed') {
+        dispatchMascotCelebrate(activeTask.content);
+      }
 
       if (isTransferringToDossier) {
         alert(`Đã ghi nhận nộp hồ sơ (${enteredDossierCode}) thành công!\nHồ sơ đã được chuyển sang mục "Hồ sơ cần kiểm tra" để tiếp tục theo dõi tiến độ.`);
@@ -1392,6 +1411,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <MascotCompanion profile={profile} />
     </div>
   );
 }
