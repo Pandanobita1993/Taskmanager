@@ -395,20 +395,37 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
       )}
 
       {/* Big Capybara Living Directly on the Right-Side Background */}
-      <div className="pointer-events-auto flex flex-col items-center gap-1.5">
+      <div className="pointer-events-auto flex flex-col items-end gap-1.5">
         {!isOpen && showBubble && (
-          <div className="hidden md:flex items-start gap-1.5 max-w-[165px] bg-[#FFFDF8] border border-amber-200 shadow-md rounded-2xl rounded-br-sm px-2.5 py-1.5 text-[11px] text-gray-800 font-medium leading-snug">
-            <span className="line-clamp-3">{speech}</span>
+          <div
+            data-darkreader-ignore=""
+            style={{ colorScheme: 'only light', forcedColorAdjust: 'none' }}
+            className="relative flex items-start gap-2 w-[210px] sm:w-[245px] bg-[#FFFDF8] border border-amber-300 shadow-lg rounded-2xl px-3 py-2 text-xs text-amber-950 font-medium leading-relaxed"
+          >
+            <button
+              type="button"
+              onClick={() => setIsOpen(true)}
+              className="text-left flex-1 whitespace-normal break-words hover:text-amber-800 transition"
+            >
+              {speech}
+            </button>
             <button
               type="button"
               onClick={() => setShowBubble(false)}
-              className="text-gray-400 hover:text-gray-600 shrink-0 mt-0.5"
+              className="text-gray-400 hover:text-gray-700 shrink-0 mt-0.5 p-0.5 rounded"
               aria-label="Ẩn lời chào"
             >
-              <X size={11} />
+              <X size={12} />
             </button>
+            {/* Speech bubble tail pointing down to Capybara */}
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-1.5 right-12 w-3 h-3 bg-[#FFFDF8] border-r border-b border-amber-300 rotate-45"
+            />
           </div>
         )}
+
+        <div className="flex flex-col items-center gap-1.5">
 
         <button
           type="button"
@@ -462,6 +479,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
             </>
           )}
         </button>
+        </div>
       </div>
     </div>
   );
