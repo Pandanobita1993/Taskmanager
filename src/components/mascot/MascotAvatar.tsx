@@ -2,6 +2,7 @@ import React from 'react';
 import type { MascotAccessoryId, MascotExpression, MascotType } from '../../lib/mascot';
 import { CapybaraAvatar } from './CapybaraAvatar';
 import { GoatAvatar } from './GoatAvatar';
+import { ZodiacAvatar } from './ZodiacAvatar';
 
 interface MascotAvatarProps {
   mascotType?: MascotType;
@@ -17,8 +18,11 @@ export const MascotAvatar: React.FC<MascotAvatarProps> = ({
   mascotType = 'capybara',
   ...props
 }) => {
+  if (mascotType === 'capybara') {
+    return <CapybaraAvatar {...props} />;
+  }
   if (mascotType === 'goat') {
     return <GoatAvatar {...props} />;
   }
-  return <CapybaraAvatar {...props} />;
+  return <ZodiacAvatar species={mascotType} {...props} />;
 };

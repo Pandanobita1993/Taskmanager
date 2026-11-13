@@ -378,9 +378,9 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
                 {/* Chọn linh vật riêng */}
                 <div>
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Chọn linh vật của bạn
+                    Chọn linh vật (Capybara & 12 Con Giáp)
                   </p>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto pr-0.5">
                     {MASCOT_SPECIES.map((sp) => {
                       const active = state.mascotType === sp.id;
                       return (

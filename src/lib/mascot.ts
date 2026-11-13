@@ -2,7 +2,20 @@ import { format, subDays } from 'date-fns';
 import { localDateKey } from './date';
 import type { UserProfile } from './profile';
 
-export type MascotType = 'capybara' | 'goat';
+export type MascotType =
+  | 'capybara'
+  | 'rat'
+  | 'buffalo'
+  | 'tiger'
+  | 'cat'
+  | 'dragon'
+  | 'snake'
+  | 'horse'
+  | 'goat'
+  | 'monkey'
+  | 'rooster'
+  | 'dog'
+  | 'pig';
 
 export interface MascotSpeciesOption {
   id: MascotType;
@@ -13,20 +26,19 @@ export interface MascotSpeciesOption {
 }
 
 export const MASCOT_SPECIES: MascotSpeciesOption[] = [
-  {
-    id: 'capybara',
-    name: 'Capybara Thư Thái',
-    emoji: '🍊',
-    defaultPetName: 'Bé Quýt',
-    tagline: 'Bất biến giữa dòng đời deadline',
-  },
-  {
-    id: 'goat',
-    name: 'Bé Dê May Mắn',
-    emoji: '🐐',
-    defaultPetName: 'Bé Dê',
-    tagline: 'Cỏ 4 lá mang lại suôn sẻ cả ngày',
-  },
+  { id: 'capybara', name: 'Capybara', emoji: '🍊', defaultPetName: 'Bé Quýt', tagline: 'Bất biến giữa dòng đời deadline' },
+  { id: 'rat', name: 'Tý · Chuột', emoji: '🐭', defaultPetName: 'Bé Tý', tagline: 'Nhanh nhẹn gom đủ chứng từ' },
+  { id: 'buffalo', name: 'Sửu · Trâu', emoji: '🐃', defaultPetName: 'Bé Sửu', tagline: 'Chăm chỉ cày báo cáo không mệt' },
+  { id: 'tiger', name: 'Dần · Hổ', emoji: '🐯', defaultPetName: 'Bé Dần', tagline: 'Oai phong chốt sổ cái rụp' },
+  { id: 'cat', name: 'Mão · Mèo', emoji: '🐱', defaultPetName: 'Bé Mèo', tagline: 'Tinh mắt soi số liệu chuẩn từng xu' },
+  { id: 'dragon', name: 'Thìn · Rồng', emoji: '🐲', defaultPetName: 'Bé Thìn', tagline: 'Rồng con phun lửa xử lý việc gấp' },
+  { id: 'snake', name: 'Tỵ · Rắn', emoji: '🐍', defaultPetName: 'Bé Tỵ', tagline: 'Khéo léo gỡ rối từng hồ sơ khó' },
+  { id: 'horse', name: 'Ngọ · Ngựa', emoji: '🐴', defaultPetName: 'Bé Ngọ', tagline: 'Phi nước đại cán đích đúng hạn' },
+  { id: 'goat', name: 'Mùi · Dê', emoji: '🐐', defaultPetName: 'Bé Dê', tagline: 'Cỏ 4 lá mang lại suôn sẻ cả ngày' },
+  { id: 'monkey', name: 'Thân · Khỉ', emoji: '🐵', defaultPetName: 'Bé Thân', tagline: 'Lanh lợi xử lý đa nhiệm cực mượt' },
+  { id: 'rooster', name: 'Dậu · Gà', emoji: '🐔', defaultPetName: 'Bé Dậu', tagline: 'Đúng giờ điểm danh không trễ một giây' },
+  { id: 'dog', name: 'Tuất · Chó', emoji: '🐶', defaultPetName: 'Bé Tuất', tagline: 'Trung thành đồng hành cùng đồng đội' },
+  { id: 'pig', name: 'Hợi · Heo', emoji: '🐷', defaultPetName: 'Bé Hợi', tagline: 'Sung túc viên mãn cả tháng' },
 ];
 
 export type MascotMood = 'fire' | 'coffee' | 'zen' | 'sleepy';
