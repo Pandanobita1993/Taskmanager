@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { MascotAccessoryId, MascotExpression, MascotType } from '../../lib/mascot';
 import { CapybaraAvatar } from './CapybaraAvatar';
 import { GoatAvatar } from './GoatAvatar';
+import { SPRITE_MASCOTS, SpriteAvatar } from './SpriteAvatar';
 import { ZodiacAvatar } from './ZodiacAvatar';
 
 interface MascotAvatarProps {
@@ -18,6 +19,11 @@ export const MascotAvatar: React.FC<MascotAvatarProps> = ({
   mascotType = 'capybara',
   ...props
 }) => {
+  const [spriteFailed, setSpriteFailed] = useState(false);
+
+  if (SPRITE_MASCOTS.has(mascotType) && !spriteFailed) {
+    return <SpriteAvatar mascotType={mascotType} {...props} onError={() => setSpriteFailed(true)} />;
+  }
   if (mascotType === 'capybara') {
     return <CapybaraAvatar {...props} />;
   }
