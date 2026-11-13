@@ -5,7 +5,9 @@ import {
   MASCOT_ACCESSORIES,
   MASCOT_CELEBRATE_EVENT,
   MASCOT_MOODS,
+  MASCOT_SPECIES,
   MASCOT_STATS_EVENT,
+  changeMascotType,
   checkInMascot,
   checkOutMascot,
   getMascotSpeech,
@@ -21,8 +23,9 @@ import {
   type MascotMood,
   type MascotState,
   type MascotTaskStats,
+  type MascotType,
 } from '../../lib/mascot';
-import { CapybaraAvatar } from './CapybaraAvatar';
+import { MascotAvatar } from './MascotAvatar';
 
 interface MascotCompanionProps {
   profile: UserProfile;
@@ -127,13 +130,19 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
 
   const handlePet = () => {
     setIsPetting(true);
-    setPetSpeech(getRandomPetSpeech(profile.fullName));
+    setPetSpeech(getRandomPetSpeech(profile.fullName, state.mascotType));
     setShowBubble(true);
     if (petTimer.current) window.clearTimeout(petTimer.current);
     petTimer.current = window.setTimeout(() => {
       setIsPetting(false);
       setPetSpeech('');
     }, 2800);
+  };
+
+  const handleSelectSpecies = (mascotType: MascotType) => {
+    const updated = changeMascotType(userKey, mascotType, profile.fullName);
+    setState(updated);
+    setNameInput(updated.petName);
   };
 
   const handleCheckIn = () => {
@@ -365,13 +374,45 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
                 )}
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
+                {/* Chọn linh vật riêng */}
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    Chọn linh vật của bạn
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {MASCOT_SPECIES.map((sp) => {
+                      const active = state.mascotType === sp.id;
+                      return (
+                        <button
+                          key={sp.id}
+                          type="button"
+                          onClick={() => handleSelectSpecies(sp.id)}
+                          title={sp.tagline}
+                          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-left transition ${
+                            active
+                              ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-400 text-emerald-950'
+                              : 'bg-white border-gray-200 text-gray-700 hover:border-amber-300'
+                          }`}
+                        >
+                          <span className="text-base leading-none">{sp.emoji}</span>
+                          <span className="text-[11px] font-bold truncate">{sp.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {shopNotice && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium">
                     {shopNotice}
                   </p>
                 )}
-                <div className="grid grid-cols-2 gap-2 max-h-[210px] overflow-y-auto pr-0.5">
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    Phụ kiện ({state.unlockedAccessories.length}/{MASCOT_ACCESSORIES.length})
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 max-h-[170px] overflow-y-auto pr-0.5">
                   {MASCOT_ACCESSORIES.map((item) => {
                     const unlocked = state.unlockedAccessories.includes(item.id);
                     const equipped = state.equippedAccessory === item.id;
@@ -407,6 +448,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
                       </button>
                     );
                   })}
+                  </div>
                 </div>
               </div>
             )}
@@ -457,7 +499,8 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
           title={`${state.petName} · Nhấn để mở chấm công`}
         >
           <div className="hidden md:block">
-            <CapybaraAvatar
+            <MascotAvatar
+              mascotType={state.mascotType}
               expression={expression}
               accessory={state.equippedAccessory}
               size={118}
@@ -466,7 +509,8 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
             />
           </div>
           <div className="md:hidden">
-            <CapybaraAvatar
+            <MascotAvatar
+              mascotType={state.mascotType}
               expression={expression}
               accessory={state.equippedAccessory}
               size={72}

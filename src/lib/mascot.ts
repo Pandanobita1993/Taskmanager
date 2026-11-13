@@ -2,7 +2,32 @@ import { format, subDays } from 'date-fns';
 import { localDateKey } from './date';
 import type { UserProfile } from './profile';
 
-export type MascotType = 'capybara';
+export type MascotType = 'capybara' | 'goat';
+
+export interface MascotSpeciesOption {
+  id: MascotType;
+  name: string;
+  emoji: string;
+  defaultPetName: string;
+  tagline: string;
+}
+
+export const MASCOT_SPECIES: MascotSpeciesOption[] = [
+  {
+    id: 'capybara',
+    name: 'Capybara Thư Thái',
+    emoji: '🍊',
+    defaultPetName: 'Bé Quýt',
+    tagline: 'Bất biến giữa dòng đời deadline',
+  },
+  {
+    id: 'goat',
+    name: 'Bé Dê May Mắn',
+    emoji: '🐐',
+    defaultPetName: 'Bé Dê',
+    tagline: 'Cỏ 4 lá mang lại suôn sẻ cả ngày',
+  },
+];
 
 export type MascotMood = 'fire' | 'coffee' | 'zen' | 'sleepy';
 
@@ -230,6 +255,31 @@ export function renameMascot(userKey: string, petName: string, staffName?: strin
   return saveMascotState(userKey, { ...current, petName: trimmed });
 }
 
+export function changeMascotType(
+  userKey: string,
+  mascotType: MascotType,
+  staffName?: string
+): MascotState {
+  const current = loadMascotState(userKey, staffName);
+  const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
+  const species = MASCOT_SPECIES.find((s) => s.id === mascotType) || MASCOT_SPECIES[0];
+  const isDefaultName = MASCOT_SPECIES.some((s) => {
+    const withStaff = shortName ? `${s.defaultPetName} (${shortName})` : s.defaultPetName;
+    return current.petName === s.defaultPetName || current.petName === withStaff;
+  });
+  const nextPetName = isDefaultName
+    ? shortName
+      ? `${species.defaultPetName} (${shortName})`
+      : species.defaultPetName
+    : current.petName;
+
+  return saveMascotState(userKey, {
+    ...current,
+    mascotType,
+    petName: nextPetName,
+  });
+}
+
 export function rewardTaskCompleted(userKey: string, staffName?: string): MascotState {
   const current = loadMascotState(userKey, staffName);
   const next: MascotState = {
@@ -297,38 +347,55 @@ export function getMascotSpeech(
   celebrateTaskTitle?: string
 ): string {
   const shortName = staffName?.trim().split(/\s+/).slice(-1)[0] || 'bồ';
+  const isGoat = state.mascotType === 'goat';
 
   if (isCelebrating) {
     if (celebrateTaskTitle) {
-      return `10 điểm không có nhưng! Xong việc "${celebrateTaskTitle.slice(0, 34)}${celebrateTaskTitle.length > 34 ? '...' : ''}" rồi (+5 🍊)! 🎉`;
+      return isGoat
+        ? `Be beee~ Quá mượt ${shortName} ơi! Xong "${celebrateTaskTitle.slice(0, 30)}${celebrateTaskTitle.length > 30 ? '...' : ''}" rồi (+5 🍊)! 🍀`
+        : `10 điểm không có nhưng! Xong việc "${celebrateTaskTitle.slice(0, 34)}${celebrateTaskTitle.length > 34 ? '...' : ''}" rồi (+5 🍊)! 🎉`;
     }
-    return `Tuyệt vời ${shortName} ơi! Xong thêm 1 việc rồi, nhận +5 Quýt vàng nè! 🎉`;
+    return isGoat
+      ? `Beee~ Cỏ 4 lá phù hộ, xong thêm 1 việc rồi nè ${shortName} (+5 🍊)! 🍀`
+      : `Tuyệt vời ${shortName} ơi! Xong thêm 1 việc rồi, nhận +5 Quýt vàng nè! 🎉`;
   }
 
   if (state.todayRecord?.checkOutTime) {
-    return `Hết ca lúc ${state.todayRecord.checkOutTime} rồi! Hôm nay ${shortName} làm rất tốt, đi sạc pin thôi nào 💤`;
+    return isGoat
+      ? `Be~ Hết ca lúc ${state.todayRecord.checkOutTime} rồi, ${shortName} về nghỉ ngơi lấy sức mai chiến tiếp nha 💤`
+      : `Hết ca lúc ${state.todayRecord.checkOutTime} rồi! Hôm nay ${shortName} làm rất tốt, đi sạc pin thôi nào 💤`;
   }
 
   if (!state.todayRecord) {
     if (stats.urgentCount > 0) {
-      return `Chào ${shortName}! Hôm nay có ${stats.urgentCount} việc GẤP đang chờ đó, bấm Điểm danh vào ca liền nhen! 🔥`;
+      return isGoat
+        ? `Beee ${shortName} ơi! Hôm nay có ${stats.urgentCount} việc GẤP đó, bấm Điểm danh nhận may mắn liền nhen! 🍀🔥`
+        : `Chào ${shortName}! Hôm nay có ${stats.urgentCount} việc GẤP đang chờ đó, bấm Điểm danh vào ca liền nhen! 🔥`;
     }
-    return `Chào buổi sáng ${shortName}! Nhấn vào mình để điểm danh vào ca nhận +10 Quýt vàng nào 🍊`;
+    return isGoat
+      ? `Be beee~ Chào ${shortName}! Bé Dê mang cỏ 4 lá tới rồi nè, bấm Điểm danh nhận +10 🍊 nha 🍀`
+      : `Chào buổi sáng ${shortName}! Nhấn vào mình để điểm danh vào ca nhận +10 Quýt vàng nào 🍊`;
   }
 
   if (stats.urgentCount > 0) {
-    return `${shortName} ơi, đang có ${stats.urgentCount} việc GẤP cần ưu tiên xử lý trước nè! Cố lên nha 💪`;
+    return isGoat
+      ? `Be~ ${shortName} ơi đang có ${stats.urgentCount} việc GẤP nè, tụi mình xử đẹp luôn nha! 💪`
+      : `${shortName} ơi, đang có ${stats.urgentCount} việc GẤP cần ưu tiên xử lý trước nè! Cố lên nha 💪`;
   }
 
   if (stats.pendingCount === 0) {
-    return `Quá đỉnh ${shortName} ơi! Sạch bóng việc chờ xử lý rồi, ngồi chill uống trà cùng mình nhé 🍵`;
+    return isGoat
+      ? `Beee~ Sạch bóng việc rồi ${shortName} ơi! Ngồi rung chuông tận hưởng thảnh thơi thôi 🍀`
+      : `Quá đỉnh ${shortName} ơi! Sạch bóng việc chờ xử lý rồi, ngồi chill uống trà cùng mình nhé 🍵`;
   }
 
   if (state.todayRecord.mood === 'coffee') {
-    return `Làm một ngụm cà phê cho tỉnh táo rồi dọn ${stats.pendingCount} việc đang chờ nha ${shortName}! ☕`;
+    return `Làm một ngụm trà sữa cho tỉnh táo rồi dọn ${stats.pendingCount} việc đang chờ nha ${shortName}! 🧋`;
   }
 
-  return `Đang vào ca mượt mà! Còn ${stats.pendingCount} việc đang xử lý, từ từ gỡ từng khách hàng nhen ${shortName} ✨`;
+  return isGoat
+    ? `Lắc chuông leng keng! Còn ${stats.pendingCount} việc đang xử lý, Bé Dê chúc ${shortName} làm đâu trúng đó 🍀`
+    : `Đang vào ca mượt mà! Còn ${stats.pendingCount} việc đang xử lý, từ từ gỡ từng khách hàng nhen ${shortName} ✨`;
 }
 
 export function dispatchMascotCelebrate(taskTitle?: string) {
@@ -339,7 +406,7 @@ export function dispatchMascotStats(stats: MascotTaskStats) {
   window.dispatchEvent(new CustomEvent(MASCOT_STATS_EVENT, { detail: stats }));
 }
 
-const PETTING_QUOTES = [
+const CAPYBARA_PETTING_QUOTES = [
   'Hihi nhột quá bồ ơi! Xoa đầu lấy hên, làm đâu trúng đó nha 🍊',
   'Cảm ơn bồ đã nựng mình, tiếp thêm 100% năng lượng gánh sổ sách nè! 💛',
   'Mềm mịn dễ thương đúng chuẩn Capybara chưa bồ? Cố lên nha! ✨',
@@ -347,8 +414,17 @@ const PETTING_QUOTES = [
   'Hôm nay bồ làm việc chăm chỉ lắm, mình luôn ở đây cổ vũ bồ nè! 🐾',
 ];
 
-export function getRandomPetSpeech(staffName?: string): string {
+const GOAT_PETTING_QUOTES = [
+  'Be beee~ Thích quá! Tặng bồ thêm may mắn từ cỏ 4 lá nè 🍀',
+  'Xoa đầu Bé Dê một cái, cả ngày hồ sơ duyệt cái rụp nha bồ! ✨',
+  'Leng keng~ Chuông nhỏ kêu vui tai quá, cảm ơn bồ đã nựng mình 💛',
+  'Bé Dê ngoan ngoãn ngồi đây cổ vũ bồ làm việc siêu năng suất luôn! 🐐',
+  'Hihi nhột quá! Chúc bồ hôm nay cân sổ sách chuẩn không cần chỉnh 🥰',
+];
+
+export function getRandomPetSpeech(staffName?: string, mascotType: MascotType = 'capybara'): string {
   const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
-  const quote = PETTING_QUOTES[Math.floor(Math.random() * PETTING_QUOTES.length)];
+  const pool = mascotType === 'goat' ? GOAT_PETTING_QUOTES : CAPYBARA_PETTING_QUOTES;
+  const quote = pool[Math.floor(Math.random() * pool.length)];
   return shortName ? quote.replace(/\bbồ\b/g, shortName) : quote;
 }
