@@ -2,7 +2,21 @@ import React, { useEffect, useState } from 'react';
 import type { MascotAccessoryId, MascotExpression } from '../../lib/mascot';
 
 /** Linh vật đã có bộ ảnh sprite (public/mascot/<id>_open.png + <id>_closed.png). */
-export const SPRITE_MASCOTS: ReadonlySet<string> = new Set(['capybara', 'goat', 'dragon']);
+export const SPRITE_MASCOTS: ReadonlySet<string> = new Set([
+  'capybara',
+  'rat',
+  'buffalo',
+  'tiger',
+  'cat',
+  'dragon',
+  'snake',
+  'horse',
+  'goat',
+  'monkey',
+  'rooster',
+  'dog',
+  'pig',
+]);
 
 interface SpriteAvatarProps {
   mascotType: string;
