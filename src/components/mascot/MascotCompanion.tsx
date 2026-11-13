@@ -159,8 +159,9 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
   return (
     <div
       ref={containerRef}
+      data-darkreader-ignore=""
       className="relative flex items-center gap-2 shrink-0"
-      style={{ colorScheme: 'light', forcedColorAdjust: 'none' }}
+      style={{ colorScheme: 'only light', forcedColorAdjust: 'none' }}
     >
       {/* Top-right Speech Bubble (left of mascot in header) */}
       {!isOpen && showBubble && (
@@ -184,24 +185,23 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
           setIsOpen((prev) => !prev);
           setShowBubble(true);
         }}
-        className={`relative group rounded-full p-0.5 bg-[#FFFBEB] border-2 shadow-sm hover:shadow-md hover:scale-105 transition-all flex items-center justify-center ${
-          isCelebrating
-            ? 'border-emerald-400 ring-2 ring-emerald-300/60'
-            : !isCheckedIn
-            ? 'border-amber-400 ring-2 ring-amber-300/50'
-            : 'border-amber-300'
+        data-darkreader-ignore=""
+        className={`relative group rounded-full bg-transparent p-0 shadow-sm hover:shadow-md hover:scale-105 transition-all flex items-center justify-center ${
+          isCelebrating ? 'ring-2 ring-emerald-400' : ''
         }`}
         title={`${state.petName} · Nhấn để mở chấm công`}
       >
         <CapybaraAvatar
           expression={expression}
           accessory={state.equippedAccessory}
-          size={40}
+          size={44}
+          withBadgeBg={true}
         />
         {!isCheckedIn && (
-          <span className="absolute -bottom-1 -left-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow leading-none">
-            Điểm danh
-          </span>
+          <span
+            className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-orange-500 border-2 border-white rounded-full shadow animate-pulse"
+            title="Chưa điểm danh hôm nay"
+          />
         )}
         {isCheckedIn && stats.urgentCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow">
@@ -219,14 +219,19 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
 
       {/* Expanded Mascot Card (Dropdown from top-right) */}
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 z-50 w-[340px] max-w-[calc(100vw-1.5rem)] bg-[#FFFFFF] text-gray-900 rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
+        <div
+          data-darkreader-ignore=""
+          className="absolute top-full right-0 mt-2 z-50 w-[340px] max-w-[calc(100vw-1.5rem)] bg-[#FFFFFF] text-gray-900 rounded-2xl shadow-2xl border border-amber-200 overflow-hidden"
+          style={{ colorScheme: 'only light', forcedColorAdjust: 'none' }}
+        >
           {/* Header */}
           <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/80 px-4 py-3 border-b border-amber-200/70 flex items-center gap-3">
-            <div className="shrink-0 bg-white/80 rounded-2xl p-1 border border-amber-200/80 shadow-xs">
+            <div className="shrink-0">
               <CapybaraAvatar
                 expression={expression}
                 accessory={state.equippedAccessory}
                 size={68}
+                withBadgeBg={true}
               />
             </div>
 
