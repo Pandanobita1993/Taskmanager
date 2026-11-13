@@ -68,8 +68,8 @@ const SPECIES_THEMES: Record<ZodiacSpeciesId, SpeciesTheme> = {
   dragon: {
     furLight: '#A7F3D0',
     furMid: '#6EE7B7',
-    furDark: '#34D399',
-    pawColor: '#10B981',
+    furDark: '#10B981',
+    pawColor: '#FDE047',
     badgeBg: '#ECFDF5',
     badgeBorder: '#10B981',
     noseColor: '#059669',
@@ -151,9 +151,6 @@ function buildSpeciesBack(species: ZodiacSpeciesId, theme: SpeciesTheme): string
     case 'cat':
       return `<path d="M86 93C99 92 105 76 96 70" stroke="${theme.furDark}" stroke-width="6" stroke-linecap="round" fill="none" />
               <path d="M86 93C99 92 105 76 96 70" stroke="#3E2723" stroke-width="2.4" stroke-linecap="round" fill="none" />`;
-    case 'dragon':
-      return `<path d="M85 93C98 92 105 79 98 70" stroke="#10B981" stroke-width="6" stroke-linecap="round" fill="none" />
-              <path d="M98 70L103 66L100 73Z" fill="#FBBF24" stroke="#3E2723" stroke-width="1.5" />`;
     case 'horse':
       return `<path d="M88 86C98 85 103 94 98 102C94 97 92 94 88 94Z" fill="#78350F" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />`;
     case 'monkey':
@@ -204,10 +201,13 @@ function buildSpeciesEarsAndHeadTop(species: ZodiacSpeciesId, theme: SpeciesThem
       </g>`;
     case 'dragon':
       return `<g>
-        <path d="M40 24L35 10L43 16L47 12L46 23Z" fill="#FBBF24" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
-        <path d="M80 24L85 10L77 16L73 12L74 23Z" fill="#FBBF24" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
-        <ellipse cx="26" cy="37" rx="7" ry="4" transform="rotate(-20 26 37)" fill="${theme.furDark}" stroke="#3E2723" stroke-width="2.2" />
-        <ellipse cx="94" cy="37" rx="7" ry="4" transform="rotate(20 94 37)" fill="${theme.furDark}" stroke="#3E2723" stroke-width="2.2" />
+        <!-- Ly Dynasty Dragon: S-curved flame crest (mào lửa chữ S) & flowing side mane fins, no rigid antlers -->
+        <path d="M58 23C53 15 62 11 58 4C64 8 67 15 62 23Z" fill="#FBBF24" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
+        <path d="M47 24C43 17 47 13 51 16C50 19 49 22 50 24Z" fill="#FDE047" stroke="#3E2723" stroke-width="1.8" stroke-linejoin="round" />
+        <path d="M73 24C77 17 73 13 69 16C70 19 71 22 70 24Z" fill="#FDE047" stroke="#3E2723" stroke-width="1.8" stroke-linejoin="round" />
+        <!-- Flowing ear fins / bờm mang uốn lượn -->
+        <path d="M30 38C18 35 16 25 24 24C28 24 30 29 33 32Z" fill="#FBBF24" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
+        <path d="M90 38C102 35 104 25 96 24C92 24 90 29 87 32Z" fill="#FBBF24" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
       </g>`;
     case 'horse':
       return `<g>
@@ -279,6 +279,15 @@ function buildSpeciesFaceDetails(species: ZodiacSpeciesId, theme: SpeciesTheme):
     case 'rooster':
       return `<path d="M55 50L60 56L65 50Z" fill="#F59E0B" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
               <ellipse cx="60" cy="59" rx="3.5" ry="3" fill="#EF4444" />`;
+    case 'dragon':
+      return `<g>
+        <!-- Flowing Ly-style dragon whiskers & forehead pearl mark -->
+        <circle cx="60" cy="30" r="2.3" fill="#FBBF24" stroke="#3E2723" stroke-width="1.4" />
+        <path d="M33 52C23 51 18 56 15 52" stroke="#FBBF24" stroke-width="2.4" stroke-linecap="round" fill="none" />
+        <path d="M33 52C23 51 18 56 15 52" stroke="#3E2723" stroke-width="0.9" stroke-linecap="round" fill="none" />
+        <path d="M87 52C97 51 102 56 105 52" stroke="#FBBF24" stroke-width="2.4" stroke-linecap="round" fill="none" />
+        <path d="M87 52C97 51 102 56 105 52" stroke="#3E2723" stroke-width="0.9" stroke-linecap="round" fill="none" />
+      </g>`;
     case 'snake':
       return `<g>
         <!-- Tiny cute nostrils & playful side-peeking pink tongue -->
@@ -477,6 +486,7 @@ function buildZodiacSvg(
     : buildSpeciesProp(species);
 
   const isSnake = species === 'snake';
+  const isDragon = species === 'dragon';
   const bodySection = isSnake
     ? `<g>
         <!-- Wiggling cute snake tail tip on the right -->
@@ -506,6 +516,41 @@ function buildZodiacSvg(
         <line x1="53" y1="71.5" x2="67" y2="71.5" stroke="#EAB308" stroke-width="1.3" stroke-opacity="0.45" stroke-linecap="round" />
         <line x1="52.5" y1="77" x2="67.5" y2="77" stroke="#EAB308" stroke-width="1.3" stroke-opacity="0.45" stroke-linecap="round" />
       </g>`
+    : isDragon
+    ? `<g>
+        <!-- Serpentine Ly-Dynasty Dragon S-curve tail with golden flame fins -->
+        <g>
+          <animateTransform attributeName="transform" type="rotate" values="-3 85 90; 4 85 90; -3 85 90" dur="2.4s" repeatCount="indefinite" />
+          <path d="M84 95C98 95 108 86 104 74C102 68 96 66 98 59C94 64 91 69 94 76C97 82 91 87 82 87Z" fill="url(#zFurGrad)" stroke="#3E2723" stroke-width="2.6" stroke-linejoin="round" />
+          <!-- Golden dorsal flame fins along tail -->
+          <path d="M98 59C102 55 106 58 103 63Z" fill="#FBBF24" stroke="#3E2723" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M104 74C109 71 111 75 106 79Z" fill="#FBBF24" stroke="#3E2723" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="M101 87C106 88 105 93 99 92Z" fill="#FBBF24" stroke="#3E2723" stroke-width="1.6" stroke-linejoin="round" />
+        </g>
+        <!-- Left S-curve body loop -->
+        <path d="M29 94C21 90 20 79 29 75C35 72 42 75 45 81L40 97C35 97 32 96 29 94Z" fill="url(#zFurGrad)" stroke="#3E2723" stroke-width="2.6" stroke-linejoin="round" />
+        <path d="M23 82L18 79L24 76Z" fill="#FBBF24" stroke="#3E2723" stroke-width="1.6" stroke-linejoin="round" />
+        <!-- Serpentine coiled lower body -->
+        <path
+          d="M31 91C31 79 44 74 60 74C76 74 89 79 89 91C89 101 76 106 60 106C44 106 31 101 31 91Z"
+          fill="url(#zFurGrad)"
+          stroke="#3E2723"
+          stroke-width="2.9"
+        />
+        <ellipse cx="60" cy="97" rx="20" ry="6.8" fill="${theme.bellyColor || '#FEF3C7'}" />
+        <!-- Graceful serpentine neck rising into head -->
+        <path
+          d="M45 83C44 73 46 62 51 58L69 58C74 62 76 73 75 83C70 87 50 87 45 83Z"
+          fill="url(#zFurGrad)"
+          stroke="#3E2723"
+          stroke-width="2.8"
+          stroke-linejoin="round"
+        />
+        <!-- Segmented cream-gold dragon belly scales -->
+        <path d="M51.5 66C55 68.5 65 68.5 68.5 66L67.5 82C64 84 56 84 52.5 82Z" fill="${theme.bellyColor || '#FEF3C7'}" />
+        <line x1="53" y1="71.5" x2="67" y2="71.5" stroke="#D97706" stroke-width="1.2" stroke-opacity="0.4" stroke-linecap="round" />
+        <line x1="52.5" y1="77" x2="67.5" y2="77" stroke="#D97706" stroke-width="1.2" stroke-opacity="0.4" stroke-linecap="round" />
+      </g>`
     : `<g>
         ${buildSpeciesBack(species, theme)}
         <!-- Plump Sitting Body -->
@@ -521,6 +566,12 @@ function buildZodiacSvg(
 
   const pawsSection = isSnake
     ? ''
+    : isDragon
+    ? `<g>
+        <!-- Tiny dragon front claws hugging the pearl / prop -->
+        <path d="M39 76C44 74 50 77 52 81C52 84 48 86 44 84C40 82 38 79 39 76Z" fill="${theme.pawColor}" stroke="#3E2723" stroke-width="2.1" stroke-linejoin="round" />
+        <path d="M81 76C76 74 70 77 68 81C68 84 72 86 76 84C80 82 82 79 81 76Z" fill="${theme.pawColor}" stroke="#3E2723" stroke-width="2.1" stroke-linejoin="round" />
+      </g>`
     : `<g>
         <path d="M36 77C42 75 50 78 52 83C53 86 49 89 44 87C39 85 36 81 36 77Z" fill="${theme.pawColor}" stroke="#3E2723" stroke-width="2.3" stroke-linejoin="round" />
         <path d="M84 77C78 75 70 78 68 83C67 86 71 89 76 87C81 85 84 81 84 77Z" fill="${theme.pawColor}" stroke="#3E2723" stroke-width="2.3" stroke-linejoin="round" />
