@@ -57,6 +57,25 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
   const [nameInput, setNameInput] = useState(() => loadMascotState(userKey, profile.fullName).petName);
   const [shopNotice, setShopNotice] = useState('');
   const celebrateTimer = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const handleStats = (e: Event) => {
@@ -138,10 +157,69 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
-      {/* Expanded Mascot Card */}
+    <div
+      ref={containerRef}
+      className="relative flex items-center gap-2 shrink-0"
+      style={{ colorScheme: 'light', forcedColorAdjust: 'none' }}
+    >
+      {/* Top-right Speech Bubble (left of mascot in header) */}
+      {!isOpen && showBubble && (
+        <div className="hidden xl:flex items-center gap-1.5 max-w-[240px] bg-[#FFFDF8] border border-amber-200 shadow-sm rounded-full px-3 py-1 text-[11px] text-gray-800 font-medium">
+          <span className="truncate">{speech}</span>
+          <button
+            type="button"
+            onClick={() => setShowBubble(false)}
+            className="text-gray-400 hover:text-gray-600 shrink-0"
+            aria-label="Ẩn lời chào"
+          >
+            <X size={11} />
+          </button>
+        </div>
+      )}
+
+      {/* Top-right Capybara Button */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen((prev) => !prev);
+          setShowBubble(true);
+        }}
+        className={`relative group rounded-full p-0.5 bg-[#FFFBEB] border-2 shadow-sm hover:shadow-md hover:scale-105 transition-all flex items-center justify-center ${
+          isCelebrating
+            ? 'border-emerald-400 ring-2 ring-emerald-300/60'
+            : !isCheckedIn
+            ? 'border-amber-400 ring-2 ring-amber-300/50'
+            : 'border-amber-300'
+        }`}
+        title={`${state.petName} · Nhấn để mở chấm công`}
+      >
+        <CapybaraAvatar
+          expression={expression}
+          accessory={state.equippedAccessory}
+          size={40}
+        />
+        {!isCheckedIn && (
+          <span className="absolute -bottom-1 -left-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow leading-none">
+            Điểm danh
+          </span>
+        )}
+        {isCheckedIn && stats.urgentCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow">
+            {stats.urgentCount}
+          </span>
+        )}
+      </button>
+
+      {/* Celebrating Toast below button on smaller screens */}
+      {!isOpen && isCelebrating && (
+        <div className="xl:hidden absolute top-full right-0 mt-2 w-[240px] bg-[#FFFDF8] border border-emerald-300 shadow-lg rounded-xl px-3 py-2 text-xs text-gray-800 font-medium z-50">
+          {speech}
+        </div>
+      )}
+
+      {/* Expanded Mascot Card (Dropdown from top-right) */}
       {isOpen && (
-        <div className="w-[340px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-amber-200 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="absolute top-full right-0 mt-2 z-50 w-[340px] max-w-[calc(100vw-1.5rem)] bg-[#FFFFFF] text-gray-900 rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/80 px-4 py-3 border-b border-amber-200/70 flex items-center gap-3">
             <div className="shrink-0 bg-white/80 rounded-2xl p-1 border border-amber-200/80 shadow-xs">
@@ -386,55 +464,6 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
           </div>
         </div>
       )}
-
-      {/* Floating Launcher + Speech Bubble */}
-      <div className="flex items-end gap-2">
-        {!isOpen && showBubble && (
-          <div className="hidden sm:flex items-center gap-2 max-w-[240px] bg-white/95 backdrop-blur-md border border-amber-200 shadow-lg rounded-2xl rounded-br-sm px-3 py-2 text-xs text-gray-800 font-medium">
-            <span className="line-clamp-2">{speech}</span>
-            <button
-              type="button"
-              onClick={() => setShowBubble(false)}
-              className="text-gray-400 hover:text-gray-600 shrink-0"
-              aria-label="Ẩn lời chào"
-            >
-              <X size={12} />
-            </button>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => {
-            setIsOpen((prev) => !prev);
-            setShowBubble(true);
-          }}
-          className={`relative group rounded-full p-1.5 bg-gradient-to-br from-amber-100 to-orange-100 border-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all ${
-            isCelebrating
-              ? 'border-emerald-400 ring-4 ring-emerald-300/50'
-              : !isCheckedIn
-              ? 'border-amber-400 ring-4 ring-amber-300/40'
-              : 'border-amber-300'
-          }`}
-          title={`${state.petName} · Nhấn để mở chấm công`}
-        >
-          <CapybaraAvatar
-            expression={expression}
-            accessory={state.equippedAccessory}
-            size={56}
-          />
-          {!isCheckedIn && (
-            <span className="absolute -top-1 -left-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow animate-bounce">
-              Điểm danh
-            </span>
-          )}
-          {isCheckedIn && stats.urgentCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow">
-              {stats.urgentCount}
-            </span>
-          )}
-        </button>
-      </div>
     </div>
   );
 };

@@ -1382,7 +1382,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-w-0 flex-1 flex flex-col overflow-hidden bg-white/15">
-        <header className="bg-white/55 backdrop-blur-md border-b border-gray-200/50 py-2 px-4 flex items-center justify-between md:justify-end shadow-sm">
+        <header className="relative z-40 bg-white/55 backdrop-blur-md border-b border-gray-200/50 py-2 px-4 flex items-center justify-between md:justify-end shadow-sm">
           <button type="button" aria-label="Mở menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)} className="md:hidden text-gray-600 p-2 -ml-2">
             <Menu size={20} />
           </button>
@@ -1405,13 +1405,13 @@ function Layout({ children }: { children: React.ReactNode }) {
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold uppercase text-sm shadow-2xs">
               {profile.fullName ? profile.fullName.charAt(0) : 'U'}
             </div>
+            <MascotCompanion profile={profile} />
           </div>
         </header>
         <div className="flex-1 overflow-auto">
           {children}
         </div>
       </main>
-      <MascotCompanion profile={profile} />
     </div>
   );
 }

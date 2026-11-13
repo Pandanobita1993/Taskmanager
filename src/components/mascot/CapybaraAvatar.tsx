@@ -24,7 +24,7 @@ export const CapybaraAvatar: React.FC<CapybaraAvatarProps> = ({
       className={`relative inline-flex items-center justify-center select-none ${
         isCelebrating ? 'animate-capy-celebrate' : isSleeping ? '' : 'animate-capy-float'
       } ${className}`}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, colorScheme: 'light', forcedColorAdjust: 'none' }}
     >
       <svg
         viewBox="0 0 120 120"
@@ -33,6 +33,7 @@ export const CapybaraAvatar: React.FC<CapybaraAvatarProps> = ({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-label="Linh vật Capybara"
+        style={{ colorScheme: 'light', forcedColorAdjust: 'none' }}
       >
         {/* Soft shadow */}
         <ellipse cx="60" cy="110" rx="34" ry="6" fill="#5A3821" fillOpacity="0.14" />
