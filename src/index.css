@@ -47,6 +47,20 @@ body {
   100% { opacity: 0; transform: translate(8px, -14px) scale(1.1); }
 }
 
+@keyframes capy-alert {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-2px) rotate(-2deg); }
+  40% { transform: translateX(2px) rotate(2deg); }
+  60% { transform: translateX(-1.5px) rotate(-1deg); }
+  80% { transform: translateX(1.5px) rotate(1deg); }
+}
+
+@keyframes capy-steam {
+  0% { opacity: 0; transform: translateY(4px) scale(0.8); }
+  50% { opacity: 0.85; }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.1); }
+}
+
 .animate-capy-float {
   animation: capy-float 2.8s ease-in-out infinite;
 }
@@ -57,4 +71,12 @@ body {
 
 .animate-capy-zzz {
   animation: capy-zzz 2.2s ease-out infinite;
+}
+
+.animate-capy-alert {
+  animation: capy-alert 1.8s ease-in-out infinite;
+}
+
+.animate-capy-steam {
+  animation: capy-steam 2s ease-out infinite;
 }

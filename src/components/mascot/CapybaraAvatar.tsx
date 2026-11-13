@@ -161,17 +161,25 @@ export const CapybaraAvatar: React.FC<CapybaraAvatarProps> = ({
 }) => {
   const isCelebrating = expression === 'celebrating';
   const isSleeping = expression === 'sleeping';
+  const isAlert = expression === 'alert';
+  const hasCoffee = expression === 'coffee' || accessory === 'coffee';
 
   const svgSrc = useMemo(() => {
     const svg = buildCapybaraSvg(expression, accessory, withBadgeBg);
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }, [expression, accessory, withBadgeBg]);
 
+  const animClass = isCelebrating
+    ? 'animate-capy-celebrate'
+    : isSleeping
+    ? ''
+    : isAlert
+    ? 'animate-capy-alert'
+    : 'animate-capy-float';
+
   return (
     <div
-      className={`relative inline-flex items-center justify-center select-none ${
-        isCelebrating ? 'animate-capy-celebrate' : isSleeping ? '' : 'animate-capy-float'
-      } ${className}`}
+      className={`relative inline-flex items-center justify-center select-none ${animClass} ${className}`}
       style={{
         width: size,
         height: size,
@@ -196,10 +204,19 @@ export const CapybaraAvatar: React.FC<CapybaraAvatarProps> = ({
 
       {isSleeping && (
         <span
-          className="absolute -top-1 right-0 text-xs font-extrabold text-indigo-600 animate-capy-zzz pointer-events-none"
+          className="absolute top-1 right-2 text-xs font-extrabold text-indigo-600 animate-capy-zzz pointer-events-none"
           aria-hidden="true"
         >
           Zzz
+        </span>
+      )}
+
+      {hasCoffee && !isSleeping && (
+        <span
+          className="absolute bottom-[36%] right-[14%] text-xs font-bold text-amber-700 animate-capy-steam pointer-events-none"
+          aria-hidden="true"
+        >
+          ~
         </span>
       )}
     </div>

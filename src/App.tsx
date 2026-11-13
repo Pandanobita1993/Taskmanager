@@ -1405,13 +1405,13 @@ function Layout({ children }: { children: React.ReactNode }) {
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold uppercase text-sm shadow-2xs">
               {profile.fullName ? profile.fullName.charAt(0) : 'U'}
             </div>
-            <MascotCompanion profile={profile} />
           </div>
         </header>
         <div className="flex-1 overflow-auto">
           {children}
         </div>
       </main>
+      <MascotCompanion profile={profile} />
     </div>
   );
 }
