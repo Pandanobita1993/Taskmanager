@@ -43,8 +43,11 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
   const isSleeping = expression === 'sleeping' && !isPetting;
   const isAlert = expression === 'alert' && !isPetting;
   const isChill = expression === 'chill' && !isPetting;
+  const isWorking = expression === 'working' && !isPetting;
+  const isCoffee = expression === 'coffee' && !isPetting;
 
   const [blink, setBlink] = useState(false);
+  const [idleHop, setIdleHop] = useState(false);
 
   useEffect(() => {
     if (isSleeping || isCelebrating || isChill) return undefined;
@@ -67,16 +70,43 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
     };
   }, [isSleeping, isCelebrating, isChill]);
 
+  useEffect(() => {
+    if (isSleeping || isCelebrating || isAlert) return undefined;
+    let hopTimer: number;
+    let resetTimer: number;
+    const scheduleHop = () => {
+      hopTimer = window.setTimeout(() => {
+        setIdleHop(true);
+        resetTimer = window.setTimeout(() => {
+          setIdleHop(false);
+          scheduleHop();
+        }, 700);
+      }, 9000 + Math.random() * 7000);
+    };
+    scheduleHop();
+    return () => {
+      window.clearTimeout(hopTimer);
+      window.clearTimeout(resetTimer);
+      setIdleHop(false);
+    };
+  }, [isSleeping, isCelebrating, isAlert]);
+
   const eyesClosed = isSleeping || isCelebrating || isChill || blink;
   const base = import.meta.env.BASE_URL || '/';
 
   const animClass = isCelebrating
     ? 'animate-capy-celebrate'
+    : idleHop
+    ? 'animate-capy-hop'
     : isSleeping
-    ? ''
+    ? 'animate-capy-breathe'
     : isAlert
     ? 'animate-capy-alert'
-    : 'animate-capy-float';
+    : isWorking
+    ? 'animate-capy-work'
+    : isChill || isCoffee
+    ? 'animate-capy-chill'
+    : 'animate-capy-happy';
 
   const imgStyle: React.CSSProperties = {
     colorScheme: 'only light',
@@ -136,6 +166,33 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
           aria-hidden="true"
         >
           !
+        </span>
+      )}
+
+      {isWorking && (
+        <span
+          className="absolute -top-1 right-1 text-xs animate-capy-float pointer-events-none"
+          aria-hidden="true"
+        >
+          ⚡
+        </span>
+      )}
+
+      {isCoffee && (
+        <span
+          className="absolute -top-1 right-1 text-xs animate-capy-steam pointer-events-none"
+          aria-hidden="true"
+        >
+          ☕
+        </span>
+      )}
+
+      {isChill && (
+        <span
+          className="absolute -top-1 left-1 text-xs animate-capy-steam pointer-events-none"
+          aria-hidden="true"
+        >
+          🎵
         </span>
       )}
 
