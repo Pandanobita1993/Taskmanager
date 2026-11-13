@@ -76,13 +76,13 @@ const SPECIES_THEMES: Record<ZodiacSpeciesId, SpeciesTheme> = {
     bellyColor: '#FEF3C7',
   },
   snake: {
-    furLight: '#D9F99D',
-    furMid: '#BEF264',
-    furDark: '#A3E635',
-    pawColor: '#84CC16',
-    badgeBg: '#F7FEE7',
-    badgeBorder: '#84CC16',
-    noseColor: '#65A30D',
+    furLight: '#DCFCE7',
+    furMid: '#86EFAC',
+    furDark: '#4ADE80',
+    pawColor: '#22C55E',
+    badgeBg: '#F0FDF4',
+    badgeBorder: '#22C55E',
+    noseColor: '#15803D',
     bellyColor: '#FEF9C3',
   },
   horse: {
@@ -236,6 +236,13 @@ function buildSpeciesEarsAndHeadTop(species: ZodiacSpeciesId, theme: SpeciesThem
         <path d="M32 34C24 23 30 16 42 24Z" fill="${theme.furDark}" stroke="#3E2723" stroke-width="2.6" stroke-linejoin="round" />
         <path d="M88 34C96 23 90 16 78 24Z" fill="${theme.furDark}" stroke="#3E2723" stroke-width="2.6" stroke-linejoin="round" />
       </g>`;
+    case 'snake':
+      return `<g>
+        <!-- Cute little leaf sprout on top of snake head -->
+        <path d="M60 22.5Q60 15 65 13" stroke="#15803D" stroke-width="2.2" stroke-linecap="round" />
+        <path d="M60 17C54 12 49 15 52 19C54 21 58 20 60 17Z" fill="#4ADE80" stroke="#3E2723" stroke-width="1.8" stroke-linejoin="round" />
+        <path d="M61 16C66 10 72 13 69 17.5C67 20 63 19 61 16Z" fill="#22C55E" stroke="#3E2723" stroke-width="1.8" stroke-linejoin="round" />
+      </g>`;
     default:
       return '';
   }
@@ -273,7 +280,13 @@ function buildSpeciesFaceDetails(species: ZodiacSpeciesId, theme: SpeciesTheme):
       return `<path d="M55 50L60 56L65 50Z" fill="#F59E0B" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
               <ellipse cx="60" cy="59" rx="3.5" ry="3" fill="#EF4444" />`;
     case 'snake':
-      return `<path d="M60 57V62M60 62L58 64.5M60 62L62 64.5" stroke="#FB7185" stroke-width="1.6" stroke-linecap="round" />`;
+      return `<g>
+        <!-- Tiny cute nostrils & playful side-peeking pink tongue -->
+        <circle cx="56.5" cy="49.5" r="1.2" fill="#15803D" />
+        <circle cx="63.5" cy="49.5" r="1.2" fill="#15803D" />
+        <path d="M54 55.5Q57 58.5 60 55.5Q63 58.5 66 55.5" stroke="#3E2723" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M64.5 56.5Q68.5 59 69.5 63.5L67 62L65.5 64.5Q65 60 63 57Z" fill="#FB7185" stroke="#3E2723" stroke-width="1.3" stroke-linejoin="round" />
+      </g>`;
     default:
       return '';
   }
@@ -466,10 +479,32 @@ function buildZodiacSvg(
   const isSnake = species === 'snake';
   const bodySection = isSnake
     ? `<g>
-        <!-- Cute Coiled Snake Body -->
-        <ellipse cx="60" cy="93" rx="34" ry="13" fill="url(#zFurGrad)" stroke="#3E2723" stroke-width="3" />
-        <ellipse cx="60" cy="81" rx="26" ry="11" fill="url(#zFurGrad)" stroke="#3E2723" stroke-width="3" />
-        <ellipse cx="60" cy="83" rx="14" ry="5" fill="${theme.bellyColor || '#FEF9C3'}" />
+        <!-- Wiggling cute snake tail tip on the right -->
+        <path d="M84 95C96 95 104 86 101 76C99 71 94 74 95 79C96 84 91 88 83 88Z" fill="url(#zFurGrad)" stroke="#3E2723" stroke-width="2.6" stroke-linejoin="round">
+          <animateTransform attributeName="transform" type="rotate" values="-4 85 92; 5 85 92; -4 85 92" dur="2.2s" repeatCount="indefinite" />
+        </path>
+        <!-- Plump Bottom Coil -->
+        <path
+          d="M27 89C27 77 41 72 60 72C79 72 93 77 93 89C93 101 79 106 60 106C41 106 27 101 27 89Z"
+          fill="url(#zFurGrad)"
+          stroke="#3E2723"
+          stroke-width="3"
+        />
+        <!-- Soft Cream Belly Patch on Bottom Coil -->
+        <ellipse cx="60" cy="96" rx="22" ry="7.5" fill="${theme.bellyColor || '#FEF9C3'}" />
+        <path d="M44 96H76" stroke="#EAB308" stroke-width="1.3" stroke-opacity="0.45" stroke-linecap="round" />
+        <!-- Smooth Neck Rising into Head -->
+        <path
+          d="M44 82C43 72 45 62 50 58L70 58C75 62 77 72 76 82C71 86 49 86 44 82Z"
+          fill="url(#zFurGrad)"
+          stroke="#3E2723"
+          stroke-width="2.8"
+          stroke-linejoin="round"
+        />
+        <!-- Cream Belly Stripes on Neck -->
+        <path d="M51 66C55 69 65 69 69 66L68 82C64 84 56 84 52 82Z" fill="${theme.bellyColor || '#FEF9C3'}" />
+        <line x1="53" y1="71.5" x2="67" y2="71.5" stroke="#EAB308" stroke-width="1.3" stroke-opacity="0.45" stroke-linecap="round" />
+        <line x1="52.5" y1="77" x2="67.5" y2="77" stroke="#EAB308" stroke-width="1.3" stroke-opacity="0.45" stroke-linecap="round" />
       </g>`
     : `<g>
         ${buildSpeciesBack(species, theme)}
@@ -494,7 +529,7 @@ function buildZodiacSvg(
       </g>`;
 
   const standardNoseAndSmile =
-    species === 'buffalo' || species === 'pig' || species === 'rooster'
+    species === 'buffalo' || species === 'pig' || species === 'rooster' || species === 'snake'
       ? ''
       : `<ellipse cx="60" cy="51.5" rx="3" ry="2.1" fill="${theme.noseColor}" />
          <path d="M55 55.5Q57.5 58.5 60 55.5Q62.5 58.5 65 55.5" stroke="#3E2723" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
