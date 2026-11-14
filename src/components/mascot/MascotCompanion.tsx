@@ -7,6 +7,7 @@ import {
   MASCOT_MOODS,
   MASCOT_SPECIES,
   MASCOT_STATS_EVENT,
+  ON_TIME_CHECKIN_CUTOFF,
   changeMascotType,
   changeMascotVariant,
   checkInMascot,
@@ -16,6 +17,7 @@ import {
   getRandomPetSpeech,
   loadMascotState,
   renameMascot,
+  resetEggIncubation,
   resolveMascotExpression,
   rewardTaskCompleted,
   unlockOrEquipAccessory,
@@ -180,6 +182,15 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
     setState(updated);
   };
 
+  const handleResetEgg = () => {
+    const updated = resetEggIncubation(userKey, profile.fullName);
+    setState(updated);
+    setNameInput(updated.petName);
+    setShowBubble(true);
+  };
+
+  const isEggUnhatched = Boolean(state.eggIncubation && !state.eggIncubation.hatched);
+
   const handleAccessoryClick = (id: MascotAccessoryId) => {
     const res = unlockOrEquipAccessory(userKey, id, profile.fullName);
     setState(res.state);
@@ -300,6 +311,32 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
           <div className="p-4">
             {activeTab === 'attendance' ? (
               <div className="space-y-3">
+                {isEggUnhatched && state.eggIncubation && (
+                  <div className="rounded-xl bg-amber-50/90 border border-amber-200 px-3 py-2.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-amber-900 mb-1.5">
+                      <span>🥚 Ấp trứng linh vật ngẫu nhiên</span>
+                      <span>
+                        {state.eggIncubation.streakDays}/{state.eggIncubation.targetDays} ngày
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                      {Array.from({ length: state.eggIncubation.targetDays }).map((_, i) => {
+                        const filled = i < (state.eggIncubation?.streakDays ?? 0);
+                        return (
+                          <div
+                            key={i}
+                            className={`h-2 rounded-full transition-colors ${
+                              filled ? 'bg-amber-500' : 'bg-amber-200/70'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-snug">
+                      Điểm danh đúng/sớm giờ (≤ {ON_TIME_CHECKIN_CUTOFF}) liên tục {state.eggIncubation.targetDays} ngày để nở ra linh vật bí ẩn (+20 🍊)!
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                     Tâm trạng hôm nay
@@ -383,58 +420,79 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
             ) : (
               <div className="space-y-3">
                 {/* Chọn linh vật riêng */}
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                      Chọn linh vật ({MASCOT_SPECIES.length} bé)
+                {isEggUnhatched && state.eggIncubation ? (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-center">
+                    <p className="text-xs font-bold text-amber-900 mb-1">
+                      🥚 Trứng bí ẩn đang ấp ({state.eggIncubation.streakDays}/{state.eggIncubation.targetDays} ngày)
                     </p>
-                    <div className="inline-flex rounded-lg bg-gray-100 p-0.5 border border-gray-200">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectVariant('default')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
-                          (state.mascotVariant || 'default') === 'default'
-                            ? 'bg-white text-gray-800 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        ✨ Mặc định
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectVariant('feminine')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
-                          state.mascotVariant === 'feminine'
-                            ? 'bg-pink-500 text-white shadow-sm'
-                            : 'text-gray-500 hover:text-pink-600'
-                        }`}
-                      >
-                        🌸 Nữ tính
-                      </button>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Mỗi tài khoản được tặng 1 quả trứng ngẫu nhiên trong 18 linh vật. Điểm danh đúng/sớm giờ (≤ {ON_TIME_CHECKIN_CUTOFF}) 5 ngày liên tiếp để mở khóa tủ linh vật nha!
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                        Chọn linh vật ({MASCOT_SPECIES.length} bé)
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={handleResetEgg}
+                          title="Nhận quả trứng ngẫu nhiên mới để ấp lại 5 ngày"
+                          className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition"
+                        >
+                          🥚 Ấp trứng
+                        </button>
+                        <div className="inline-flex rounded-lg bg-gray-100 p-0.5 border border-gray-200">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectVariant('default')}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                              (state.mascotVariant || 'default') === 'default'
+                                ? 'bg-white text-gray-800 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            ✨ Mặc định
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectVariant('feminine')}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                              state.mascotVariant === 'feminine'
+                                ? 'bg-pink-500 text-white shadow-sm'
+                                : 'text-gray-500 hover:text-pink-600'
+                            }`}
+                          >
+                            🌸 Nữ tính
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto pr-0.5">
+                      {MASCOT_SPECIES.map((sp) => {
+                        const active = state.mascotType === sp.id;
+                        return (
+                          <button
+                            key={sp.id}
+                            type="button"
+                            onClick={() => handleSelectSpecies(sp.id)}
+                            title={sp.tagline}
+                            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-left transition ${
+                              active
+                                ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-400 text-emerald-950'
+                                : 'bg-white border-gray-200 text-gray-700 hover:border-amber-300'
+                            }`}
+                          >
+                            <span className="text-base leading-none">{sp.emoji}</span>
+                            <span className="text-[11px] font-bold truncate">{sp.name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto pr-0.5">
-                    {MASCOT_SPECIES.map((sp) => {
-                      const active = state.mascotType === sp.id;
-                      return (
-                        <button
-                          key={sp.id}
-                          type="button"
-                          onClick={() => handleSelectSpecies(sp.id)}
-                          title={sp.tagline}
-                          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-left transition ${
-                            active
-                              ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-400 text-emerald-950'
-                              : 'bg-white border-gray-200 text-gray-700 hover:border-amber-300'
-                          }`}
-                        >
-                          <span className="text-base leading-none">{sp.emoji}</span>
-                          <span className="text-[11px] font-bold truncate">{sp.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                )}
 
                 {shopNotice && (
                   <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium">
@@ -537,6 +595,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               expression={expression}
               accessory={state.equippedAccessory}
               variant={state.mascotVariant || 'default'}
+              eggIncubation={state.eggIncubation}
               size={118}
               withBadgeBg={false}
               isPetting={isPetting}
@@ -548,6 +607,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               expression={expression}
               accessory={state.equippedAccessory}
               variant={state.mascotVariant || 'default'}
+              eggIncubation={state.eggIncubation}
               size={72}
               withBadgeBg={false}
               isPetting={isPetting}

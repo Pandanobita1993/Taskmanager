@@ -79,6 +79,14 @@ export interface MascotAttendanceRecord {
   mood: MascotMood;
 }
 
+export interface MascotEggIncubation {
+  hatched: boolean;
+  streakDays: number;
+  targetDays: number;
+  lastOnTimeDate: string | null;
+  hatchedAt?: string;
+}
+
 export interface MascotState {
   mascotType: MascotType;
   mascotVariant?: MascotVariant;
@@ -90,6 +98,7 @@ export interface MascotState {
   unlockedAccessories: MascotAccessoryId[];
   equippedAccessory: MascotAccessoryId;
   completedRewardsToday: number;
+  eggIncubation?: MascotEggIncubation;
 }
 
 export interface MascotTaskStats {
@@ -141,11 +150,27 @@ export function getMascotUserKey(profile: Pick<UserProfile, 'id' | 'fullName'> |
   return raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
 }
 
-export function createDefaultMascotState(staffName?: string): MascotState {
+export const EGG_INCUBATION_DAYS = 5;
+export const ON_TIME_CHECKIN_CUTOFF = '08:05';
+
+export function pickRandomMascotForUser(userKey: string): MascotType {
+  let hash = 2166136261;
+  for (let i = 0; i < userKey.length; i++) {
+    hash ^= userKey.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const idx = Math.abs(hash) % MASCOT_SPECIES.length;
+  return MASCOT_SPECIES[idx].id;
+}
+
+export function createDefaultMascotState(staffName?: string, userKey?: string): MascotState {
   const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
+  const mascotType = userKey ? pickRandomMascotForUser(userKey) : 'capybara';
+  const species = MASCOT_SPECIES.find((s) => s.id === mascotType) || MASCOT_SPECIES[0];
   return {
-    mascotType: 'capybara',
-    petName: shortName ? `Bé Quýt (${shortName})` : 'Bé Quýt',
+    mascotType,
+    mascotVariant: 'default',
+    petName: shortName ? `${species.defaultPetName} (${shortName})` : species.defaultPetName,
     tangerines: 10,
     streak: 0,
     lastCheckInDate: null,
@@ -153,7 +178,27 @@ export function createDefaultMascotState(staffName?: string): MascotState {
     unlockedAccessories: ['none'],
     equippedAccessory: 'none',
     completedRewardsToday: 0,
+    eggIncubation: {
+      hatched: false,
+      streakDays: 0,
+      targetDays: EGG_INCUBATION_DAYS,
+      lastOnTimeDate: null,
+    },
   };
+}
+
+function isConsecutiveWorkday(prevDate: string | null, todayDate: string): boolean {
+  if (!prevDate) return false;
+  const now = new Date();
+  const yesterday = localDateKey(subDays(now, 1));
+  if (prevDate === yesterday || prevDate === todayDate) return true;
+  // Nếu hôm nay là Thứ 2 (getDay() === 1), chấp nhận Thứ 6 hoặc Thứ 7 tuần trước là liên tiếp
+  if (now.getDay() === 1) {
+    const friday = localDateKey(subDays(now, 3));
+    const saturday = localDateKey(subDays(now, 2));
+    return prevDate === friday || prevDate === saturday;
+  }
+  return false;
 }
 
 function normalizeStateForToday(state: MascotState): MascotState {
@@ -168,6 +213,17 @@ function normalizeStateForToday(state: MascotState): MascotState {
 
   if (next.lastCheckInDate && next.lastCheckInDate !== today && next.lastCheckInDate !== yesterday) {
     next.streak = 0;
+  }
+
+  if (next.eggIncubation && !next.eggIncubation.hatched) {
+    const last = next.eggIncubation.lastOnTimeDate;
+    if (last && !isConsecutiveWorkday(last, today)) {
+      next.eggIncubation = {
+        ...next.eggIncubation,
+        streakDays: 0,
+        lastOnTimeDate: null,
+      };
+    }
   }
 
   const filteredUnlocked = Array.isArray(next.unlockedAccessories)
@@ -187,15 +243,24 @@ function normalizeStateForToday(state: MascotState): MascotState {
 export function loadMascotState(userKey: string, staffName?: string): MascotState {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${userKey}`);
-    if (!raw) return createDefaultMascotState(staffName);
+    if (!raw) return createDefaultMascotState(staffName, userKey);
     const parsed = JSON.parse(raw) as Partial<MascotState>;
+    const legacyEgg: MascotEggIncubation | undefined = parsed.eggIncubation
+      ? parsed.eggIncubation
+      : {
+          hatched: true,
+          streakDays: EGG_INCUBATION_DAYS,
+          targetDays: EGG_INCUBATION_DAYS,
+          lastOnTimeDate: parsed.lastCheckInDate || null,
+        };
     const merged: MascotState = {
-      ...createDefaultMascotState(staffName),
+      ...createDefaultMascotState(staffName, userKey),
       ...parsed,
+      eggIncubation: legacyEgg,
     };
     return normalizeStateForToday(merged);
   } catch {
-    return createDefaultMascotState(staffName);
+    return createDefaultMascotState(staffName, userKey);
   }
 }
 
@@ -231,11 +296,38 @@ export function checkInMascot(userKey: string, mood: MascotMood, staffName?: str
   const nextStreak = current.lastCheckInDate === yesterday ? current.streak + 1 : 1;
   const streakBonus = nextStreak > 0 && nextStreak % 5 === 0 ? 10 : 0;
 
+  let nextEgg = current.eggIncubation;
+  let hatchBonus = 0;
+  if (nextEgg && !nextEgg.hatched) {
+    const isOnTime = nowTime <= ON_TIME_CHECKIN_CUTOFF;
+    if (isOnTime) {
+      const nextEggStreak = isConsecutiveWorkday(nextEgg.lastOnTimeDate, today)
+        ? nextEgg.streakDays + 1
+        : 1;
+      const justHatched = nextEggStreak >= nextEgg.targetDays;
+      if (justHatched) hatchBonus = 20;
+      nextEgg = {
+        ...nextEgg,
+        streakDays: Math.min(nextEggStreak, nextEgg.targetDays),
+        lastOnTimeDate: today,
+        hatched: justHatched,
+        hatchedAt: justHatched ? today : undefined,
+      };
+    } else {
+      nextEgg = {
+        ...nextEgg,
+        streakDays: 0,
+        lastOnTimeDate: null,
+      };
+    }
+  }
+
   const next: MascotState = {
     ...current,
     streak: nextStreak,
     lastCheckInDate: today,
-    tangerines: current.tangerines + 10 + streakBonus,
+    tangerines: current.tangerines + 10 + streakBonus + hatchBonus,
+    eggIncubation: nextEgg,
     todayRecord: {
       date: today,
       checkInTime: nowTime,
@@ -244,6 +336,23 @@ export function checkInMascot(userKey: string, mood: MascotMood, staffName?: str
   };
 
   return saveMascotState(userKey, next);
+}
+
+export function resetEggIncubation(userKey: string, staffName?: string): MascotState {
+  const current = loadMascotState(userKey, staffName);
+  const randomSpecies = MASCOT_SPECIES[Math.floor(Math.random() * MASCOT_SPECIES.length)];
+  const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
+  return saveMascotState(userKey, {
+    ...current,
+    mascotType: randomSpecies.id,
+    petName: shortName ? `${randomSpecies.defaultPetName} (${shortName})` : randomSpecies.defaultPetName,
+    eggIncubation: {
+      hatched: false,
+      streakDays: 0,
+      targetDays: EGG_INCUBATION_DAYS,
+      lastOnTimeDate: null,
+    },
+  });
 }
 
 export function checkOutMascot(userKey: string, staffName?: string): MascotState {
@@ -394,6 +503,18 @@ export function getMascotSpeech(
 ): string {
   const shortName = staffName?.trim().split(/\s+/).slice(-1)[0] || 'bồ';
   const isGoat = state.mascotType === 'goat';
+
+  if (state.eggIncubation && !state.eggIncubation.hatched) {
+    const { streakDays, targetDays } = state.eggIncubation;
+    if (!state.todayRecord) {
+      return `🥚 Trứng linh vật đang chờ ấp nè ${shortName}! Điểm danh đúng/sớm giờ (≤ ${ON_TIME_CHECKIN_CUTOFF}) để ấp ngày ${Math.min(streakDays + 1, targetDays)}/${targetDays} nha ✨`;
+    }
+    if (state.todayRecord.checkInTime > ON_TIME_CHECKIN_CUTOFF) {
+      return `🥚 Hôm nay điểm danh lúc ${state.todayRecord.checkInTime} (sau ${ON_TIME_CHECKIN_CUTOFF}) nên trứng bị nguội mất rồi, mai đi sớm ấp lại từ đầu nha ${shortName}!`;
+    }
+    const remaining = Math.max(0, targetDays - streakDays);
+    return `🥚 Ấm quá đi~ Trứng đã ấp được ${streakDays}/${targetDays} ngày đúng giờ rồi! Còn ${remaining} ngày nữa là nở ra linh vật ngẫu nhiên nha ✨`;
+  }
 
   if (isCelebrating) {
     if (celebrateTaskTitle) {
