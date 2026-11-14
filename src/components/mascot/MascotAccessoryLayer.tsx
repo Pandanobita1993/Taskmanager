@@ -46,22 +46,22 @@ const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
   },
   tiger: {
     headTop: { x: 47.3, y: 11.0, w: 42 },
-    eyes: { x: 47.3, y: 33.5, w: 45 },
+    eyes: { x: 47.0, y: 33.5, w: 48 },
     side: { x: 84, y: 74, w: 30 },
   },
   cat: {
     headTop: { x: 47.8, y: 14.5, w: 40 },
-    eyes: { x: 47.8, y: 34.5, w: 44 },
-    side: { x: 84, y: 74, w: 30 },
+    eyes: { x: 47.8, y: 34.5, w: 45 },
+    side: { x: 80, y: 74, w: 30 },
   },
   dragon: {
     headTop: { x: 43.0, y: 12.5, w: 42 },
-    eyes: { x: 42.8, y: 39.0, w: 41 },
+    eyes: { x: 42.8, y: 39.0, w: 42 },
     side: { x: 84, y: 74, w: 30 },
   },
   snake: {
     headTop: { x: 46.5, y: 17.0, w: 42 },
-    eyes: { x: 46.5, y: 37.5, w: 47 },
+    eyes: { x: 46.5, y: 37.5, w: 50 },
     side: { x: 84, y: 74, w: 32 },
   },
   horse: {
@@ -76,13 +76,13 @@ const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
   },
   monkey: {
     headTop: { x: 45.5, y: 11.0, w: 42 },
-    eyes: { x: 45.5, y: 38.5, w: 42 },
-    side: { x: 84, y: 74, w: 30 },
+    eyes: { x: 45.5, y: 38.5, w: 43 },
+    side: { x: 78, y: 74, w: 30 },
   },
   rooster: {
     headTop: { x: 44.0, y: 11.0, w: 38 },
-    eyes: { x: 43.5, y: 37.5, w: 40 },
-    side: { x: 83, y: 74, w: 30 },
+    eyes: { x: 43.0, y: 37.5, w: 43 },
+    side: { x: 79, y: 74, w: 30 },
   },
   dog: {
     headTop: { x: 48.8, y: 10.0, w: 42 },
@@ -101,22 +101,22 @@ const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
   },
   fox: {
     headTop: { x: 41.0, y: 14.0, w: 40 },
-    eyes: { x: 41.0, y: 42.0, w: 42 },
-    side: { x: 85, y: 74, w: 30 },
+    eyes: { x: 40.5, y: 42.5, w: 44 },
+    side: { x: 78, y: 74, w: 30 },
   },
   rabbit: {
     headTop: { x: 43.5, y: 19.0, w: 38 },
-    eyes: { x: 43.3, y: 40.5, w: 41 },
-    side: { x: 83, y: 74, w: 30 },
+    eyes: { x: 43.3, y: 40.5, w: 42 },
+    side: { x: 78, y: 74, w: 30 },
   },
   penguin: {
     headTop: { x: 45.5, y: 11.0, w: 42 },
-    eyes: { x: 45.3, y: 34.5, w: 41 },
-    side: { x: 83, y: 74, w: 30 },
+    eyes: { x: 45.3, y: 34.5, w: 42 },
+    side: { x: 80, y: 74, w: 30 },
   },
   frog: {
     headTop: { x: 49.0, y: 9.0, w: 42 },
-    eyes: { x: 48.8, y: 27.5, w: 56 },
+    eyes: { x: 49.0, y: 27.5, w: 59 },
     side: { x: 84, y: 74, w: 30 },
   },
 };
