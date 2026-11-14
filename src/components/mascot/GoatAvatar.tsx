@@ -21,7 +21,7 @@ function buildGoatSvg(
   const isAlert = expression === 'alert' && !isPetting;
   const isChill = expression === 'chill' && !isPetting;
   const isWorking = expression === 'working' && !isPetting;
-  const hasBobaCup = accessory === 'coffee' || expression === 'coffee';
+  const hasBobaCup = accessory === 'boba_tea' || expression === 'coffee';
 
   const defs = `<defs>
     <radialGradient id="goatFurGrad" cx="42%" cy="30%" r="70%">
@@ -108,17 +108,10 @@ function buildGoatSvg(
         <circle cx="81.2" cy="48.5" r="0.9" fill="#FFFFFF" fill-opacity="0.85" />
       </g>`;
 
-  const headband =
-    accessory === 'headband'
-      ? `<g>
-          <path d="M31 35C45 30 75 30 89 35L90 40.5C75 35.5 45 35.5 30 40.5Z" fill="#EF4444" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
-          <path d="M89 37L101 32L98 40Z" fill="#DC2626" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
-          <path d="M89 39L100 45L93 48Z" fill="#B91C1C" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
-        </g>`
-      : '';
+  const headband = '';
 
   const glasses =
-    accessory === 'glasses'
+    accessory === 'sunglasses' || accessory === 'nerd_glasses'
       ? `<g>
           <circle cx="41" cy="46.5" r="8.8" fill="#FFFFFF" fill-opacity="0.22" stroke="#374151" stroke-width="2.2" />
           <path d="M36 43L40 47" stroke="#FFFFFF" stroke-width="1.4" stroke-opacity="0.75" stroke-linecap="round" />
@@ -162,7 +155,7 @@ function buildGoatSvg(
       </g>`;
 
   const topAccessory =
-    accessory === 'hardhat'
+    accessory === 'bucket_hat'
       ? `<g>
           <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1.2; 0,0" dur="2.6s" repeatCount="indefinite" />
           <path d="M36 27C38 13 48 9 60 9C72 9 82 13 84 27Z" fill="#FACC15" stroke="#3E2723" stroke-width="2.4" stroke-linejoin="round" />
@@ -289,7 +282,7 @@ export const GoatAvatar: React.FC<GoatAvatarProps> = ({
   const isCelebrating = expression === 'celebrating' || isPetting;
   const isSleeping = expression === 'sleeping' && !isPetting;
   const isAlert = expression === 'alert' && !isPetting;
-  const hasCoffee = (expression === 'coffee' || accessory === 'coffee') && !isSleeping;
+  const hasCoffee = (expression === 'coffee' || accessory === 'boba_tea') && !isSleeping;
 
   const svgSrc = useMemo(() => {
     const svg = buildGoatSvg(expression, accessory, withBadgeBg, isPetting);

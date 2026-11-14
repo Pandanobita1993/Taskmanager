@@ -21,7 +21,7 @@ function buildCapybaraSvg(
   const isAlert = expression === 'alert' && !isPetting;
   const isChill = expression === 'chill' && !isPetting;
   const isWorking = expression === 'working' && !isPetting;
-  const hasBobaCup = accessory === 'coffee' || expression === 'coffee';
+  const hasBobaCup = accessory === 'boba_tea' || expression === 'coffee';
 
   const defs = `<defs>
     <radialGradient id="capyFurGrad" cx="42%" cy="32%" r="68%">
@@ -107,17 +107,10 @@ function buildCapybaraSvg(
         <circle cx="80.8" cy="48.2" r="1.2" fill="#FFFFFF" />
       </g>`;
 
-  const headband =
-    accessory === 'headband'
-      ? `<g>
-          <path d="M29 38C45 33 75 33 91 38L92 43.5C75 38.5 45 38.5 28 43.5Z" fill="#EF4444" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
-          <path d="M91 40L103 35L100 43Z" fill="#DC2626" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
-          <path d="M91 42L102 48L95 51Z" fill="#B91C1C" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
-        </g>`
-      : '';
+  const headband = '';
 
   const glasses =
-    accessory === 'glasses'
+    accessory === 'sunglasses' || accessory === 'nerd_glasses'
       ? `<g>
           <circle cx="38" cy="49.5" r="8.5" fill="#FFFFFF" fill-opacity="0.22" stroke="#374151" stroke-width="2.2" />
           <path d="M33 46L37 50" stroke="#FFFFFF" stroke-width="1.4" stroke-opacity="0.75" stroke-linecap="round" />
@@ -161,7 +154,7 @@ function buildCapybaraSvg(
 
   // Top-of-head accessories
   const topAccessory =
-    accessory === 'hardhat'
+    accessory === 'bucket_hat'
       ? `<g>
           <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1.2; 0,0" dur="2.6s" repeatCount="indefinite" />
           <path d="M36 29C38 14 48 10 60 10C72 10 82 14 84 29Z" fill="#FACC15" stroke="#3E2723" stroke-width="2.4" stroke-linejoin="round" />
@@ -287,7 +280,7 @@ export const CapybaraAvatar: React.FC<CapybaraAvatarProps> = ({
   const isCelebrating = expression === 'celebrating' || isPetting;
   const isSleeping = expression === 'sleeping' && !isPetting;
   const isAlert = expression === 'alert' && !isPetting;
-  const hasCoffee = (expression === 'coffee' || accessory === 'coffee') && !isSleeping;
+  const hasCoffee = (expression === 'coffee' || accessory === 'boba_tea') && !isSleeping;
 
   const svgSrc = useMemo(() => {
     const svg = buildCapybaraSvg(expression, accessory, withBadgeBg, isPetting);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { MascotAccessoryId, MascotExpression } from '../../lib/mascot';
+import { MascotAccessoryLayer } from './MascotAccessoryLayer';
 
 /** Linh vật đã có bộ ảnh sprite (public/mascot/<id>_open.png + <id>_closed.png). */
 export const SPRITE_MASCOTS: ReadonlySet<string> = new Set([
@@ -38,6 +39,7 @@ interface SpriteAvatarProps {
 export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
   mascotType,
   expression = 'happy',
+  accessory = 'none',
   size = 76,
   className = '',
   withBadgeBg = false,
@@ -155,6 +157,8 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
         className="absolute inset-0 w-full h-full object-contain block pointer-events-none"
         style={{ ...imgStyle, opacity: eyesClosed ? 1 : 0 }}
       />
+
+      <MascotAccessoryLayer mascotType={mascotType} accessory={accessory} />
 
       {isSleeping && (
         <span

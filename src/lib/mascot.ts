@@ -55,11 +55,11 @@ export type MascotMood = 'fire' | 'coffee' | 'zen' | 'sleepy';
 
 export type MascotAccessoryId =
   | 'none'
-  | 'glasses'
-  | 'coffee'
-  | 'headband'
-  | 'hardhat'
-  | 'crown';
+  | 'bucket_hat'
+  | 'sunglasses'
+  | 'crown'
+  | 'nerd_glasses'
+  | 'boba_tea';
 
 export type MascotExpression =
   | 'chill'
@@ -118,13 +118,15 @@ export const MASCOT_MOODS: MascotMoodOption[] = [
 ];
 
 export const MASCOT_ACCESSORIES: MascotAccessoryOption[] = [
-  { id: 'none', name: 'Quả quýt nhỏ', emoji: '🍊', cost: 0, description: 'Biểu tượng bất hủ của Capybara' },
-  { id: 'glasses', name: 'Kính kế toán', emoji: '👓', cost: 20, description: 'Soi số liệu chuẩn từng đồng' },
-  { id: 'headband', name: 'Băng đô quyết thắng', emoji: '🎀', cost: 30, description: 'Chạy deadline không biết mệt' },
-  { id: 'coffee', name: 'Ly cà phê sữa', emoji: '🧋', cost: 35, description: 'Nạp năng lượng buổi sáng' },
-  { id: 'hardhat', name: 'Nón bảo hộ', emoji: '⛑️', cost: 50, description: 'Chống va đập mùa quyết toán' },
-  { id: 'crown', name: 'Vương miện gánh team', emoji: '👑', cost: 80, description: 'Đẳng cấp chiến thần sổ sách' },
+  { id: 'none', name: 'Không đeo', emoji: '✨', cost: 0, description: 'Giữ nguyên nét dễ thương nguyên bản' },
+  { id: 'bucket_hat', name: 'Nón tai bèo TNXP', emoji: '🪖', cost: 25, description: 'Xanh thanh niên xung phong gắn quốc kỳ đỏ sao vàng' },
+  { id: 'sunglasses', name: 'Kính râm ngầu lòi', emoji: '🕶️', cost: 30, description: 'Cặp kính râm đen chuẩn dân chơi gánh deadline' },
+  { id: 'crown', name: 'Vương miện công chúa', emoji: '👑', cost: 60, description: 'Lấp lánh kiêu sa đẳng cấp hoàng gia' },
+  { id: 'nerd_glasses', name: 'Kính cận lòi trĩ', emoji: '🤓', cost: 35, description: 'Kính tròn xoáy ốc soi từng dấu phẩy số liệu' },
+  { id: 'boba_tea', name: 'Ly trà sữa', emoji: '🧋', cost: 40, description: 'Trà sữa trân châu đường đen tiếp sức cả ngày' },
 ];
+
+const VALID_ACCESSORY_IDS = new Set<string>(MASCOT_ACCESSORIES.map((a) => a.id));
 
 export const MASCOT_CELEBRATE_EVENT = 'taskflow-mascot-celebrate';
 export const MASCOT_STATS_EVENT = 'taskflow-mascot-stats';
@@ -165,8 +167,15 @@ function normalizeStateForToday(state: MascotState): MascotState {
     next.streak = 0;
   }
 
-  if (!Array.isArray(next.unlockedAccessories) || !next.unlockedAccessories.includes('none')) {
-    next.unlockedAccessories = ['none', ...(next.unlockedAccessories || [])];
+  const filteredUnlocked = Array.isArray(next.unlockedAccessories)
+    ? next.unlockedAccessories.filter((id) => VALID_ACCESSORY_IDS.has(id))
+    : [];
+  next.unlockedAccessories = filteredUnlocked.includes('none')
+    ? filteredUnlocked
+    : ['none', ...filteredUnlocked];
+
+  if (!VALID_ACCESSORY_IDS.has(next.equippedAccessory)) {
+    next.equippedAccessory = 'none';
   }
 
   return next;

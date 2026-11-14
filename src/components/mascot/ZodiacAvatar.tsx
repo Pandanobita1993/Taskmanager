@@ -395,7 +395,7 @@ function buildZodiacSvg(
   const isAlert = expression === 'alert' && !isPetting;
   const isChill = expression === 'chill' && !isPetting;
   const isWorking = expression === 'working' && !isPetting;
-  const hasBobaCup = accessory === 'coffee' || expression === 'coffee';
+  const hasBobaCup = accessory === 'boba_tea' || expression === 'coffee';
 
   const defs = `<defs>
     <radialGradient id="zFurGrad" cx="42%" cy="30%" r="70%">
@@ -474,17 +474,10 @@ function buildZodiacSvg(
         <circle cx="77.3" cy="43.7" r="1.7" fill="#FFFFFF" />
       </g>`;
 
-  const headband =
-    accessory === 'headband'
-      ? `<g>
-          <path d="M30 34C45 29 75 29 90 34L91 39.5C75 34.5 45 34.5 29 39.5Z" fill="#EF4444" stroke="#3E2723" stroke-width="2.2" stroke-linejoin="round" />
-          <path d="M90 36L102 31L99 39Z" fill="#DC2626" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
-          <path d="M90 38L101 44L94 47Z" fill="#B91C1C" stroke="#3E2723" stroke-width="2" stroke-linejoin="round" />
-        </g>`
-      : '';
+  const headband = '';
 
   const glasses =
-    accessory === 'glasses'
+    accessory === 'sunglasses' || accessory === 'nerd_glasses'
       ? `<g>
           <circle cx="41" cy="45.5" r="8.6" fill="#FFFFFF" fill-opacity="0.22" stroke="#374151" stroke-width="2.2" />
           <path d="M36 42L40 46" stroke="#FFFFFF" stroke-width="1.4" stroke-opacity="0.75" stroke-linecap="round" />
@@ -495,7 +488,7 @@ function buildZodiacSvg(
       : '';
 
   const topAccessory =
-    accessory === 'hardhat'
+    accessory === 'bucket_hat'
       ? `<g>
           <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1.2; 0,0" dur="2.6s" repeatCount="indefinite" />
           <path d="M36 27C38 13 48 9 60 9C72 9 82 13 84 27Z" fill="#FACC15" stroke="#3E2723" stroke-width="2.4" stroke-linejoin="round" />
@@ -688,7 +681,7 @@ export const ZodiacAvatar: React.FC<ZodiacAvatarProps> = ({
   const isCelebrating = expression === 'celebrating' || isPetting;
   const isSleeping = expression === 'sleeping' && !isPetting;
   const isAlert = expression === 'alert' && !isPetting;
-  const hasCoffee = (expression === 'coffee' || accessory === 'coffee') && !isSleeping;
+  const hasCoffee = (expression === 'coffee' || accessory === 'boba_tea') && !isSleeping;
 
   const svgSrc = useMemo(() => {
     const svg = buildZodiacSvg(species, expression, accessory, withBadgeBg, isPetting);
