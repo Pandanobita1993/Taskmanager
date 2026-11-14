@@ -55,13 +55,13 @@ const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
     side: { x: 84, y: 74, w: 30 },
   },
   dragon: {
-    headTop: { x: 46.0, y: 12, w: 44 },
-    eyes: { x: 45.5, y: 36.0, w: 44 },
+    headTop: { x: 43.8, y: 12, w: 44 },
+    eyes: { x: 43.5, y: 39.0, w: 42 },
     side: { x: 84, y: 74, w: 30 },
   },
   snake: {
     headTop: { x: 47.5, y: 17, w: 42 },
-    eyes: { x: 47.2, y: 36.5, w: 46 },
+    eyes: { x: 47.2, y: 37.0, w: 46 },
     side: { x: 84, y: 74, w: 32 },
   },
   horse: {
@@ -81,7 +81,7 @@ const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
   },
   rooster: {
     headTop: { x: 44.5, y: 11, w: 40 },
-    eyes: { x: 44.0, y: 36.5, w: 40 },
+    eyes: { x: 44.0, y: 37.2, w: 41 },
     side: { x: 83, y: 74, w: 30 },
   },
   dog: {
@@ -101,7 +101,7 @@ const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
   },
   fox: {
     headTop: { x: 41.5, y: 14, w: 42 },
-    eyes: { x: 41.5, y: 41.5, w: 42 },
+    eyes: { x: 41.5, y: 42.0, w: 42 },
     side: { x: 85, y: 74, w: 30 },
   },
   rabbit: {
