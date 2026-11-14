@@ -30,92 +30,92 @@ const DEFAULT_ANCHORS: MascotAnchors = {
 
 const MASCOT_ANCHORS: Record<string, MascotAnchors> = {
   capybara: {
-    headTop: { x: 43.9, y: 8.5, w: 42 },
+    headTop: { x: 43.9, y: 7.5, w: 46 },
     eyes: { x: 43.9, y: 36.5, w: 62 },
     side: { x: 84, y: 74, w: 30 },
   },
   rat: {
-    headTop: { x: 49.3, y: 14.0, w: 40 },
+    headTop: { x: 49.3, y: 14.0, w: 44 },
     eyes: { x: 49.3, y: 35.4, w: 55 },
     side: { x: 83, y: 74, w: 30 },
   },
   buffalo: {
-    headTop: { x: 47.5, y: 12.0, w: 40 },
+    headTop: { x: 47.5, y: 11.5, w: 42 },
     eyes: { x: 47.5, y: 35.7, w: 53 },
     side: { x: 84, y: 74, w: 30 },
   },
   tiger: {
-    headTop: { x: 43.6, y: 11.0, w: 42 },
+    headTop: { x: 43.6, y: 6.5, w: 46 },
     eyes: { x: 43.6, y: 32.6, w: 54 },
     side: { x: 84, y: 74, w: 30 },
   },
   cat: {
-    headTop: { x: 47.4, y: 14.5, w: 40 },
+    headTop: { x: 47.4, y: 10.5, w: 44 },
     eyes: { x: 47.4, y: 35.6, w: 59 },
     side: { x: 80, y: 74, w: 30 },
   },
   dragon: {
-    headTop: { x: 38.3, y: 12.5, w: 42 },
+    headTop: { x: 38.3, y: 8.5, w: 44 },
     eyes: { x: 38.3, y: 39.7, w: 52 },
     side: { x: 84, y: 74, w: 30 },
   },
   snake: {
-    headTop: { x: 46.8, y: 17.0, w: 42 },
+    headTop: { x: 46.8, y: 14.5, w: 44 },
     eyes: { x: 46.8, y: 37.7, w: 62 },
     side: { x: 84, y: 74, w: 32 },
   },
   horse: {
-    headTop: { x: 46.1, y: 11.0, w: 40 },
+    headTop: { x: 46.1, y: 9.0, w: 42 },
     eyes: { x: 46.1, y: 34.8, w: 54 },
     side: { x: 84, y: 74, w: 30 },
   },
   goat: {
-    headTop: { x: 47.6, y: 11.5, w: 40 },
+    headTop: { x: 47.6, y: 9.5, w: 40 },
     eyes: { x: 47.6, y: 34.5, w: 54 },
     side: { x: 84, y: 74, w: 30 },
   },
   monkey: {
-    headTop: { x: 45.9, y: 11.0, w: 42 },
+    headTop: { x: 45.9, y: 7.5, w: 46 },
     eyes: { x: 45.9, y: 39.2, w: 54 },
     side: { x: 78, y: 74, w: 30 },
   },
   rooster: {
-    headTop: { x: 42.1, y: 11.0, w: 38 },
+    headTop: { x: 42.1, y: 9.5, w: 42 },
     eyes: { x: 42.1, y: 36.1, w: 54 },
     side: { x: 79, y: 74, w: 30 },
   },
   dog: {
-    headTop: { x: 46.6, y: 10.0, w: 42 },
+    headTop: { x: 46.6, y: 6.5, w: 46 },
     eyes: { x: 46.6, y: 30.3, w: 55 },
     side: { x: 84, y: 74, w: 30 },
   },
   pig: {
-    headTop: { x: 41.9, y: 12.0, w: 42 },
+    headTop: { x: 41.9, y: 7.5, w: 46 },
     eyes: { x: 41.9, y: 32.8, w: 68 },
     side: { x: 84, y: 74, w: 30 },
   },
   panda: {
-    headTop: { x: 45.2, y: 11.0, w: 42 },
+    headTop: { x: 45.2, y: 8.0, w: 46 },
     eyes: { x: 45.2, y: 33.2, w: 64 },
     side: { x: 84, y: 74, w: 30 },
   },
   fox: {
-    headTop: { x: 36.1, y: 14.0, w: 40 },
+    headTop: { x: 36.1, y: 12.0, w: 42 },
     eyes: { x: 36.1, y: 40.0, w: 53 },
     side: { x: 78, y: 74, w: 30 },
   },
   rabbit: {
-    headTop: { x: 43.6, y: 19.0, w: 38 },
+    headTop: { x: 43.6, y: 17.5, w: 38 },
     eyes: { x: 43.6, y: 42.4, w: 51 },
     side: { x: 78, y: 74, w: 30 },
   },
   penguin: {
-    headTop: { x: 44.0, y: 11.0, w: 42 },
+    headTop: { x: 44.0, y: 7.0, w: 46 },
     eyes: { x: 44.0, y: 33.9, w: 60 },
     side: { x: 80, y: 74, w: 30 },
   },
   frog: {
-    headTop: { x: 49.2, y: 9.0, w: 42 },
+    headTop: { x: 49.2, y: 7.0, w: 46 },
     eyes: { x: 49.2, y: 26.1, w: 70 },
     side: { x: 84, y: 74, w: 30 },
   },
@@ -266,21 +266,31 @@ function renderAccessorySvg(accessory: MascotAccessoryId): React.ReactNode {
       return (
         <svg viewBox="0 0 140 58" className="w-full h-auto drop-shadow-sm overflow-visible">
           {/* Left round thick lens */}
-          <circle cx="36" cy="29" r="23" fill="#E0F2FE" fillOpacity="0.68" stroke="#3E2723" strokeWidth="4.4" />
+          <circle cx="36" cy="29" r="23" fill="#E0F2FE" fillOpacity="0.62" stroke="#3E2723" strokeWidth="4.4" />
           {/* Right round thick lens */}
-          <circle cx="104" cy="29" r="23" fill="#E0F2FE" fillOpacity="0.68" stroke="#3E2723" strokeWidth="4.4" />
+          <circle cx="104" cy="29" r="23" fill="#E0F2FE" fillOpacity="0.62" stroke="#3E2723" strokeWidth="4.4" />
           {/* Bridge */}
           <path d="M59 27 Q70 21 81 27" fill="none" stroke="#3E2723" strokeWidth="4.2" strokeLinecap="round" />
-          {/* Swirl concentric rings ("cận lòi trĩ") */}
-          <circle cx="36" cy="29" r="15.5" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeOpacity="0.85" />
-          <circle cx="36" cy="29" r="9.5" fill="none" stroke="#7DD3FC" strokeWidth="2.4" strokeOpacity="0.9" />
-          <circle cx="36" cy="29" r="4" fill="#3E2723" />
-          <circle cx="104" cy="29" r="15.5" fill="none" stroke="#FFFFFF" strokeWidth="2.4" strokeOpacity="0.85" />
-          <circle cx="104" cy="29" r="9.5" fill="none" stroke="#7DD3FC" strokeWidth="2.4" strokeOpacity="0.9" />
-          <circle cx="104" cy="29" r="4" fill="#3E2723" />
+          {/* True spiral swirls ("cận lòi trĩ") */}
+          <path
+            d="M36.0,29.0 L36.4,29.1 L36.6,29.5 L36.6,30.0 L36.3,30.5 L35.7,30.9 L34.8,31.0 L33.9,30.7 L33.1,30.1 L32.5,29.0 L32.3,27.7 L32.7,26.3 L33.7,25.0 L35.1,24.0 L36.9,23.6 L38.9,23.9 L40.8,25.0 L42.2,26.7 L43.0,29.0 L42.9,31.5 L42.0,34.0 L40.1,36.1 L37.5,37.4 L34.4,37.8 L31.3,37.1 L28.6,35.2 L26.5,32.5 L25.5,29.0 L25.8,25.3 L27.4,21.8 L30.2,18.9 L33.9,17.1 L38.2,16.7 L42.4,17.9 L46.1,20.5 L48.8,24.3 L50.0,29.0 L49.5,33.9 L47.3,38.5 L43.6,42.1 L38.7,44.3 L33.2,44.7 L27.8,43.1 L23.2,39.7 L19.9,34.9 L18.5,29.0"
+            fill="none"
+            stroke="#3E2723"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M104.0,29.0 L104.4,29.1 L104.6,29.5 L104.6,30.0 L104.3,30.5 L103.7,30.9 L102.8,31.0 L101.9,30.7 L101.1,30.1 L100.5,29.0 L100.3,27.7 L100.7,26.3 L101.7,25.0 L103.1,24.0 L104.9,23.6 L106.9,23.9 L108.8,25.0 L110.2,26.7 L111.0,29.0 L110.9,31.5 L110.0,34.0 L108.1,36.1 L105.5,37.4 L102.4,37.8 L99.3,37.1 L96.6,35.2 L94.5,32.5 L93.5,29.0 L93.8,25.3 L95.4,21.8 L98.2,18.9 L101.9,17.1 L106.2,16.7 L110.4,17.9 L114.1,20.5 L116.8,24.3 L118.0,29.0 L117.5,33.9 L115.3,38.5 L111.6,42.1 L106.7,44.3 L101.2,44.7 L95.8,43.1 L91.2,39.7 L87.9,34.9 L86.5,29.0"
+            fill="none"
+            stroke="#3E2723"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
           {/* Tiny lens glints */}
-          <circle cx="27" cy="20" r="2.6" fill="#FFFFFF" />
-          <circle cx="95" cy="20" r="2.6" fill="#FFFFFF" />
+          <circle cx="25" cy="18" r="2.4" fill="#FFFFFF" />
+          <circle cx="93" cy="18" r="2.4" fill="#FFFFFF" />
         </svg>
       );
 
