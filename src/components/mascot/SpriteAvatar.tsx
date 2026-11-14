@@ -16,6 +16,11 @@ export const SPRITE_MASCOTS: ReadonlySet<string> = new Set([
   'rooster',
   'dog',
   'pig',
+  'panda',
+  'fox',
+  'rabbit',
+  'penguin',
+  'frog',
 ]);
 
 interface SpriteAvatarProps {

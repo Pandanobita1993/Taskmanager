@@ -15,7 +15,12 @@ export type MascotType =
   | 'monkey'
   | 'rooster'
   | 'dog'
-  | 'pig';
+  | 'pig'
+  | 'panda'
+  | 'fox'
+  | 'rabbit'
+  | 'penguin'
+  | 'frog';
 
 export interface MascotSpeciesOption {
   id: MascotType;
@@ -39,6 +44,11 @@ export const MASCOT_SPECIES: MascotSpeciesOption[] = [
   { id: 'rooster', name: 'Dậu · Gà', emoji: '🐔', defaultPetName: 'Bé Dậu', tagline: 'Đúng giờ điểm danh không trễ một giây' },
   { id: 'dog', name: 'Tuất · Chó', emoji: '🐶', defaultPetName: 'Bé Tuất', tagline: 'Trung thành đồng hành cùng đồng đội' },
   { id: 'pig', name: 'Hợi · Heo', emoji: '🐷', defaultPetName: 'Bé Hợi', tagline: 'Sung túc viên mãn cả tháng' },
+  { id: 'panda', name: 'Gấu trúc', emoji: '🐼', defaultPetName: 'Bé Trúc', tagline: 'Nhẩn nha nhai lá trúc, việc khó cứ từ từ' },
+  { id: 'fox', name: 'Cáo nhỏ', emoji: '🦊', defaultPetName: 'Bé Cáo', tagline: 'Lanh lợi bắt trend, xử lý hồ sơ siêu tốc' },
+  { id: 'rabbit', name: 'Thỏ ngọc', emoji: '🐰', defaultPetName: 'Bé Thỏ', tagline: 'Đáng yêu hết nấc, chạy deadline nhẹ tựa lông hồng' },
+  { id: 'penguin', name: 'Cánh cụt', emoji: '🐧', defaultPetName: 'Bé Cánh Cụt', tagline: 'Lạnh lùng giữa bão task, giữ vững phong độ' },
+  { id: 'frog', name: 'Ếch xanh', emoji: '🐸', defaultPetName: 'Bé Ếch', tagline: 'Thư thái ngồi lá sen, mọi việc đều suôn sẻ' },
 ];
 
 export type MascotMood = 'fire' | 'coffee' | 'zen' | 'sleepy';
