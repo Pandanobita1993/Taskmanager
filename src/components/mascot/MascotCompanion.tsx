@@ -134,7 +134,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
 
   const handlePet = () => {
     setIsPetting(true);
-    setPetSpeech(getRandomPetSpeech(profile.fullName, state.mascotType));
+    setPetSpeech(getRandomPetSpeech(profile.fullName, state.mascotType, isEggUnhatched));
     setShowBubble(true);
     if (petTimer.current) window.clearTimeout(petTimer.current);
     petTimer.current = window.setTimeout(() => {

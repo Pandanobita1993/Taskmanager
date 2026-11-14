@@ -166,11 +166,10 @@ export function pickRandomMascotForUser(userKey: string): MascotType {
 export function createDefaultMascotState(staffName?: string, userKey?: string): MascotState {
   const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
   const mascotType = userKey ? pickRandomMascotForUser(userKey) : 'capybara';
-  const species = MASCOT_SPECIES.find((s) => s.id === mascotType) || MASCOT_SPECIES[0];
   return {
     mascotType,
     mascotVariant: 'default',
-    petName: shortName ? `${species.defaultPetName} (${shortName})` : species.defaultPetName,
+    petName: shortName ? `🥚 Trứng bí ẩn (${shortName})` : '🥚 Trứng bí ẩn',
     tangerines: 10,
     streak: 0,
     lastCheckInDate: null,
@@ -298,6 +297,7 @@ export function checkInMascot(userKey: string, mood: MascotMood, staffName?: str
 
   let nextEgg = current.eggIncubation;
   let hatchBonus = 0;
+  let nextPetName = current.petName;
   if (nextEgg && !nextEgg.hatched) {
     const isOnTime = nowTime <= ON_TIME_CHECKIN_CUTOFF;
     if (isOnTime) {
@@ -305,7 +305,14 @@ export function checkInMascot(userKey: string, mood: MascotMood, staffName?: str
         ? nextEgg.streakDays + 1
         : 1;
       const justHatched = nextEggStreak >= nextEgg.targetDays;
-      if (justHatched) hatchBonus = 20;
+      if (justHatched) {
+        hatchBonus = 20;
+        if (current.petName.includes('Trứng bí ẩn')) {
+          const species = MASCOT_SPECIES.find((s) => s.id === current.mascotType) || MASCOT_SPECIES[0];
+          const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
+          nextPetName = shortName ? `${species.defaultPetName} (${shortName})` : species.defaultPetName;
+        }
+      }
       nextEgg = {
         ...nextEgg,
         streakDays: Math.min(nextEggStreak, nextEgg.targetDays),
@@ -324,6 +331,7 @@ export function checkInMascot(userKey: string, mood: MascotMood, staffName?: str
 
   const next: MascotState = {
     ...current,
+    petName: nextPetName,
     streak: nextStreak,
     lastCheckInDate: today,
     tangerines: current.tangerines + 10 + streakBonus + hatchBonus,
@@ -345,7 +353,7 @@ export function resetEggIncubation(userKey: string, staffName?: string): MascotS
   return saveMascotState(userKey, {
     ...current,
     mascotType: randomSpecies.id,
-    petName: shortName ? `${randomSpecies.defaultPetName} (${shortName})` : randomSpecies.defaultPetName,
+    petName: shortName ? `🥚 Trứng bí ẩn (${shortName})` : '🥚 Trứng bí ẩn',
     eggIncubation: {
       hatched: false,
       streakDays: 0,
@@ -573,10 +581,18 @@ export function dispatchMascotStats(stats: MascotTaskStats) {
   window.dispatchEvent(new CustomEvent(MASCOT_STATS_EVENT, { detail: stats }));
 }
 
-const CAPYBARA_PETTING_QUOTES = [
+const EGG_PETTING_QUOTES = [
+  '🥚 Ấm quá đi~ Trứng rung rinh nhẹ rồi nè, cố đi làm đúng giờ để xem bé gì nở ra nha bồ! ✨',
+  '🥚 Gõ nhẹ vỏ trứng cái cốc... hình như có bé gì đang ngọ nguậy bên trong đó bồ! 👀',
+  '🥚 Chúc bồ một ngày làm việc siêu mượt, ấp trứng đủ 5 ngày đúng giờ là nở liền nha! 🌟',
+  '🥚 Vỏ trứng ấm áp quá nè, cảm ơn bồ đã chăm sóc mình mỗi sáng nha! 💛',
+  '🥚 Bí mật bên trong là 1 trong 18 linh vật dễ thương đó, ráng giữ chuỗi 5 ngày nhé bồ! 🐾',
+];
+
+const GENERAL_PETTING_QUOTES = [
   'Hihi nhột quá bồ ơi! Xoa đầu lấy hên, làm đâu trúng đó nha 🍊',
   'Cảm ơn bồ đã nựng mình, tiếp thêm 100% năng lượng gánh sổ sách nè! 💛',
-  'Mềm mịn dễ thương đúng chuẩn Capybara chưa bồ? Cố lên nha! ✨',
+  'Mềm mịn dễ thương hết nấc chưa bồ? Cố lên nha! ✨',
   'Xoa đầu một cái là deadline tự động né ra xa luôn đó hihi 🥰',
   'Hôm nay bồ làm việc chăm chỉ lắm, mình luôn ở đây cổ vũ bồ nè! 🐾',
 ];
@@ -589,9 +605,17 @@ const GOAT_PETTING_QUOTES = [
   'Hihi nhột quá! Chúc bồ hôm nay cân sổ sách chuẩn không cần chỉnh 🥰',
 ];
 
-export function getRandomPetSpeech(staffName?: string, mascotType: MascotType = 'capybara'): string {
+export function getRandomPetSpeech(
+  staffName?: string,
+  mascotType: MascotType = 'capybara',
+  isEggUnhatched = false
+): string {
   const shortName = staffName?.trim().split(/\s+/).slice(-1)[0];
-  const pool = mascotType === 'goat' ? GOAT_PETTING_QUOTES : CAPYBARA_PETTING_QUOTES;
+  const pool = isEggUnhatched
+    ? EGG_PETTING_QUOTES
+    : mascotType === 'goat'
+    ? GOAT_PETTING_QUOTES
+    : GENERAL_PETTING_QUOTES;
   const quote = pool[Math.floor(Math.random() * pool.length)];
   return shortName ? quote.replace(/\bbồ\b/g, shortName) : quote;
 }
