@@ -53,11 +53,12 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
   const isWorking = expression === 'working' && !isPetting;
   const isCoffee = expression === 'coffee' && !isPetting;
 
+  const hasEyeAccessory = accessory === 'sunglasses' || accessory === 'nerd_glasses';
   const [blink, setBlink] = useState(false);
   const [idleHop, setIdleHop] = useState(false);
 
   useEffect(() => {
-    if (isSleeping || isCelebrating || isChill) return undefined;
+    if (hasEyeAccessory || isSleeping || isCelebrating || isChill) return undefined;
     let timer: number;
     let reopen: number;
     const schedule = () => {
@@ -75,7 +76,7 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
       window.clearTimeout(reopen);
       setBlink(false);
     };
-  }, [isSleeping, isCelebrating, isChill]);
+  }, [hasEyeAccessory, isSleeping, isCelebrating, isChill]);
 
   useEffect(() => {
     if (isSleeping || isCelebrating || isAlert) return undefined;
@@ -98,7 +99,7 @@ export const SpriteAvatar: React.FC<SpriteAvatarProps> = ({
     };
   }, [isSleeping, isCelebrating, isAlert]);
 
-  const eyesClosed = isSleeping || isCelebrating || isChill || blink;
+  const eyesClosed = !hasEyeAccessory && (isSleeping || isCelebrating || isChill || blink);
   const base = import.meta.env.BASE_URL || '/';
 
   const animClass = isCelebrating
