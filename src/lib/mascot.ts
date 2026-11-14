@@ -53,6 +53,8 @@ export const MASCOT_SPECIES: MascotSpeciesOption[] = [
 
 export type MascotMood = 'fire' | 'coffee' | 'zen' | 'sleepy';
 
+export type MascotVariant = 'default' | 'feminine';
+
 export type MascotAccessoryId =
   | 'none'
   | 'bucket_hat'
@@ -79,6 +81,7 @@ export interface MascotAttendanceRecord {
 
 export interface MascotState {
   mascotType: MascotType;
+  mascotVariant?: MascotVariant;
   petName: string;
   tangerines: number; // Điểm "Quýt vàng"
   streak: number;
@@ -308,6 +311,18 @@ export function changeMascotType(
     ...current,
     mascotType,
     petName: nextPetName,
+  });
+}
+
+export function changeMascotVariant(
+  userKey: string,
+  mascotVariant: MascotVariant,
+  staffName?: string
+): MascotState {
+  const current = loadMascotState(userKey, staffName);
+  return saveMascotState(userKey, {
+    ...current,
+    mascotVariant,
   });
 }
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { MascotAccessoryId, MascotExpression, MascotType } from '../../lib/mascot';
+import type { MascotAccessoryId, MascotExpression, MascotType, MascotVariant } from '../../lib/mascot';
 import { CapybaraAvatar } from './CapybaraAvatar';
 import { GoatAvatar } from './GoatAvatar';
 import { SPRITE_MASCOTS, SpriteAvatar } from './SpriteAvatar';
@@ -9,6 +9,7 @@ interface MascotAvatarProps {
   mascotType?: MascotType;
   expression?: MascotExpression;
   accessory?: MascotAccessoryId;
+  variant?: MascotVariant;
   size?: number;
   className?: string;
   withBadgeBg?: boolean;

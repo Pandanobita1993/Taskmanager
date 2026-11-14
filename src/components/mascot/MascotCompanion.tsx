@@ -8,6 +8,7 @@ import {
   MASCOT_SPECIES,
   MASCOT_STATS_EVENT,
   changeMascotType,
+  changeMascotVariant,
   checkInMascot,
   checkOutMascot,
   getMascotSpeech,
@@ -24,6 +25,7 @@ import {
   type MascotState,
   type MascotTaskStats,
   type MascotType,
+  type MascotVariant,
 } from '../../lib/mascot';
 import { MascotAvatar } from './MascotAvatar';
 
@@ -171,6 +173,11 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
     const updated = renameMascot(userKey, nameInput, profile.fullName);
     setState(updated);
     setIsRenaming(false);
+  };
+
+  const handleSelectVariant = (variant: MascotVariant) => {
+    const updated = changeMascotVariant(userKey, variant, profile.fullName);
+    setState(updated);
   };
 
   const handleAccessoryClick = (id: MascotAccessoryId) => {
@@ -377,9 +384,35 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               <div className="space-y-3">
                 {/* Chọn linh vật riêng */}
                 <div>
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Chọn linh vật (Capybara & 12 Con Giáp)
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                      Chọn linh vật ({MASCOT_SPECIES.length} bé)
+                    </p>
+                    <div className="inline-flex rounded-lg bg-gray-100 p-0.5 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectVariant('default')}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                          (state.mascotVariant || 'default') === 'default'
+                            ? 'bg-white text-gray-800 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        ✨ Mặc định
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectVariant('feminine')}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                          state.mascotVariant === 'feminine'
+                            ? 'bg-pink-500 text-white shadow-sm'
+                            : 'text-gray-500 hover:text-pink-600'
+                        }`}
+                      >
+                        🌸 Nữ tính
+                      </button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto pr-0.5">
                     {MASCOT_SPECIES.map((sp) => {
                       const active = state.mascotType === sp.id;
@@ -503,6 +536,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               mascotType={state.mascotType}
               expression={expression}
               accessory={state.equippedAccessory}
+              variant={state.mascotVariant || 'default'}
               size={118}
               withBadgeBg={false}
               isPetting={isPetting}
@@ -513,6 +547,7 @@ const MascotCompanionInner: React.FC<{ profile: UserProfile; userKey: string }> 
               mascotType={state.mascotType}
               expression={expression}
               accessory={state.equippedAccessory}
+              variant={state.mascotVariant || 'default'}
               size={72}
               withBadgeBg={false}
               isPetting={isPetting}

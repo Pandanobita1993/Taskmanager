@@ -1,5 +1,5 @@
 import React from 'react';
-import type { MascotAccessoryId } from '../../lib/mascot';
+import type { MascotAccessoryId, MascotVariant } from '../../lib/mascot';
 
 interface AnchorPoint {
   /** Horizontal center in % of sprite box */
@@ -374,13 +374,17 @@ function renderAccessorySvg(accessory: MascotAccessoryId): React.ReactNode {
 interface MascotAccessoryLayerProps {
   mascotType: string;
   accessory?: MascotAccessoryId;
+  variant?: MascotVariant;
 }
 
 export const MascotAccessoryLayer: React.FC<MascotAccessoryLayerProps> = ({
   mascotType,
   accessory = 'none',
+  variant = 'default',
 }) => {
-  if (!accessory || accessory === 'none') return null;
+  const isFeminine = variant === 'feminine';
+  const hasAccessory = Boolean(accessory && accessory !== 'none');
+  if (!isFeminine && !hasAccessory) return null;
 
   const anchors = MASCOT_ANCHORS[mascotType] || DEFAULT_ANCHORS;
   const slot: AnchorPoint =
@@ -390,19 +394,119 @@ export const MascotAccessoryLayer: React.FC<MascotAccessoryLayerProps> = ({
       ? anchors.eyes
       : anchors.side;
 
+  const showLashes = isFeminine && accessory !== 'sunglasses';
+
   return (
-    <div
-      className="absolute pointer-events-none select-none"
-      aria-hidden="true"
-      style={{
-        left: `${slot.x}%`,
-        top: `${slot.y}%`,
-        width: `${slot.w}%`,
-        transform: `translate(-50%, -50%)${slot.rotate ? ` rotate(${slot.rotate}deg)` : ''}`,
-        zIndex: 10,
-      }}
-    >
-      {renderAccessorySvg(accessory)}
-    </div>
+    <>
+      {isFeminine && (
+        <>
+          {/* Eyelashes & rosy cheek glow aligned to the mascot's exact eye centroids */}
+          <div
+            className="absolute pointer-events-none select-none"
+            aria-hidden="true"
+            style={{
+              left: `${anchors.eyes.x}%`,
+              top: `${anchors.eyes.y}%`,
+              width: `${anchors.eyes.w}%`,
+              transform: 'translate(-50%, -50%)',
+              zIndex: 8,
+            }}
+          >
+            <svg viewBox="0 0 140 58" className="w-full h-auto overflow-visible">
+              {/* Soft rosy cheek blush */}
+              <ellipse cx="18" cy="45" rx="11" ry="6" fill="#FB7185" fillOpacity="0.24" />
+              <ellipse cx="122" cy="45" rx="11" ry="6" fill="#FB7185" fillOpacity="0.24" />
+              {showLashes && (
+                <g stroke="#3E2723" strokeWidth="2.6" strokeLinecap="round" fill="none">
+                  {/* Left eye outer curved lashes */}
+                  <path d="M23 19 Q17 13 13 15" />
+                  <path d="M26 15 Q22 9 18 9" />
+                  {/* Right eye outer curved lashes */}
+                  <path d="M117 19 Q123 13 127 15" />
+                  <path d="M114 15 Q118 9 122 9" />
+                </g>
+              )}
+            </svg>
+          </div>
+
+          {/* Cute pastel pink ribbon bow beside the right ear/temple (avoids center hat/crown) */}
+          <div
+            className="absolute pointer-events-none select-none"
+            aria-hidden="true"
+            style={{
+              left: `${anchors.headTop.x + anchors.headTop.w * 0.42}%`,
+              top: `${anchors.headTop.y + 4.5}%`,
+              width: '24%',
+              transform: 'translate(-50%, -50%) rotate(18deg)',
+              zIndex: 9,
+            }}
+          >
+            <svg viewBox="0 0 80 56" className="w-full h-auto drop-shadow-sm overflow-visible">
+              {/* Left ribbon wing */}
+              <path
+                d="M38 28 C25 12, 8 11, 8 27 C8 43, 25 42, 38 28 Z"
+                fill="#F472B6"
+                stroke="#3E2723"
+                strokeWidth="3.6"
+                strokeLinejoin="round"
+              />
+              {/* Right ribbon wing */}
+              <path
+                d="M42 28 C55 12, 72 11, 72 27 C72 43, 55 42, 42 28 Z"
+                fill="#F472B6"
+                stroke="#3E2723"
+                strokeWidth="3.6"
+                strokeLinejoin="round"
+              />
+              {/* Ribbon tails */}
+              <path
+                d="M36 33 L26 50 L35 46 Z"
+                fill="#EC4899"
+                stroke="#3E2723"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M44 33 L54 50 L45 46 Z"
+                fill="#EC4899"
+                stroke="#3E2723"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+              {/* Polka dots */}
+              <circle cx="20" cy="24" r="2.6" fill="#FDF2F8" />
+              <circle cx="24" cy="33" r="2.1" fill="#FDF2F8" />
+              <circle cx="60" cy="24" r="2.6" fill="#FDF2F8" />
+              <circle cx="56" cy="33" r="2.1" fill="#FDF2F8" />
+              {/* Center knot */}
+              <circle cx="40" cy="28" r="7.5" fill="#FBCFE8" stroke="#3E2723" strokeWidth="3.4" />
+              {/* Tiny heart sparkle */}
+              <path
+                d="M68 8 C68 5.5, 71 4.5, 72.5 6.8 C74 4.5, 77 5.5, 77 8 C77 10.8, 72.5 13.5, 72.5 13.5 C72.5 13.5, 68 10.8, 68 8 Z"
+                fill="#FB7185"
+                stroke="#FFFFFF"
+                strokeWidth="1.4"
+              />
+            </svg>
+          </div>
+        </>
+      )}
+
+      {hasAccessory && (
+        <div
+          className="absolute pointer-events-none select-none"
+          aria-hidden="true"
+          style={{
+            left: `${slot.x}%`,
+            top: `${slot.y}%`,
+            width: `${slot.w}%`,
+            transform: `translate(-50%, -50%)${slot.rotate ? ` rotate(${slot.rotate}deg)` : ''}`,
+            zIndex: 10,
+          }}
+        >
+          {renderAccessorySvg(accessory)}
+        </div>
+      )}
+    </>
   );
 };
